@@ -2,7 +2,7 @@
 ### Codebase for patterned optogenetic stimulation during head-fixed and freely-moving mouse behaviour.
 
 ## Installation:
-Requires [MATLAB](https://uk.mathworks.com/help/install/ug/install-products-with-internet-connection.html)
+Make sure you have installed [git](https://git-scm.com/downloads). Requires [MATLAB](https://uk.mathworks.com/help/install/ug/install-products-with-internet-connection.html).
 ### Dependencies:
 1. [Bpod_gen2](https://github.com/sanworks/Bpod_Gen2)
 2. [DMDConnect](https://github.com/SainsburyWellcomeCentre/DMDConnect)
