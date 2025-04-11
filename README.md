@@ -1,5 +1,5 @@
 # luminose
-### Codebase for patterned optogenetic stimulation during head-fixed and freely-moving mouse behaviour.
+### Codebase for patterned optogenetic stimulation during head-fixed mouse behaviour.
 
 ## Installation:
 Make sure you have installed [git](https://git-scm.com/downloads). Requires [MATLAB](https://uk.mathworks.com/help/install/ug/install-products-with-internet-connection.html).
