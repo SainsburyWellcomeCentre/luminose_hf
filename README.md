@@ -1,4 +1,4 @@
-# luminose
+# luminose_hf
 ### Codebase for patterned optogenetic stimulation during head-fixed mouse behaviour.
 
 ## Installation:
