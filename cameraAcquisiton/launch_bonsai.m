@@ -1,10 +1,10 @@
 function launch_bonsai(bonsaiPath, workflowPath, videoDataPath)
 %% launches a bonsai workflow
 
-leftVideoFilename = 'testCameraAcqLeft.avi';
-rightVideoFilename = 'testCameraAcqRight.avi';
-leftDataFilename = 'testCameraAcqLeft.frameData.bin';
-rightDataFilename = 'testCameraAcqRight.frameData.bin';
+leftVideoFilename = 'CameraAcqLeft.avi';
+rightVideoFilename = 'CameraAcqRight.avi';
+leftDataFilename = 'CameraAcqLeft.frameData.bin';
+rightDataFilename = 'CameraAcqRight.frameData.bin';
 start = '"--start"';
 noboot = '"--no-boot"';
 

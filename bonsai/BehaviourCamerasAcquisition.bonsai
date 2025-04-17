@@ -46,7 +46,7 @@
         <Selector>Timestamp.UtcTicks</Selector>
       </Expression>
       <Expression xsi:type="scr:ExpressionTransform">
-        <scr:Expression>it</scr:Expression>
+        <scr:Expression>double(it)</scr:Expression>
       </Expression>
       <Expression xsi:type="Combinator">
         <Combinator xsi:type="dsp:Buffer">
@@ -58,7 +58,7 @@
         <Selector>Value.Timestamp</Selector>
       </Expression>
       <Expression xsi:type="scr:ExpressionTransform">
-        <scr:Expression>it</scr:Expression>
+        <scr:Expression>double(it)</scr:Expression>
       </Expression>
       <Expression xsi:type="Combinator">
         <Combinator xsi:type="dsp:Buffer">
@@ -70,7 +70,7 @@
         <Selector>Value.LineStatusAll</Selector>
       </Expression>
       <Expression xsi:type="scr:ExpressionTransform">
-        <scr:Expression>it</scr:Expression>
+        <scr:Expression>double(it)</scr:Expression>
       </Expression>
       <Expression xsi:type="Combinator">
         <Combinator xsi:type="dsp:Buffer">
@@ -82,7 +82,7 @@
         <Selector>Value.FrameID</Selector>
       </Expression>
       <Expression xsi:type="scr:ExpressionTransform">
-        <scr:Expression>it</scr:Expression>
+        <scr:Expression>double(it)</scr:Expression>
       </Expression>
       <Expression xsi:type="Combinator">
         <Combinator xsi:type="dsp:Buffer">
@@ -146,7 +146,7 @@
         <Selector>Timestamp.UtcTicks</Selector>
       </Expression>
       <Expression xsi:type="scr:ExpressionTransform">
-        <scr:Expression>it</scr:Expression>
+        <scr:Expression>double(it)</scr:Expression>
       </Expression>
       <Expression xsi:type="Combinator">
         <Combinator xsi:type="dsp:Buffer">
@@ -158,7 +158,7 @@
         <Selector>Value.Timestamp</Selector>
       </Expression>
       <Expression xsi:type="scr:ExpressionTransform">
-        <scr:Expression>it</scr:Expression>
+        <scr:Expression>double(it)</scr:Expression>
       </Expression>
       <Expression xsi:type="Combinator">
         <Combinator xsi:type="dsp:Buffer">
@@ -170,7 +170,7 @@
         <Selector>Value.LineStatusAll</Selector>
       </Expression>
       <Expression xsi:type="scr:ExpressionTransform">
-        <scr:Expression>it</scr:Expression>
+        <scr:Expression>double(it)</scr:Expression>
       </Expression>
       <Expression xsi:type="Combinator">
         <Combinator xsi:type="dsp:Buffer">
@@ -182,7 +182,7 @@
         <Selector>Value.FrameID</Selector>
       </Expression>
       <Expression xsi:type="scr:ExpressionTransform">
-        <scr:Expression>it</scr:Expression>
+        <scr:Expression>double(it)</scr:Expression>
       </Expression>
       <Expression xsi:type="Combinator">
         <Combinator xsi:type="dsp:Buffer">
