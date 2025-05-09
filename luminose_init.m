@@ -22,11 +22,5 @@ disp(dmd);
 disp("=====  Bonsai =====");
 disp(bonsai);
 
-% Run Olfactometer
-olfModel = OlfactometerModel(olfactometer);
-odour_valves = [3, 4, 5, 6];           % example valve numbers
-duty_cycles = [0.05, 0.05, 0.05, 0.05];        % example duty cycles (50%)
-label = "A";                     % single character label (optional)
+bpod();
 
-valve_pattern = olfModel.generate_valve_pattern(odour_valves, duty_cycles, label);
-olfModel.play_valve_sequence(odour_valves, duty_cycles, label);
