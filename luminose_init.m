@@ -1,23 +1,32 @@
-%% add to path
-parentFolder = "C:\Users\harrislab";
-addFolders = {'MATLAB', 'Bonsai', 'Hamamatsu', 'luminoseData', 'luminoseLib', 'luminose_hf'};
-cellfun(@(f) addpath(genpath(fullfile(parentFolder, f))), addFolders);
-savepath;
+% luminose_init.m — Luminose experiment setup
 
-%% constants
-% DMD
-mode = 3; % pattern on the fly mode
+% Add folders and save path
+folders = LuminoseConstants.addFolders();
 
-%% filepaths
-% camera acquisition
-bonsaiPath = '"C:\Users\harrislab\AppData\Local\Bonsai\bonsai"';
-workflowPath = '"C:\Users\harrislab\luminose_hf\bonsai\BehaviourCamerasAcquisition.bonsai"';
-videoDataPath = 'C:\Users\harrislab\luminoseData\video';
+% Load experiment configuration structs
+bpod = LuminoseConstants.addBpod();
+olfactometer = LuminoseConstants.addOlfactometer();
+dmd = LuminoseConstants.addDMD();
+bonsai = LuminoseConstants.addBonsai();
 
-% DMD images
-imPath = parentFolder+'Documents\DLPimages\bullseye1920x1080_inv.bmp';
+% Display confirmation
+disp('Luminose experiment initialized:');
+disp("=====  Folders =====");
+disp(folders);
+disp("=====  Bpod =====");
+disp(bpod);
+disp("=====  Olfactometer =====");
+disp(olfactometer);
+disp("=====  DMD =====");
+disp(dmd);
+disp("=====  Bonsai =====");
+disp(bonsai);
 
-% bpod
-protocolFolder = "C:\Users\harrislab\Documents\MATLAB\Bpod Local\Protocols\";
-protocolFile = "testGoNogo.m";
-behaviourDataPath = 'C:\Users\harrislab\luminoseData\behaviour';
+% Run Olfactometer
+olfModel = OlfactometerModel(olfactometer);
+odour_valves = [3, 4, 5, 6];           % example valve numbers
+duty_cycles = [0.05, 0.05, 0.05, 0.05];        % example duty cycles (50%)
+label = "A";                     % single character label (optional)
+
+valve_pattern = olfModel.generate_valve_pattern(odour_valves, duty_cycles, label);
+olfModel.play_valve_sequence(odour_valves, duty_cycles, label);
