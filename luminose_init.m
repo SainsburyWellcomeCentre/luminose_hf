@@ -1,5 +1,5 @@
-% luminose_init.m — Luminose experiment setup
-
+%% luminose_init.m — Luminose experiment setup
+global olfactometer
 % Add folders and save path
 folders = LuminoseConstants.addFolders();
 
@@ -22,5 +22,5 @@ disp(dmd);
 disp("=====  Bonsai =====");
 disp(bonsai);
 
-bpod();
-
+% Launch bonsai behaviour camera acquisition 
+% bonsai_cmd = launch_bonsai(bonsai.exePath, bonsai.workflowPath, bonsai.dataPath);

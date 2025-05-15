@@ -56,15 +56,15 @@ classdef OlfactometerModel < handle
 
         function cleanAirValve = determine_clean_air_valve(~, odourValve)
             valveMap = containers.Map('KeyType','int32','ValueType','int32');
-            for k = [2:7, 10:15]
-                if k > 8
-                    valveMap(k-1) = floor(k/8)*8 + 1 - mod(k, 2);
+            for k = [3:8, 11:16]
+                if k > 9
+                    valveMap(k) = floor(k/8)*8 + 1 + mod(k, 2);
                 else
-                    valveMap(k-1) = 1 - mod(k, 2);
+                    valveMap(k) = 1 + mod(k, 2);
                 end
             end
-            if isKey(valveMap, odourValve - 1)
-                cleanAirValve = valveMap(odourValve - 1);
+            if isKey(valveMap, odourValve)
+                cleanAirValve = valveMap(odourValve);
             else
                 cleanAirValve = -1;
             end
@@ -82,8 +82,10 @@ classdef OlfactometerModel < handle
                 pulsePattern = reshape(starts' + (0:onSamples-1), [], 1);
                 idx = pulsePattern + self.preSequenceSamples + self.pulseSamples * (k - 1);
                 valveStates(odourValves(k), idx) = true;
-                valveStates(odourValves(k) + 16, (self.preSequenceSamples + self.pulseSamples * (k - 1) + self.backValveDelaySamples):(self.preSequenceSamples + self.pulseSamples * k - self.backValveDelaySamples)) = true;
-                valveStates(cleanAirValves(k) + 1, idx) = false;
+                if ~ismember(odourValves(k), [1, 2, 9, 10])
+                    valveStates(odourValves(k) + 16, (self.preSequenceSamples + self.pulseSamples * (k - 1) + self.backValveDelaySamples):(self.preSequenceSamples + self.pulseSamples * k - self.backValveDelaySamples)) = true;
+                end
+                valveStates(cleanAirValves(k), idx) = false;
             end
 
             bytes = uint8(char(label));
