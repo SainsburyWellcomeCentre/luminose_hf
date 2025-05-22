@@ -2,17 +2,16 @@ function odours_olfactometer_goNogo(code)
     persistent olfModel
     global olfactometer  % olfactometer is a global object set in the protocol
 
-    Define label and other parameters by SoftCode value
+    %Define label and other parameters by SoftCode value
     switch code
-        case 1  % Trial Type 0 (e.g., label "A")
-            % odour_valves = olfactometer.odourAvalves;
-            odour_valves = olfactometer.odourAvalves;
-            duty_cycles = olfactometer.odourAdutyCycles;
-            label = olfactometer.odourAlabel;
-        case 2  % Trial Type 1 (e.g., label "B")
-            odour_valves = olfactometer.odourBvalves;
-            duty_cycles = olfactometer.odourBdutyCycles;
-            label = olfactometer.odourBlabel;
+        case 1  % Trial Type CS+
+            odour_valves = olfactometer.odourCSplus_valves;
+            duty_cycles = olfactometer.odourCSplus_dutyCycles;
+            label = olfactometer.odourCSplus_label;
+        case 2  % Trial Type CS-
+            odour_valves = olfactometer.odourCSminus_valves;
+            duty_cycles = olfactometer.odourCSminus_dutyCycles;
+            label = olfactometer.odourCSminus_label;
         otherwise
             disp(['Unknown SoftCode received: ' num2str(code)]);
             return;

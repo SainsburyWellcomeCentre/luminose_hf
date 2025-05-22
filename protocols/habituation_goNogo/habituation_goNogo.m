@@ -1,15 +1,13 @@
-function olfactometer_goNogo
+function habituation_goNogo
     %% Set global variables and softcode handler function
     clc;
     run luminose_init.m
     global BpodSystem S
     beep('off'); % native matlab error sounds OFF
-    BpodSystem.SoftCodeHandlerFunction = 'SoftCodeHandler_olfactometer_goNogo';
 
     %% Assert HiFi + Rotary Encoder +Analog Input modules are present + USB-paired (via USB button on console GUI)
-    BpodSystem.assertModule({'HiFi','RotaryEncoder', 'AnalogIn'}, [1 1 1]); 
+    BpodSystem.assertModule({'RotaryEncoder', 'AnalogIn'}, [1 1]); 
 
-    H = BpodHiFi(BpodSystem.ModuleUSB.HiFi1);
     R = RotaryEncoderModule(BpodSystem.ModuleUSB.RotaryEncoder1); 
     A = BpodAnalogIn(BpodSystem.ModuleUSB.AnalogIn1);
 
@@ -25,16 +23,9 @@ function olfactometer_goNogo
 
     S = BpodSystem.ProtocolSettings;
     if isempty(fieldnames(S))
-        GUIparams_olfactometer_goNogo();
+        GUIparams_habituation_goNogo();
     end
-    
-    trialTypes = 1 + (rand(1, S.GUI.maxTrials) >= S.GUI.CSplus_prob); % distribution of values 1 and 2 with given probability p and 1-p respectively.
-
-    BpodSystem.Data.TrialTypes = []; % The trial type of each trial completed will be added here.
-    
-    outcomePlot = LiveOutcomePlot([1 2], {'Go', 'No go'}, trialTypes, 90);
-    outcomePlot.RewardStateNames = {'Reward'}; % List of state names where reward was delivered
-    outcomePlot.PunishStateNames = {'Punishment'}; % List of state names where choice was incorrect and negatively reinforced
+        
     BpodSystem.ProtocolFigures.EncoderPlotFig = figure('Position', [500 200 350 350],'name','Encoder plot',...
                                                    'numbertitle','off', 'MenuBar', 'none', 'Resize', 'off');
     BpodSystem.GUIHandles.EncoderAxes = axes('Position', [.15 .15 .8 .8]);
@@ -44,13 +35,6 @@ function olfactometer_goNogo
     BpodNotebook('init'); 
     % Initialize parameter GUI plugin
     BpodParameterGUI('init', S);
-
-    %% Setup sound
-    % Configure HiFi module
-    H.SamplingRate = S.GUI.SoundSamplingRate;
-    errorSound = GenerateWhiteNoise(H.SamplingRate, S.GUI.ErrorDelay, S.GUI.ErrorSoundAmplitude, 2);
-    H.load(1, errorSound);
-    H.push; % Add any recently loaded sounds to the current sound set
 
     %% Configure Flex I/O Channels
     chanLick = 1; chanSniff = 3;
@@ -92,14 +76,14 @@ function olfactometer_goNogo
     ITI(ITI > S.GUI.MaxITI) = S.GUI.MaxITI;
     
     %% Prepare and start first trial
-    sma = PrepareStateMachine(S, trialTypes, 1, ITI, []); % Prepare state machine for trial 1 with empty "current events" variable
+    sma = PrepareStateMachine(S, 1, ITI, []); % Prepare state machine for trial 1 with empty "current events" variable
     trialManager.startTrial(sma); % Sends & starts running first trial's state machine. A MATLAB timer object updates the 
                               % console UI, while code below proceeds in parallel.
     
     %% Main trial loop
     for currentTrial = 1:S.GUI.maxTrials
         S = BpodParameterGUI('sync', S); % Sync parameters with BpodParameterGUI plugin
-        currentTrialEvents = trialManager.getCurrentEvents({'Reward', 'Punishment'});
+        currentTrialEvents = trialManager.getCurrentEvents({'Reward', 'InterTrialInterval'});
         
         % Handle pause/stop by user
         HandlePauseCondition;
@@ -114,7 +98,7 @@ function olfactometer_goNogo
         end
 
         if currentTrial < S.GUI.maxTrials
-            [sma, S] = PrepareStateMachine(S, trialTypes, currentTrial+1, ITI, currentTrialEvents);
+            [sma, S] = PrepareStateMachine(S, currentTrial+1, ITI, currentTrialEvents);
             SendStateMachine(sma, 'RunASAP');
         end
         RawEvents = trialManager.getTrialData; % Hangs here until trial is over, then retrieves full trial's raw data
@@ -138,7 +122,6 @@ function olfactometer_goNogo
         if ~isempty(fieldnames(RawEvents))
             BpodSystem.Data = AddTrialEvents(BpodSystem.Data,RawEvents);
             BpodSystem.Data.TrialSettings(currentTrial) = S;
-            BpodSystem.Data.TrialTypes(currentTrial) = trialTypes(currentTrial);
             BpodSystem.Data = BpodNotebook('sync', BpodSystem.Data); % Sync with Bpod notebook plugin
             
             % Save rotary encoder data
@@ -153,7 +136,6 @@ function olfactometer_goNogo
             
             % Update plots
             TrialDuration = BpodSystem.Data.TrialEndTimestamp(currentTrial)-BpodSystem.Data.TrialStartTimestamp(currentTrial);
-            outcomePlot.update(trialTypes, BpodSystem.Data);
             last_trial_encoder_plot(BpodSystem.GUIHandles.EncoderAxes, 'update', 180, BpodSystem.Data.EncoderData{currentTrial}, TrialDuration);
 
             SaveBpodSessionData; 
@@ -162,43 +144,17 @@ function olfactometer_goNogo
     cleanup; % Save FlexI/O analog input data
 end
 
-function [sma, S] = PrepareStateMachine(S, trialTypes, currentTrial, ITI, currentTrialEvents)
+function [sma, S] = PrepareStateMachine(S, currentTrial, ITI, currentTrialEvents)
     valveTime = GetValveTimes(S.GUI.RewardAmount, 1);
-    switch trialTypes(currentTrial)
-        case 1
-            lickAction = 'Reward'; noLickAction = 'Punishment'; 
-        case 2
-            noLickAction = 'InterTrialInterval'; lickAction = 'Punishment';
-    end
     sma = NewStateMachine();
     sma = AddState(sma, 'Name', 'TrialStart', ...
-        'Timer', S.GUI.LEDtime,...
-        'StateChangeConditions', {'Tup', 'deliverPattern'},...
-        'OutputActions', {'HiFi1', '*', 'PWM1', S.GUI.LEDIntensity, 'RotaryEncoder1', ['#' 0], 'AnalogThreshEnable', 1, 'Serial3', ['#' 1]}); % set sound, light on, set RE, enable flexI/O threshold, sync analog input module
-    sma = AddState(sma, 'Name', 'deliverPattern', ... 
-        'Timer', S.GUI.PatternTime,...
-        'StateChangeConditions', {'Tup', 'deliverOdour'},...
-        'OutputActions', {'PWM1', S.GUI.LEDIntensity, 'Serial3', ['=' 1 'High']}); % light on, trigger DMD
-    sma = AddState(sma, 'Name', 'deliverOdour', ... 
-        'Timer', S.GUI.OdourTime,...
-        'StateChangeConditions', {'Tup', 'getResponse'},...
-        'OutputActions', {'PWM1', S.GUI.LEDIntensity, 'SoftCode', trialTypes(currentTrial), 'Serial3', ['=' 0 'High']}); % light on, trigger olfactometer, sync cameras
-    sma = AddState(sma, 'Name', 'getResponse', ...
-        'Timer', S.GUI.ResponseTime,...
-        'StateChangeConditions', {'Flex1Trig1', lickAction, 'Tup', noLickAction},...
-        'OutputActions', {});
+        'Timer', 10,...
+        'StateChangeConditions', {'Tup', 'Reward'},...
+        'OutputActions', {'RotaryEncoder1', ['#' 0], 'AnalogThreshEnable', 1, 'Serial3', ['#' 1]}); % set RE, enable flexI/O threshold, sync analog input module
     sma = AddState(sma, 'Name', 'Reward', ...
         'Timer', valveTime,...
         'StateChangeConditions', {'Tup', 'InterTrialInterval'},...
-        'OutputActions', {'Valve1', 1}); 
-    sma = AddState(sma, 'Name', 'Punishment', ...
-        'Timer', S.GUI.ErrorSoundTime,...
-        'StateChangeConditions', {'Tup', 'TimeOut'},...
-        'OutputActions', {'HiFi1', ['P' 1]}); 
-    sma = AddState(sma, 'Name', 'TimeOut', ...
-        'Timer', S.GUI.ErrorDelay - S.GUI.ErrorSoundTime,...
-        'StateChangeConditions', {'Tup', 'InterTrialInterval'},...
-        'OutputActions', {});
+        'OutputActions', {'Valve1', 1, 'Serial3', ['=' 0 'High']}); % deliver reward, sync cameras
     sma = AddState(sma, 'Name', 'InterTrialInterval', ...
         'Timer', ITI(currentTrial),...
         'StateChangeConditions', {'Tup', 'exit'},...

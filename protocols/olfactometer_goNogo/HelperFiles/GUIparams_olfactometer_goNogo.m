@@ -3,24 +3,27 @@ function GUIparams_olfactometer_goNogo()
     olfactometer = LuminoseConstants.addOlfactometer();
     S.GUIPanels.Sound = {'SoundSamplingRate','ErrorSoundAmplitude'};
     S.GUIPanels.Light = {'LEDIntensity'};
-    S.GUIPanels.TrialInfo = {'maxTrials', 'OdourTime', 'RewardAmount', 'ResponseTime', ...
+    S.GUIPanels.TrialInfo = {'maxTrials', 'CSplus_prob', 'OdourTime', 'PatternTime', 'RewardAmount', 'ResponseTime', ...
                              'ErrorDelay','VariableITI','InterTrialInterval', 'MaxITI'};
     S.GUIPanels.TrainingType = {'TrainingLevel', 'BiasCorrection'};
     
     % Sound
     S.GUI.SoundSamplingRate = 192000;
-    S.GUI.ErrorSoundAmplitude = 1;
+    S.GUI.ErrorSoundAmplitude = [0.1, 0.1];
     
     % Light
     S.GUI.LEDIntensity = 100;
 
     % Trial info
     S.GUI.maxTrials = 1000;
+    S.GUI.CSplus_prob = 1;
+    S.GUI.LEDtime = 1;
+    S.GUI.PatternTime = 0;
     S.GUI.OdourTime = olfactometer.acquisitionTime;
-    S.GUI.PatternTime = 0.2;
-    S.GUI.RewardAmount = 10;
     S.GUI.ResponseTime = 1;
-    S.GUI.ErrorDelay = 1;
+    S.GUI.RewardAmount = 10;
+    S.GUI.ErrorDelay = 5;
+    S.GUI.ErrorSoundTime = 1; % must be less than error delay
     S.GUI.VariableITI = true;
     S.GUI.InterTrialInterval = 0.1;
     S.GUI.MaxITI = 0.1;

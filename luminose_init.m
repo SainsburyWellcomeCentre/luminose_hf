@@ -23,4 +23,4 @@ disp("=====  Bonsai =====");
 disp(bonsai);
 
 % Launch bonsai behaviour camera acquisition 
-% bonsai_cmd = launch_bonsai(bonsai.exePath, bonsai.workflowPath, bonsai.dataPath);
+bonsai_cmd = launch_bonsai(bonsai.exePath, bonsai.workflowPath, bonsai.dataPath);
