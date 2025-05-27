@@ -1,9 +1,38 @@
 function habituation_goNogo
     %% Set global variables and softcode handler function
     clc;
-    run luminose_init.m
     global BpodSystem S
     beep('off'); % native matlab error sounds OFF
+
+    %% Define luminose constants
+    % Add folders and save path
+    folders = LuminoseConstants.addFolders();
+    % Load experiment configuration structs
+    bpod = LuminoseConstants.addBpod();
+    olfactometer = LuminoseConstants.addOlfactometer();
+    dmd = LuminoseConstants.addDMD();
+    bonsai = LuminoseConstants.addBonsai();
+    
+    % Display confirmation
+    disp('Luminose experiment initialized:');
+    disp("=====  Folders =====");
+    disp(folders);
+    disp("=====  Bpod =====");
+    disp(bpod);
+    disp("=====  Olfactometer =====");
+    disp(olfactometer);
+    disp("=====  DMD =====");
+    disp(dmd);
+    disp("=====  Bonsai =====");
+    disp(bonsai);
+    
+    %% Launch bonsai
+    currentDataFile = split(BpodSystem.Path.CurrentDataFile, '\');
+    currentFilePrefix = currentDataFile(end); currentFilePrefix = currentFilePrefix(1:end-4);
+    currentSubject = currentDataFile(end-2); 
+    currentProtocol = currentDataFile(end-1);
+    bonsai.dataPath = fullfile(folders.data, 'rawdata', currentSubject, currentProtocol, 'Session Videos');
+    launch_bonsai(bonsai.exePath, bonsai.workflowPath, bonsai.dataPath, currentFilePrefix);
 
     %% Assert HiFi + Rotary Encoder +Analog Input modules are present + USB-paired (via USB button on console GUI)
     BpodSystem.assertModule({'RotaryEncoder', 'AnalogIn'}, [1 1]); 

@@ -29,7 +29,6 @@ function olfactometer_goNogo
     
     %% Launch bonsai
     currentDataFile = split(BpodSystem.Path.CurrentDataFile, '\');
-    currentFilePrefix = currentDataFile(end); currentFilePrefix = currentFilePrefix(1:end-4);
     currentSubject = currentDataFile(end-2); 
     currentProtocol = currentDataFile(end-1);
     bonsai.dataPath = fullfile(folders.data, 'rawdata', currentSubject, currentProtocol, 'Session Videos');

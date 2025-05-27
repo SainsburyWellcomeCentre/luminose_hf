@@ -1,13 +1,13 @@
-function command = launch_bonsai(bonsaiPath, workflowPath, videoDataPath)
+function launch_bonsai(bonsaiPath, workflowPath, videoDataPath, filePrefix)
     %% launches a bonsai workflow asynchronously
     
-    leftVideoFilename = 'CameraAcqLeft.avi';
-    rightVideoFilename = 'CameraAcqRight.avi';
-    bodyVideoFilename = 'CameraAcqBody.avi';
+    leftVideoFilename = filePrefix + '_CameraAcqLeft.avi';
+    rightVideoFilename = filePrefix + '_CameraAcqRight.avi';
+    bodyVideoFilename = filePrefix + '_CameraAcqBody.avi';
     
-    leftDataFilename = 'CameraAcqLeft.frameData.bin';
-    rightDataFilename = 'CameraAcqRight.frameData.bin';
-    bodyDataFilename = 'CameraAcqBody.frameData.bin';
+    leftDataFilename = filePrefix + '_CameraAcqLeft.frameData.bin';
+    rightDataFilename = filePrefix + '_CameraAcqRight.frameData.bin';
+    bodyDataFilename = filePrefix + '_CameraAcqBody.frameData.bin';
     
     startArg = '--start';
     noboot = '--no-boot';

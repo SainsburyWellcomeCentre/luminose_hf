@@ -1,6 +1,5 @@
 function GUIparams_olfactometer_goNogo()
-    global S % BpodSystem
-    olfactometer = LuminoseConstants.addOlfactometer();
+    global S olfactometer % BpodSystem
     S.GUIPanels.Sound = {'SoundSamplingRate','ErrorSoundAmplitude'};
     S.GUIPanels.Light = {'LEDIntensity'};
     S.GUIPanels.TrialInfo = {'maxTrials', 'CSplus_prob', 'OdourTime', 'PatternTime', 'RewardAmount', 'ResponseTime', ...
@@ -20,13 +19,13 @@ function GUIparams_olfactometer_goNogo()
     S.GUI.LEDtime = 1;
     S.GUI.PatternTime = 0;
     S.GUI.OdourTime = olfactometer.acquisitionTime;
-    S.GUI.ResponseTime = 1;
+    S.GUI.ResponseTime = 10;
     S.GUI.RewardAmount = 10;
-    S.GUI.ErrorDelay = 5;
-    S.GUI.ErrorSoundTime = 1; % must be less than error delay
+    S.GUI.ErrorDelay = 1;
+    S.GUI.ErrorSoundTime = 0.1; % must be less than error delay
     S.GUI.VariableITI = true;
-    S.GUI.InterTrialInterval = 0.1;
-    S.GUI.MaxITI = 0.1;
+    S.GUI.InterTrialInterval = 5;
+    S.GUI.MaxITI = 10;
 
     % Training type
     S.GUI.TrainingLevel = 1; % Default Training Level

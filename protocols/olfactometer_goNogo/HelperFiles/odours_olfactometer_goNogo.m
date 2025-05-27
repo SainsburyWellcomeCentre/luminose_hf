@@ -1,7 +1,11 @@
 function odours_olfactometer_goNogo(code)
     persistent olfModel
     global olfactometer  % olfactometer is a global object set in the protocol
-
+    
+    if isempty(olfModel)
+        olfModel = OlfactometerModel(olfactometer);
+    end
+    
     %Define label and other parameters by SoftCode value
     switch code
         case 1  % Trial Type CS+
