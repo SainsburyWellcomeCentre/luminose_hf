@@ -58,10 +58,10 @@ classdef DMDmodel < handle
   
             self.framesPattern = self.samplingratePattern * self.durationPattern;
 
-            % self.DMD = DMD('debug', 1);
-            % self.DMD.setMode(self.mode);
-            % disp(self.DMD.fwVersion);
-            % disp(self.DMD.status);
+            self.DMD = DMD('debug', 2);
+            self.DMD.setMode(self.mode);
+            disp(self.DMD.fwVersion);
+            disp(self.DMD.status);
 
         end
 
@@ -101,10 +101,10 @@ classdef DMDmodel < handle
             close(v);
         end
         
-        function save_patterns(self, img_stack, patternsFilepath)
+        function save_images(img_stack, patternsFilepath)
             [H, W, N] = size(img_stack);
             frames_2D = reshape(img_stack, [], N)';  % size [N x H*W]
-            [unique_frames, ~, idx_map] = unique(frames_2D, 'rows');
+            [unique_frames, ~, ~] = unique(frames_2D, 'rows');
             % Reshape back to 3D stack
             n_unique = size(unique_frames, 1);
             patterns = reshape(unique_frames', H, W, n_unique);
@@ -113,8 +113,41 @@ classdef DMDmodel < handle
                 imwrite(patterns(:, :, k), sprintf('%s_%03d.bmp', patternsFilepath, k));
             end
         end
+        
+        function pattern = deliver_pattern(self, patternInfo)
+            imgSeq = uint16(0:8:65535);   % 16-bit values
+            for patIdx = 1:patternInfo.N_images
+                % Pack exposure time into 3 bytes (LSB first)
+                exp24 = typecast(uint32(patternInfo.exposure_us(patIdx)), 'uint8');
+                dark24 = typecast(uint32(patternInfo.dark_us(patIdx)), 'uint8');
+                
+                % Split into bytes
+                imgMSB = uint8(bitand(imgSeq(patternInfo.imgIdx(patIdx)), 255));        % lower 8 bits
+                imgLSB = uint8(bitshift(imgSeq(patternInfo.imgIdx(patIdx)), -8));       % upper 8 bits
 
-        function deliver_pattern(self)
-            
+                pattern = [...
+                    uint8(patIdx)                           ...
+                    0x00                                    ...
+                    exp24(1) exp24(2) exp24(3)              ...
+                    0x01                                    ...
+                    dark24(1) dark24(2) dark24(3)           ...
+                    0x00                                    ...
+                    imgLSB                                  ...
+                    imgMSB ];
+
+                self.DMD.patternLUTdef(pattern); % define pre-stored pattern
+                % self.DMD.patternControl(0); % stop pattern
+                self.DMD.patternLUTconfig(patternInfo.N_images, patternInfo.repeat); % configure number of repeats
+                self.DMD.patternControl(2); % start pattern
+            end
+        end
+
+        function stop_pattern(self)
+            self.DMD.patternControl(0); % stop pattern
+        end
+
+        function disconnect_dmd(self)
+            self.DMD.delete();
+        end
     end
 end

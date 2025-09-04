@@ -10,16 +10,13 @@ function patterns_dmd_goNogo(code)
     switch(code)
         case 1
             patternInfo = patterns.CSplus;
-            patternFolder = fullfile(dmd.patternFolder, "pattern"+code);
         case 2
             patternInfo = patterns.CSminus;
-            patternFolder = fullfile(dmd.patternFolder, "pattern"+code);
         otherwise
             disp(['Unknown SoftCode received: ' num2str(code)]);
             return;
     end
 
     % Run pattern sequence
-    dmdModel.play_pattern(patternInfo, patternFolder);
-
+    dmdModel.deliver_pattern(patternInfo);
 end
