@@ -12,20 +12,21 @@ function launch_bonsai(bonsaiPath, workflowPath, videoDataPath, filePrefix)
     startArg = '--start';
     noboot = '--no-boot';
     
-    leftvideoPath = "-p:LeftVideo=" + fullfile(videoDataPath, leftVideoFilename);
-    rightvideoPath = "-p:RightVideo=" + fullfile(videoDataPath, rightVideoFilename);
-    bodyvideoPath = "-p:BodyVideo=" + fullfile(videoDataPath, bodyVideoFilename);
+    % extra "" in the command needed for interpreting filepaths with spaces
+    leftvideoPath = "-p LeftVideo=""" + fullfile(videoDataPath, leftVideoFilename) + """";
+    rightvideoPath = "-p RightVideo=""" + fullfile(videoDataPath, rightVideoFilename) + """";
+    bodyvideoPath = "-p BodyVideo=""" + fullfile(videoDataPath, bodyVideoFilename) + """";
     
-    leftdataPath = "-p:LeftFrameData=" + fullfile(videoDataPath, leftDataFilename);
-    rightdataPath = "-p:RightFrameData=" + fullfile(videoDataPath, rightDataFilename);
-    bodydataPath = "-p:BodyFrameData=" + fullfile(videoDataPath, bodyDataFilename);
-    
+    leftdataPath = "-p LeftFrameData=""" + fullfile(videoDataPath, leftDataFilename) + """";
+    rightdataPath = "-p RightFrameData=""" + fullfile(videoDataPath, rightDataFilename) + """";
+    bodydataPath = "-p BodyFrameData=""" + fullfile(videoDataPath, bodyDataFilename) + """";
+
     % Full Bonsai command
-    bonsaiCommand = '"' + bonsaiPath + '" "' + workflowPath + '" ' + startArg + ' ' + ...
-                    leftvideoPath + ' ' + rightvideoPath + ' ' + bodyvideoPath + ' ' + ...
-                    leftdataPath + ' ' + rightdataPath + ' ' + bodydataPath + ' ' + noboot;
+    bonsaiCommand = bonsaiPath + '" "' + workflowPath + '" ' + startArg + ' ' + ...
+                leftvideoPath + ' ' + rightvideoPath + ' ' + bodyvideoPath + ' ' + ...
+                leftdataPath + ' ' + rightdataPath + ' ' + bodydataPath + ' ' + noboot;
     
     % Final system command to launch asynchronously
-    command = 'start "" ' + bonsaiCommand;
+    command = 'start "" "' + bonsaiCommand;
     disp(command);
     system(command);

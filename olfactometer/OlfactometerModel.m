@@ -16,12 +16,13 @@ classdef OlfactometerModel < handle
         allOdourValves
         allCleanAirValves
         valveSession
+        bottles
     end
 
     methods
         function self = OlfactometerModel(constants)
             self.sampleRate = constants.sampleRate;
-            self.acquisitionTime = constants.acquisitionTime;
+            self.acquisitionTime = 2;
             self.backValves = constants.backValves;
             self.frontValves = constants.frontValves;
             self.syncTTL = constants.syncTTL;
@@ -113,6 +114,62 @@ classdef OlfactometerModel < handle
                 calllib('nicaiu', 'DAQmxGetErrorString', status, errBuf, 2048);
                 error('DAQmx Error %d: %s', status, strtrim(errBuf));
             end
+        end
+
+        function dutycycles = get_odour_dutycycles(self, valve_num)
+
+            chemTable = readtable('odour_chemicals.tsv', 'FileType', 'text', 'Delimiter', '\t');
+            self.bottles = struct( ...
+                'Name',   {'BL1','BL2','C3cA','C4cA','C3cB','C4cB','C3f','O','BL9','BL10','MeA','MwB','MeB','BL14','MwA','C4f'}, ...
+                'Chemicals', { ...
+                    {'AIR'}, ...
+                    {'AIR'}, ...
+                    {'MES'}, ...
+                    {'CIL'}, ...
+                    {'DMB'}, ...
+                    {'GER'}, ...
+                    {'MBZ'}, ...
+                    {'HAP'}, ...
+                    {'AIR'}, ...
+                    {'AIR'}, ...
+                    {'ATR','ECP'}, ...
+                    {'AIR'}, ...
+                    {'MTR','FCH'}, ...
+                    {'ACP','GUA'}, ...
+                    {'MAP','CYH'}, ...
+                    {'CEN'} ...
+                } ...
+            );
+            
+            for i = 1:numel(self.bottles)
+                chems = self.bottles(i).Chemicals;
+                sat_vals = zeros(1, numel(chems));
+                for j = 1:numel(chems)
+                    idx = strcmpi(chemTable.Code, chems{j});
+                    if any(idx)
+                        sat_vals(j) = chemTable.Saturated_ppm(idx);
+                    else
+                        sat_vals(j) = NaN;
+                    end
+                end
+                self.bottles(i).Saturated_ppm = sat_vals;
+            end
+        
+            target_ppm = 20;
+            
+            for i = 1:numel(self.bottles)
+                sat_ppms = self.bottles(i).Saturated_ppm;
+            
+                if isempty(sat_ppms) || all(isnan(sat_ppms))
+                    duty = NaN;  % skip missing data
+                else
+                    mean_sat = mean(sat_ppms, 'omitnan');
+                    duty = min(max(target_ppm / mean_sat, 0.05), 1);
+                end
+            
+                self.bottles(i).DutyCycle = duty;
+            end
+            dutycycles = [self.bottles(valve_num).DutyCycle];
         end
     end
 end

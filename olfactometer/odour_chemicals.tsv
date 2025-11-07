@@ -1,0 +1,84 @@
+Name	Code	Saturated_ppm	CID	Volatility
+Air	AIR	0	0	0
+Benzaldehyde	BEN	1649.3	240	1.27
+Benzene	BNZ	123116.8	241	94.8
+Butyraldehyde	BTD	144155.8	261	111
+Butyric acid	BUT	2142.8	264	1.65
+Formic acid	FOR	55311.6	284	42.59
+Coumarin	COU	1.2	323	0.00098
+Ocanal	OCA	1532.4	454	1.18
+Guaiacol	GUA	133.7	460	0.103
+Octanol	OCT	103.1	957	0.0794
+Propionate	PRO	4584.4	1032	3.53
+Vanillin	VAN	0.1	1183	0.000118
+Cineole	CEN	2467.5	2758	1.9
+Eugenol 	EUG	28.7	3314	0.0221
+Methyl salicylate	MES	44.5	4133	0.0343
+Phenylethanol	PHE	116.8	6054	0.09
+Pentanol	PEN	2857.1	6276	2.2
+Dichloromethane	DCM	564935	6344	435
+Methyl butanol	MBT	21688.3	6405	16.7
+Dimethylacetophenone	DAP	81.8	6985	0.063
+Ethylphenol	EPH	198.7	6997	0.153
+Methylnaphthalene	MNH	87	7002	0.067
+Dimethoxybenzene	DMB	610.3	7043	0.47
+Methoxy methylphenol	MMP	101.2	7144	0.078
+Phenylpropionaldehyde	PPA	350.6	7146	0.27
+Methyl benzoate	MBZ	493.5	7150	0.38
+Acetophenone	ACP	584.4	7410	0.45
+S-Carvone	CAR	149.3	7439	0.115
+gamma-Terpinene	GTR	1415.5	7461	1.09
+alpha-Terpinene	ATR	2077.9	7462	1.6
+Tripropylamine	TPA	1961	7616	1.51
+Ethyl butyrate	EBY	14675.3	7762	11.3
+Ethyl heptanoate	EHA	883.1	7797	0.68
+Isopentylamine	IPE	66363.6	7894	51.1
+Ethyl isovalerate	EIV	10779.2	7945	8.3
+Cyclohexanol	CYH	853.2	7966	0.657
+Valeric acid	VAL	254.5	7991	0.196
+Propyl acetate	PRA	46623.3	7997	35.9
+Ethyl formate	ETF	317688.3	8025	244.62
+Heptanone	HEK	5000	8051	3.85
+Valeraldehyde	VLA	33766.2	8063	26
+Heptanoic acid 	HAC	13.8	8094	0.0107
+Hexanol	HEX	1205.1	8103	0.928
+Nonanoic acid	NOA	2.1	8158	0.00165
+Decanol	DEC	11	8174	0.00851
+Undecanal	UND	107.7	8186	0.083
+Lauric aldehyde	LAU	25.9	8194	0.02
+Methylacetophenone	MAP	206.4	8500	0.159
+Methyl anthranilate	MTR	35.1	8635	0.0271
+Ethylhexanoic acid	EHX	38.9	8697	0.03
+Benzyl acetate	BAC	229.8	8785	0.177
+Allylanisole	ALY	214.2	8815	0.165
+Citronellol	CIL	25.9	8842	0.02
+Ethyl acetate	EAC	121038.9	8857	93.2
+Hexanoic acid	HXA	56.4	8892	0.0435
+Nonanol	NOL	29.4	8914	0.0227
+Allylbenzene	ABZ	4675.3	9309	3.6
+Citronellic acid	CAC	6.4	10402	0.005
+Ethyl valerate	EVT	6233.7	10882	4.8
+Isobutyl proprionate	IPR	8402.5	10895	6.47
+Methyl butyrate	MBY	41948	12180	32.3
+Methyl valerate	MVY	24870.1	12206	19.15
+Pentyl acetate	PEA	4545.4	12348	3.5
+Nonanone	NON	2077.9	13187	1.6
+Methylheptanoic acid	MHA	23.3	14475	0.018
+Fenchone	FCH	1064.9	14525	0.82
+Octadecylamine	ODA	0.05	15793	0.000044
+Phenyl butanone	PBU	129.8	17355	0.1
+S-Limonene	LIM	2129.8	22311	1.64
+Menthone	MTE	363.6	26447	0.28
+Phenyl acetate	PHA	519.4	31229	0.4
+Ethyl caproate	ECP	2162.3	31265	1.665
+Nonanal	NAL	480.5	31289	0.37
+Methyloctanoic acid	MOA	7.7	62089	0.006
+Methylanisol	MIS	2467.5	66353	1.9
+Sesamol	SES	8.9	68289	0.00689
+Cinnamaldehyde	CAL	38.9	637511	0.03
+Anethole	ANE	90.9	637563	0.07
+Geraniol	GER	38.9	637566	0.03
+Geranyl acetate	GAC	38.9	1549026	0.03
+Ethyl tiglate	ETI	5544.1	5281163	4.269
+Hexenyl tiglate	HTI	39.7	15461361	0.0306
+Hydroxacetophenone	HAP	111.1	24868161	0.0856

@@ -1,99 +1,370 @@
-classdef LuminoseConstants
-    methods (Static)
+classdef LuminoseConstants < handle
+    % LuminoseConstants  Centralized paths and device configuration for Luminose
+    %
+    %   obj = LuminoseConstants()
+    %   obj = LuminoseConstants(configFile)
+    %
+    %   Constructor loads configuration from a YAML file. If configFile is not
+    %   provided, looks for 'luminose_config.yaml' in the current directory.
+    %   All configuration parameters must be specified in the YAML file.
+    %
+    %   Use `help LuminoseConstants` or `doc LuminoseConstants` to view this
+    %   documentation in MATLAB.
 
-        function f = folders()
-            f = struct('parentFolder', "C:\Users\harrislab\");
-        end
+    properties
+        % f  Struct containing resolved filesystem paths (string fields)
+        f struct
+        bpod struct
+        olfactometer struct
+        dmd struct
+        bonsai struct
+        configFile string
+    end
 
-        function f = addFolders()
-            f = LuminoseConstants.folders();
-            f.luminose_hf   = fullfile(f.parentFolder, "luminose_hf");
-            f.data          = fullfile(f.parentFolder, "luminoseData");
-            f.lib           = fullfile(f.parentFolder, "luminoseLib");
-            f.matlab        = fullfile(f.parentFolder, "MATLAB");
-            f.hamamatsu     = fullfile(f.parentFolder, "Hamamatsu");
+    methods
+        function obj = LuminoseConstants(configFile)
+            % LuminoseConstants  Construct the constants object.
+            %
+            %   obj = LuminoseConstants()
+            %       Load from 'luminose_config.yaml' in current directory
+            %
+            %   obj = LuminoseConstants(configFile)
+            %       Load from specified YAML config file
 
-            addpath(genpath(f.luminose_hf), genpath(f.data), genpath(f.lib), genpath(f.matlab), genpath(f.hamamatsu));
+            % Default config file location
+            if nargin < 1
+                configFile = "C:\Users\harrislab\luminose_hf\luminose_config.yaml";
+            else
+                configFile = string(configFile);
+            end
+            
+            % Check if config file exists
+            if ~isfile(configFile)
+                error('LuminoseConstants:ConfigNotFound', ...
+                    'Config file not found: %s\nPlease create a config file or specify the correct path.', configFile);
+            end
+            
+            obj.configFile = configFile;
+            
+            % Load configuration from YAML
+            config = obj.loadYAML(configFile);
+            
+            % Validate required fields
+            obj.validateConfig(config);
+            
+            % Load paths
+            obj.loadPaths(config);
+            
+            % Load device configurations from YAML
+            obj.loadBpodConfig(config);
+            obj.loadOlfactometerConfig(config);
+            obj.loadDMDConfig(config);
+            obj.loadBonsaiConfig(config);
+
+            % Add key folders to path
+            addpath(genpath(char(obj.f.luminose_hf)), genpath(char(obj.f.luminoseData)), genpath(char(obj.f.matlabFolder)));
             savepath();
         end
+        
+        function saveConfig(obj, filename)
+            % saveConfig  Save current configuration to YAML file
+            %
+            %   obj.saveConfig(filename)
+            %       Save configuration to specified file
+            
+            if nargin < 2
+                filename = obj.configFile;
+            end
+            
+            config = struct();
+            config.paths.parentFolder = char(obj.f.parentFolder);
+            config.paths.matlabFolder = char(obj.f.matlabFolder);
+            config.bpod = obj.bpod;
+            config.olfactometer = obj.olfactometer;
+            config.dmd = obj.dmd;
+            config.bonsai = obj.bonsai;
+            
+            obj.saveYAML(filename, config);
+            fprintf('Configuration saved to: %s\n', filename);
+        end
+    end
 
-        function bpod = addBpod()
-            f = LuminoseConstants.addFolders();
-            bpod = struct( ...
-                'protocols', fullfile(f.luminose_hf, "protocols"), ...
-                'protocolFile', "testGoNogo.m", ...
-                'dataPath', fullfile(f.data, "rawdata") ...
+    methods (Access = private)
+        function config = loadYAML(obj, filename)
+            % loadYAML  Load YAML configuration file
+            %
+            %   Requires: YAML toolbox or ReadYaml function
+            %   Falls back to basic parsing if not available
+            
+            try
+                % Try using yaml toolbox if available
+                config = yaml.loadFile(filename, "ConvertToArray", true);
+            catch
+                try
+                    % Try ReadYaml if available
+                    config = ReadYaml(filename);
+                catch
+                    % Fallback: use basic YAML parsing
+                    config = obj.parseYAMLBasic(filename);
+                end
+            end
+        end
+        
+        function saveYAML(obj, filename, data)
+            % saveYAML  Save data to YAML file
+            
+            try
+                % Try using yaml toolbox if available
+                yaml.dumpFile(filename, data, "block");
+            catch
+                try
+                    % Try WriteYaml if available
+                    WriteYaml(filename, data);
+                catch
+                    % Fallback: basic YAML writing
+                    warning('LuminoseConstants:NoYAMLWriter', ...
+                        'No YAML writer found. Install yaml toolbox for best results.');
+                    obj.writeYAMLBasic(filename, data);
+                end
+            end
+        end
+        
+        function config = parseYAMLBasic(obj, filename)
+            % parseYAMLBasic  Basic YAML parser (fallback)
+            %
+            %   This is a simple parser for basic YAML. For complex configs,
+            %   install the YAML toolbox: https://github.com/ewiger/yamlmatlab
+            
+            fid = fopen(filename, 'r');
+            if fid == -1
+                error('Cannot open file: %s', filename);
+            end
+            
+            config = struct();
+            currentSection = '';
+            currentSubsection = '';
+            
+            while ~feof(fid)
+                line = fgetl(fid);
+                originalLine = line;
+                line = strtrim(line);
+                
+                % Skip comments and empty lines
+                if isempty(line) || startsWith(line, '#')
+                    continue;
+                end
+                
+                % Count leading spaces for indentation level
+                leadingSpaces = 0;
+                for i = 1:length(originalLine)
+                    if originalLine(i) == ' '
+                        leadingSpaces = leadingSpaces + 1;
+                    else
+                        break;
+                    end
+                end
+                
+                % Check if this is a key (ends with colon)
+                colonIdx = strfind(line, ':');
+                if ~isempty(colonIdx)
+                    key = strtrim(line(1:colonIdx(1)-1));
+                    value = strtrim(line(colonIdx(1)+1:end));
+                    
+                    % Level 0: Top-level section (no indentation)
+                    if leadingSpaces == 0 && endsWith(line, ':')
+                        currentSection = key;
+                        currentSubsection = '';
+                        config.(currentSection) = struct();
+                        continue;
+                    end
+                    
+                    % Level 1: Subsection (2 spaces)
+                    if leadingSpaces == 2 && isempty(value)
+                        currentSubsection = key;
+                        if ~isempty(currentSection)
+                            config.(currentSection).(currentSubsection) = struct();
+                        end
+                        continue;
+                    end
+                    
+                    % Key-value pairs with actual values
+                    if ~isempty(value)
+                        % Convert value types
+                        if strcmp(value, 'true')
+                            value = true;
+                        elseif strcmp(value, 'false')
+                            value = false;
+                        elseif ~isempty(str2double(value)) && ~isnan(str2double(value))
+                            value = str2double(value);
+                        else
+                            % Remove quotes if present
+                            if (startsWith(value, '"') && endsWith(value, '"')) || ...
+                               (startsWith(value, '''') && endsWith(value, ''''))
+                                value = value(2:end-1);
+                            end
+                        end
+                        
+                        % Assign to appropriate level based on indentation
+                        if leadingSpaces >= 4 && ~isempty(currentSubsection)
+                            % Level 2: nested under subsection (4+ spaces)
+                            config.(currentSection).(currentSubsection).(key) = value;
+                        elseif leadingSpaces >= 2 && ~isempty(currentSection)
+                            % Level 1: under section (2+ spaces)
+                            config.(currentSection).(key) = value;
+                        end
+                    end
+                end
+            end
+            
+            fclose(fid);
+        end
+        
+        function writeYAMLBasic(obj, filename, data)
+            % writeYAMLBasic  Basic YAML writer (fallback)
+            
+            fid = fopen(filename, 'w');
+            if fid == -1
+                error('Cannot open file for writing: %s', filename);
+            end
+            
+            fprintf(fid, '# Luminose Configuration\n');
+            fprintf(fid, '# Generated: %s\n\n', datestr(now));
+            
+            fields = fieldnames(data);
+            for i = 1:length(fields)
+                obj.writeYAMLStruct(fid, fields{i}, data.(fields{i}), 0);
+            end
+            
+            fclose(fid);
+        end
+        
+        function writeYAMLStruct(obj, fid, name, value, indent)
+            % writeYAMLStruct  Recursively write struct to YAML
+            
+            spaces = repmat(' ', 1, indent);
+            
+            if isstruct(value)
+                fprintf(fid, '%s%s:\n', spaces, name);
+                subfields = fieldnames(value);
+                for i = 1:length(subfields)
+                    obj.writeYAMLStruct(fid, subfields{i}, value.(subfields{i}), indent + 2);
+                end
+            else
+                if islogical(value)
+                    fprintf(fid, '%s%s: %s\n', spaces, name, lower(string(value)));
+                elseif isnumeric(value)
+                    fprintf(fid, '%s%s: %g\n', spaces, name, value);
+                else
+                    fprintf(fid, '%s%s: "%s"\n', spaces, name, char(value));
+                end
+            end
+        end
+        
+        function validateConfig(obj, config)
+            % validateConfig  Ensure all required fields are present
+            
+            required = {'paths', 'bpod', 'olfactometer', 'dmd', 'bonsai'};
+            for i = 1:length(required)
+                if ~isfield(config, required{i})
+                    error('LuminoseConstants:MissingSection', ...
+                        'Config file missing required section: %s', required{i});
+                end
+            end
+            
+            % Validate paths
+            if ~isfield(config.paths, 'parentFolder') || ~isfield(config.paths, 'matlabFolder')
+                error('LuminoseConstants:MissingPaths', ...
+                    'Config file must specify both parentFolder and matlabFolder in paths section');
+            end
+        end
+        
+        function loadPaths(obj, config)
+            % loadPaths  Load path configuration
+            
+            f = struct();
+            f.parentFolder = string(config.paths.parentFolder);
+            f.luminose_hf = fullfile(f.parentFolder, "luminose_hf");
+            f.luminoseData = fullfile(f.parentFolder, "luminoseData");
+            f.matlabFolder = string(config.paths.matlabFolder);
+            obj.f = f;
+        end
+        
+        function loadBpodConfig(obj, config)
+            % loadBpodConfig  Load Bpod configuration from YAML
+            
+            cfg = config.bpod;
+            obj.bpod = struct( ...
+                'protocols', string(cfg.protocols), ...
+                'protocolFile', string(cfg.protocolFile), ...
+                'dataPath', string(cfg.dataPath) ...
             );
         end
-
-        function olf = addOlfactometer()
-            f = LuminoseConstants.addFolders();
-            base = fullfile(f.luminose_hf, "olfactometer");
-            olf = struct( ...
-                'sampleRate', 10000, ...
-                'odourCSplus_valves', [12], ...
-                'odourCSminus_valves', [16], ...
-                'odourCSplus_dutyCycles', repelem(1, 1), ...
-                'odourCSminus_dutyCycles', repelem(1, 1), ...
-                'odourCSplus_label', 'CSplus', ...
-                'odourCSminus_label', 'CSminus', ...
-                'acquisitionTime', 2, ...
-                'pulseTime', 1, ...
-                'backValveDelay', 0.05, ...
-                'preSequenceTime', 0.5, ...
-                'postSequenceTime', 0.5, ...
-                'distanceFile', fullfile(base, "canberra_all.csv"), ...
-                'mapFile', fullfile(base, "canberra_all_mds.csv"), ...
-                'odourChemicalsFile', fullfile(base, "odour_chemicals.tsv"), ...
-                'odourBottlesFile', fullfile(base, "odour_bottles.tsv"), ...
-                'sequencesFile', fullfile(base, "sequences.tsv") ...
+        
+        function loadOlfactometerConfig(obj, config)
+            % loadOlfactometerConfig  Load olfactometer configuration from YAML
+            
+            cfg = config.olfactometer;
+            
+            obj.olfactometer = struct( ...
+                'sampleRate', cfg.sampleRate, ...
+                'pulseTime', cfg.pulseTime, ...
+                'backValveDelay', cfg.backValveDelay, ...
+                'preSequenceTime', cfg.preSequenceTime, ...
+                'postSequenceTime', cfg.postSequenceTime, ...
+                'distanceFile', string(cfg.distanceFile), ...
+                'mapFile', string(cfg.mapFile), ...
+                'odourChemicalsFile', string(cfg.odourChemicalsFile), ...
+                'odourBottlesFile', string(cfg.odourBottlesFile), ...
+                'sequencesFile', string(cfg.sequencesFile) ...
             );
-            olf.backValves = struct(...
-                'deviceID', "backValves", ...
-                'channelID', "port0/line0:7, port0/line16:23", ...
-                'measurementType', "Digital", ...
-                'channelCount', 16 ...
+            
+            % Load nested device structs
+            obj.olfactometer.backValves = obj.loadDeviceConfig(cfg.backValves);
+            obj.olfactometer.frontValves = obj.loadDeviceConfig(cfg.frontValves);
+            obj.olfactometer.syncTTL = obj.loadDeviceConfig(cfg.syncTTL);
+            obj.olfactometer.inputTrigger = obj.loadDeviceConfig(cfg.inputTrigger);
+        end
+        
+        function device = loadDeviceConfig(obj, dev)
+            % loadDeviceConfig  Helper to load device configuration
+            
+            device = struct( ...
+                'deviceID', string(dev.deviceID), ...
+                'channelID', string(dev.channelID), ...
+                'measurementType', string(dev.measurementType) ...
             );
-            olf.frontValves = struct(...
-                'deviceID', "frontValves", ...
-                'channelID', "port0/line0:15", ...
-                'measurementType', "Digital", ...
-                'channelCount', 16 ...
-            );
-            olf.syncTTL = struct(...
-                'deviceID', "frontValves", ...
-                'channelID', "port0/line16", ...
-                'measurementType', "Digital", ...
-                'channelCount', 1 ...
-            );
-            olf.inputTrigger = struct(...
-                'deviceID', "frontValves", ...
-                'channelID', "port0/line31", ...
-                'measurementType', "Digital" ...
+            
+            if isfield(dev, 'channelCount')
+                device.channelCount = dev.channelCount;
+            end
+        end
+        
+        function loadDMDConfig(obj, config)
+            % loadDMDConfig  Load DMD configuration from YAML
+            
+            cfg = config.dmd;
+            
+            obj.dmd = struct( ...
+                'mode', cfg.mode, ...
+                'testImagePath', string(cfg.testImagePath), ...
+                'projectedDMDlength', cfg.projectedDMDlength, ...
+                'spotSide', cfg.spotSide, ...
+                'durationPattern', cfg.durationPattern, ...
+                'patternsInfo', string(cfg.patternsInfo), ...
+                'patternsFolder', string(cfg.patternsFolder) ...
             );
         end
-
-        function dmd = addDMD()
-            f = LuminoseConstants.addFolders();
-            base = fullfile(f.luminose_hf, "dmd");
-            dmd = struct( ...
-                'mode', 3, ...
-                'testImagePath', fullfile(f.parentFolder, "Documents", "DLPimages", "bullseye1920x1080_inv.bmp"), ...
-                'projectedDMDlength', 2.5, ... % length of longest side of projected image of DMD array in mm
-                'spotSide', 0.1, ... % length along one side of square illuminated spot in mm
-                'durationPattern', 0.2, ... % in s
-                'patternsInfo', fullfile(base, "patterns.mat"), ...
-                'patternsFolder', fullfile(base, "Patterns") ...
+        
+        function loadBonsaiConfig(obj, config)
+            % loadBonsaiConfig  Load Bonsai configuration from YAML
+            
+            cfg = config.bonsai;
+            
+            obj.bonsai = struct( ...
+                'launch_bonsai', cfg.launch_bonsai, ...
+                'exePath', string(cfg.exePath), ...
+                'workflowPath', string(cfg.workflowPath) ...
             );
         end
-
-        function bonsai = addBonsai()
-            f = LuminoseConstants.addFolders();
-            bonsai = struct( ...
-                'exePath', fullfile(f.parentFolder, 'AppData', 'Local', 'Bonsai', 'bonsai.exe'), ...
-                'workflowPath', fullfile(f.luminose_hf, 'bonsai', 'BehaviourCamerasAcquisition.bonsai') ...
-            );
-        end
-
     end
 end

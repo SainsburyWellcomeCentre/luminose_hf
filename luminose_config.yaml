@@ -1,0 +1,73 @@
+# Luminose Configuration File
+# All parameters must be specified - no auto-detection or defaults
+
+# Base paths
+paths:
+  parentFolder: "C:\\Users\\harrislab" 
+  matlabFolder: "C:\\Users\\harrislab\\MATLAB"
+
+# Bpod behavioral system configuration
+bpod:
+  protocols: "C:\\Users\\harrislab\\luminose_hf\\protocols"
+  protocolFile: "luminose_hf_goNogo.m"
+  dataPath: "C:\\Users\\harrislab\\luminoseData\\rawdata"
+
+# Olfactometer configuration
+olfactometer:
+  # Timing parameters
+  sampleRate: 10000
+  pulseTime: 1
+  backValveDelay: 0.05
+  preSequenceTime: 0.5
+  postSequenceTime: 0.5
+  
+  # Configuration files
+  distanceFile: "C:\\Users\\harrislab\\luminose_hf\\olfactometer\\canberra_all.csv"
+  mapFile: "C:\\Users\\harrislab\\luminose_hf\\olfactometer\\canberra_all_mds.csv"
+  odourChemicalsFile: "C:\\Users\\harrislab\\luminose_hf\\olfactometer\\odour_chemicals.tsv"
+  odourBottlesFile: "C:\\Users\\harrislab\\luminose_hf\\olfactometer\\odour_bottles.tsv"
+  sequencesFile: "C:\\Users\\harrislab\\luminose_hf\\olfactometer\\sequences.tsv"
+  
+  # Back valves configuration
+  backValves:
+    deviceID: "backValves"
+    channelID: "port0/line0:7, port0/line16:23"
+    measurementType: "Digital"
+    channelCount: 16
+  
+  # Front valves configuration
+  frontValves:
+    deviceID: "frontValves"
+    channelID: "port0/line0:15"
+    measurementType: "Digital"
+    channelCount: 16
+  
+  # Sync TTL configuration
+  syncTTL:
+    deviceID: "frontValves"
+    channelID: "port0/line16"
+    measurementType: "Digital"
+    channelCount: 1
+  
+  # Input trigger configuration
+  inputTrigger:
+    deviceID: "frontValves"
+    channelID: "port0/line31"
+    measurementType: "Digital"
+
+# DMD (Digital Micromirror Device) configuration
+dmd:
+  mode: 3
+  testImagePath: "C:\\Users\\harrislab\\Documents\\DLPimages\\bullseye1920x1080_inv.bmp"
+  projectedDMDlength: 2.5
+  spotSide: 0.1
+  durationPattern: 0.2
+  patternsInfo: "C:\\Users\\harrislab\\luminose_hf\\dmd\\patterns.mat"
+  patternsFolder: "C:\\Users\\harrislab\\luminose_hf\\dmd\\Patterns"
+
+# Bonsai workflow configuration
+bonsai:
+  launch_bonsai: false
+  exePath: "C:\\Users\\harrislab\\AppData\\Local\\Bonsai\\bonsai.exe"
+  # exePath: "/home/username/.local/share/Bonsai/bonsai"  # Linux/Mac example
+  workflowPath: "C:\\Users\\harrislab\\luminose_hf\\bonsai\\BehaviourCamerasAcquisition.bonsai"

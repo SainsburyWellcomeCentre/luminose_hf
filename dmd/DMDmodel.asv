@@ -141,10 +141,7 @@ classdef DMDmodel < handle
             end
         end
         
-        function pattern = pattern_on_the_fly(self, N_images, exposure_us, dark_us, imgIdx, repeat)       
-            bmpInfo = load("patterns.mat").patterns.CSplus;
-            bmpt = self.generate_pattern(bmpInfo);
-            bmp = bmpt(:, :, 4);
+        function pattern = pattern_on_the_fly(self, N_images, exposure_us, dark_us, imgIdx, repeat)
             imgSeq = uint16(0:8:65535);   % 16-bit values
             for patIdx = 1:N_images
                 % Pack exposure time into 3 bytes (LSB first)
@@ -152,8 +149,8 @@ classdef DMDmodel < handle
                 dark24 = typecast(uint32(dark_us(patIdx)), 'uint8');
                 
                 % Split into bytes
-                imgMSB = uint8(bitand(imgSeq(imgIdx(patIdx)+1), 255));        % lower 8 bits
-                imgLSB = uint8(bitshift(imgSeq(imgIdx(patIdx)+1), -8));       % upper 8 bits
+                imgMSB = uint8(bitand(imgSeq(imgIdx(patIdx)), 255));        % lower 8 bits
+                imgLSB = uint8(bitshift(imgSeq(imgIdx(patIdx)), -8));       % upper 8 bits
 
                 pattern = [...
                     uint8(patIdx)                           ...
@@ -164,10 +161,10 @@ classdef DMDmodel < handle
                     0x00                                    ...
                     imgLSB                                  ...
                     imgMSB ];
-                bmp_i = prepBMP(bmp(:, :, patIdx));
+                bmp_i = bmp(patIdx);
                 self.usbdmd.patternLUTdef(pattern); % define pre-stored pattern
                 self.usbdmd.patternLUTconfig(N_images, repeat); % configure number of repeats
-                self.usbdmd.initPatternLoad(0, size(bmp_i, 1));
+                self.usbdmd.initPatternLoad(imgIdx(patIdx), size(bmp_i, 1));
                 self.usbdmd.uploadPattern(bmp_i);
             end
         end
