@@ -67,7 +67,7 @@ dmd:
 
 # Bonsai workflow configuration
 bonsai:
-  launch_bonsai: false
+  launch_bonsai: true
   exePath: "C:\\Users\\harrislab\\AppData\\Local\\Bonsai\\bonsai.exe"
   # exePath: "/home/username/.local/share/Bonsai/bonsai"  # Linux/Mac example
   workflowPath: "C:\\Users\\harrislab\\luminose_hf\\bonsai\\BehaviourCamerasAcquisition.bonsai"

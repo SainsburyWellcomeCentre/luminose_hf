@@ -8,20 +8,27 @@ function olfactometer_hf_goNogo(code)
     
     %Define label and other parameters by SoftCode value
     switch code
-        case 1  % Trial Type CS+
-            odour_valves = S.GUI.odourCSplus_valves;
-            duty_cycles = S.GUI.odourCSplus_dutyCycles;
+        case 1  % Trial Type CS-
+            odour_valves = S.GUI.valves_cue;
+            duty_cycles = S.GUI.dutyCycles_cue;
             if duty_cycles == 0
                 duty_cycles = olfModel.get_odour_dutycycles(odour_valves);
             end
-            label = S.GUI.odourCSplus_label;
-        case 2  % Trial Type CS-
-            odour_valves = S.GUI.odourCSminus_valves;
-            duty_cycles = S.GUI.odourCSminus_dutyCycles;
+            label = S.GUI.label_cue;
+        case 2  % Trial Type CS+
+            odour_valves = S.GUI.valves_CSplus;
+            duty_cycles = S.GUI.dutyCycles_CSplus;
             if duty_cycles == 0
                 duty_cycles = olfModel.get_odour_dutycycles(odour_valves);
             end
-            label = S.GUI.odourCSminus_label;
+            label = S.GUI.label_CSplus;
+        case 3  % Trial Type CS-
+            odour_valves = S.GUI.valves_CSminus;
+            duty_cycles = S.GUI.dutyCycles_CSminus;
+            if duty_cycles == 0
+                duty_cycles = olfModel.get_odour_dutycycles(odour_valves);
+            end
+            label = S.GUI.label_CSminus;
         otherwise
             disp(['Unknown SoftCode received: ' num2str(code)]);
             return;

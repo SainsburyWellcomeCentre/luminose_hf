@@ -1,5 +1,4 @@
 luminose = LuminoseConstants();
-luminose.addOlfactometer();
 unique_valves = [3:8, 11:16];
 valves = reshape(repmat(unique_valves, 1, 1000), 1, []);
 for i = 1:length(valves)

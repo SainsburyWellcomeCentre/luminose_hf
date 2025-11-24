@@ -1,11 +1,14 @@
 classdef OlfactometerModel < handle
     properties
         sampleRate
-        acquisitionTime
         backValves
         frontValves
         syncTTL
         inputTrigger
+        preSequenceTime
+        postSequenceTime
+        pulseTime
+        acquisitionTime
         acquisitionSamples
         backValveDelaySamples
         preSequenceSamples
@@ -22,12 +25,14 @@ classdef OlfactometerModel < handle
     methods
         function self = OlfactometerModel(constants)
             self.sampleRate = constants.sampleRate;
-            self.acquisitionTime = 2;
             self.backValves = constants.backValves;
             self.frontValves = constants.frontValves;
             self.syncTTL = constants.syncTTL;
+            
+            self.preSequenceTime = constants.preSequenceTime;
+            self.postSequenceTime = constants.postSequenceTime;
+            self.pulseTime = constants.pulseTime;
 
-            self.acquisitionSamples = round(self.acquisitionTime * self.sampleRate);
             self.backValveDelaySamples = round(constants.backValveDelay * self.sampleRate);
             self.preSequenceSamples = round(constants.preSequenceTime * self.sampleRate);
             self.postSequenceSamples = round(constants.postSequenceTime * self.sampleRate);
@@ -72,8 +77,10 @@ classdef OlfactometerModel < handle
         end
 
         function valveStates = generate_valve_pattern(self, odourValves, dutyCycles, label)
-            totalSamples = self.acquisitionSamples;
-            valveStates = false(self.frontValves.channelCount+self.backValves.channelCount+self.syncTTL.channelCount, totalSamples);
+            self.acquisitionTime = (self.preSequenceTime + self.pulseTime + self.postSequenceTime) * length(odourValves);
+            self.acquisitionSamples = round(self.acquisitionTime * self.sampleRate);
+            
+            valveStates = false(self.frontValves.channelCount+self.backValves.channelCount+self.syncTTL.channelCount, self.acquisitionSamples);
             cleanAirValves = arrayfun(@(v) self.determine_clean_air_valve(v), odourValves);
             valveStates(self.allCleanAirValves + 1, :) = true;
 

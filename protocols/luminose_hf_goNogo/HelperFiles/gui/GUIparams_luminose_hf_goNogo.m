@@ -9,7 +9,7 @@ function GUIparams_luminose_hf_goNogo()
     S.GUIPanels.ProtocolSettings = {'muBarcodeDur', 'sigmaBarcodeDur'};
 
     % == Training Params ==
-    S.GUI.TrainingLevel = 1; % Default Training Level
+    S.GUI.TrainingLevel = 2; % Default Training Level
     S.GUIMeta.TrainingLevel.Style = 'popupmenu';
     S.GUIMeta.TrainingLevel.String = {'Habituation', 'Training'};
     S.GUI.BiasCorrection = false;
@@ -41,22 +41,22 @@ function GUIparams_luminose_hf_goNogo()
     S.GUI.CueTime = 1;
     
     % == Stimulus ==
-    S.GUI.CSplusType = 2;
+    S.GUI.CSplusType = 1;
     S.GUIMeta.CSplusType.Style = 'popupmenu';
     S.GUIMeta.CSplusType.String = {'Odour', 'Pattern', 'Light', 'Sound'};
-    S.GUI.CSminusType = 2;
+    S.GUI.CSminusType = 1;
     S.GUIMeta.CSminusType.Style = 'popupmenu';
     S.GUIMeta.CSminusType.String = {'Odour', 'Pattern', 'Light', 'Sound'};
-    S.GUI.StimTime = 10;
+    S.GUI.StimTime = 2.05;
     
     % == Response ==
     S.GUI.SoundSamplingRate = 192000;
-    S.GUI.Amplitude_error = [1, 1];
+    S.GUI.Amplitude_error = [10000, 10000];
     S.GUI.ResponseType = 1;
     S.GUIMeta.ResponseType.Style = 'popupmenu';
     S.GUIMeta.ResponseType.String = {'Lick', 'Rotary Encoder'};
-    S.GUI.ResponseTime = 2;
-    S.GUI.RewardAmount = 10;
+    S.GUI.ResponseTime = 10;
+    S.GUI.RewardAmount = 30;
     S.GUI.ErrorDelay = 1;
     S.GUI.NoiseTime = 0.6; % must be less than error delay
 
@@ -73,8 +73,8 @@ function GUIparams_luminose_hf_goNogo()
     S.GUIPanels.Light = {'Intensity_cue'};
     S.GUIPanels.Pattern = {'Nimages_cue', 'imgIdx_cue', 'exposure_cue', 'dark_cue', 'repeat_cue'};
     % == Odour ==
-    S.GUI.valves_cue = [12];
-    S.GUI.dutyCycles_cue = 0; % specify scalar 0 to use default duty cycles
+    S.GUI.valves_cue = [7];
+    S.GUI.dutyCycles_cue = repelem(1, 1); % specify scalar 0 to use default duty cycles
     S.GUI.label_cue = 'cue';
     % == Sound ==
     S.GUI.Amplitude_cue = [0.001, 0.001];
@@ -118,7 +118,7 @@ function GUIparams_luminose_hf_goNogo()
     S.GUIPanels.Light = {'Intensity_CSminus'};
     S.GUIPanels.Pattern = {'Nimages_CSminus', 'imgIdx_CSminus', 'exposure_CSminus', 'dark_CSminus', 'repeat_CSminus'};
     % == Odour ==
-    S.GUI.valves_CSminus = [16];
+    S.GUI.valves_CSminus = [15];
     S.GUI.dutyCycles_CSminus = repelem(1, 1); % specify scalar 0 to use default duty cycles
     S.GUI.label_CSminus = 'CSminus';
     % == Sound ==

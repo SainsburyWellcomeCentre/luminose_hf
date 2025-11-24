@@ -58,12 +58,12 @@ classdef DMDmodel < handle
   
             self.framesPattern = self.samplingratePattern * self.durationPattern;
 
-            self.usbdmd = DMD('debug', 2);
-            rmsg = self.usbdmd.setMode(self.mode);
-            if ~isequal(rmsg, [64, 1, 0, 0])
-                self.usbdmd = DMD('debug', 2);
-                rmsg = self.usbdmd.setMode(self.mode);
-            end
+            % self.usbdmd = DMD('debug', 2);
+            % rmsg = self.usbdmd.setMode(self.mode);
+            % if ~isequal(rmsg, [64, 1, 0, 0])
+            %     self.usbdmd = DMD('debug', 2);
+            %     rmsg = self.usbdmd.setMode(self.mode);
+            % end
         end
 
         function img_stack = generate_pattern(self, patternInfo)
