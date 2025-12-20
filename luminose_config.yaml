@@ -18,8 +18,8 @@ olfactometer:
   sampleRate: 10000
   pulseTime: 1
   backValveDelay: 0.05
-  preSequenceTime: 0.5
-  postSequenceTime: 0.5
+  preSequenceTime: 0.001
+  postSequenceTime: 0.001
   
   # Configuration files
   distanceFile: "C:\\Users\\harrislab\\luminose_hf\\olfactometer\\canberra_all.csv"

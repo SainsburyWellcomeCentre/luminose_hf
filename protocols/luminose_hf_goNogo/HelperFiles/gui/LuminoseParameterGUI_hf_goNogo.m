@@ -50,7 +50,7 @@ function varargout = LuminoseParameterGUI_hf_goNogo(varargin)
                 paramsInDefaultPanel = {};
                 
                 for i = 1:nParameters
-                    if ~strcmp(paramNames{i}, paramsInPanels)
+                    if ~any(strcmp(paramNames{i}, paramsInPanels))
                         paramsInDefaultPanel = [paramsInDefaultPanel paramNames{i}];
                     end
                 end

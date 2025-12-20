@@ -30,12 +30,18 @@ function luminose_hf_goNogo
     olfModel.play_valve_sequence([14, 14], [1, 0.5], 'test');
 
     %% Launch bonsai
-    if luminose.bonsai.launch_bonsai
+    % Ask user whether to launch Bonsai
+    choice = questdlg('Launch Bonsai workflow?', ...
+        'Launch Bonsai', ...
+        'Yes', 'No', 'Yes');   % default = Yes
+    launchBonsai = strcmp(choice, 'Yes');
+
+    if luminose.bonsai.launch_bonsai && launchBonsai
         currentDataFile = split(BpodSystem.Path.CurrentDataFile, '\');
         currentFilePrefix = currentDataFile{end}; 
         luminose.bonsai.currentFilePrefix = currentFilePrefix(1:end-4);
         luminose.bonsai.dataPath = fullfile(join(currentDataFile(1:end-2), '\'), 'Session Videos');
-        launch_bonsai(luminose.bonsai.exePath, luminose.bonsai.workflowPath, luinose.bonsai.dataPath, luminose.bonsai.currentFilePrefix);
+        launch_bonsai(luminose.bonsai.exePath, luminose.bonsai.workflowPath, luminose.bonsai.dataPath, luminose.bonsai.currentFilePrefix);
     end
 
     %% Configure trials  
@@ -57,15 +63,15 @@ function luminose_hf_goNogo
     CSminus = S.GUIMeta.CSminusType.String{S.GUI.CSminusType};
 
     if S.GUI.VariableITI
-        % Generate incremental CueDelay values using a geometric progression
-        ITI = S.GUI.InterTrialInterval * (1.01 .^ (0:S.GUI.maxTrials-1));
+        ITI = S.GUI.InterTrialInterval * (1.01 .^ (0:S.GUI.maxTrials-1)); % Generate incremental ITI values using a geometric progression
+        ITI(ITI > S.GUI.MaxITI) = S.GUI.MaxITI; % Enforce maximum ITI duration for all trials
+        ITI = ITI(randperm(length(ITI)))';
+        ITI = round(ITI * 1000) / 1000;
     else
         % Constant CueDelay for all trials
         ITI = S.GUI.InterTrialInterval * ones(1, S.GUI.maxTrials);
     end
-    % Enforce maximum ITI duration for all trials
-    ITI(ITI > S.GUI.MaxITI) = S.GUI.MaxITI;
-
+    
     %% Begin plotting
     % Live outcome plot
     outcomePlot = LiveOutcomePlot([1 2], {'Go', 'No go'}, trialTypes, 90);
@@ -94,11 +100,12 @@ function luminose_hf_goNogo
     emulator = BpodSystem.EmulatorMode == 1;
     if ~emulator
         %% Configure Flex I/O Channels
-        chanSniff = 1; chanPhotodetector = 2; chanFlowmeterIn = 3;
+        chanSniff = 1; chanPhotodetector = 2; chanFlowmeterIn = 3; % chanFlowmeterOut = 4;
         channelTypes(1:4) = 4; % Disabled
         channelTypes(chanSniff) = 2; % Analog Input
         channelTypes(chanPhotodetector) = 2; % Analog Input
         channelTypes(chanFlowmeterIn) = 2; % Analog Input
+        % channelTypes(chanFlowmeterOut) = 2; % Analog Input
         BpodSystem.FlexIOConfig.channelTypes = channelTypes;
         
         % Set sniff threshold for inhalation triggered stimulus
@@ -186,7 +193,7 @@ function luminose_hf_goNogo
         
         %% Prepare and start first trial
         trialManager = BpodTrialManager;
-        sma = PrepareStateMachine(S, trialTypes, 1, ITI, [], emulator); % Prepare state machine for trial 1 with empty "current events" variable
+        sma = PrepareStateMachine(S, trialTypes, 1, ITI, emulator); % Prepare state machine for trial 1 with empty "current events" variable
         trialManager.startTrial(sma); % Sends & starts running first trial's state machine. A MATLAB timer object updates the 
                                   % console UI, while code below proceeds in parallel.
         %% Main trial loop
@@ -194,11 +201,10 @@ function luminose_hf_goNogo
 
             S = LuminoseParameterGUI_hf_goNogo('sync', S); % Sync parameters with LuminoseParameterGUI_hf_goNogo plugin
 
-            currentTrialEvents = trialManager.getCurrentEvents({'Reward', 'Punishment'}); 
             handle_pause_condition(H, R, A); % Handle pause/stop by user
             
             if currentTrial < S.GUI.maxTrials
-                [sma, S] = PrepareStateMachine(S, trialTypes, currentTrial+1, ITI, currentTrialEvents, emulator);
+                [sma, S] = PrepareStateMachine(S, trialTypes, currentTrial+1, ITI, emulator);
                 SendStateMachine(sma, 'RunASAP');
             end
             
@@ -208,24 +214,24 @@ function luminose_hf_goNogo
             if currentTrial < S.GUI.maxTrials
                 trialManager.startTrial(); % Start processing the next trial's events (call with no argument since SM was already sent)
             end
-    
+            
             if ~isempty(fieldnames(RawEvents))
                 BpodSystem.Data = AddTrialEvents(BpodSystem.Data,RawEvents);
                 BpodSystem.Data.TrialSettings(currentTrial) = S;
                 BpodSystem.Data.TrialTypes(currentTrial) = trialTypes(currentTrial);
                 BpodSystem.Data = BpodNotebook('sync', BpodSystem.Data); % Sync with Bpod notebook plugin
-    
                 % Save rotary encoder data
                 if currentTrial == 1
                     eventData = R.readUSBStream(0); % Read and dump any REM data captured before first trial start. Subsequent REM data will be saved. 
                     TrialStartTime = eventData.EventTimestamps(1); % First trial start time on REM clock is taken from this initial read
                 end
+                
                 BpodSystem.Data.EncoderData{currentTrial} = R.readUSBStream(0); % Returns REM data up to event '0'
                                                                                 % see {'RotaryEncoder1', ['#' 0]} in output actions of first state 
                 BpodSystem.Data.EncoderData{currentTrial}.Times = BpodSystem.Data.EncoderData{currentTrial}.Times - BpodSystem.Data.TrialStartTimestamp(currentTrial);
                 BpodSystem.Data.EncoderData{currentTrial}.EventTimestamps = ...
                     BpodSystem.Data.EncoderData{currentTrial}.EventTimestamps - BpodSystem.Data.TrialStartTimestamp(currentTrial) ;
-    
+
                 %% Update plots
                 outcomePlot.update(trialTypes, BpodSystem.Data);
                 
@@ -248,8 +254,9 @@ function luminose_hf_goNogo
                 
                 TrialDuration = BpodSystem.Data.TrialEndTimestamp(currentTrial)-BpodSystem.Data.TrialStartTimestamp(currentTrial);
                 liveEncoderPlot_hf_goNogo(BpodSystem.GUIHandles.EncoderAxes, 'update', 0, BpodSystem.Data.EncoderData{currentTrial},TrialDuration);
-                                                
+
                 SaveBpodSessionData; 
+                SaveBpodProtocolSettings;
             end
         end
         cleanup; % Save FlexI/O analog input data
@@ -271,9 +278,7 @@ function luminose_hf_goNogo
                 % Update plots
                 TrialDuration = BpodSystem.Data.TrialEndTimestamp(currentTrial)-BpodSystem.Data.TrialStartTimestamp(currentTrial);
                 outcomePlot.update(trialTypes, BpodSystem.Data);
-                
                 liveBarPlot_hf_goNogo(BpodSystem.GUIHandles.AccuracyAxes, 'update', BpodSystem.Data);
-                
                 % livePsychometricPlot_hf_goNogo(BpodSystem.GUIHandles.PsychometricAxes, 'update', ...
                     % BpodSystem.Data, [1]);
 
@@ -288,7 +293,7 @@ function luminose_hf_goNogo
 end
 
 %% State machine 
-function [sma, S] = PrepareStateMachine(S, trialTypes, currentTrial, ITI, currentTrialEvents, emulator)
+function [sma, S] = PrepareStateMachine(S, trialTypes, currentTrial, ITI, emulator)
     cue = S.GUIMeta.CueType.String{S.GUI.CueType};
     CSplus = S.GUIMeta.CSplusType.String{S.GUI.CSplusType};
     CSminus = S.GUIMeta.CSminusType.String{S.GUI.CSminusType};   
@@ -309,14 +314,13 @@ function [sma, S] = PrepareStateMachine(S, trialTypes, currentTrial, ITI, curren
         case 'Pattern'
             cueAction{end+1} = 'SoftCode'; cueAction{end+1} = 8;
         case 'Light'
-            cueAction{end+1} = 'PWM1'; cueAction{end+1} = S.GUI.Intensity_cue;
+            cueAction{end+1} = 'PWM3'; cueAction{end+1} = S.GUI.Intensity_cue;
         case 'Sound'
             cueAction{end+1} = 'HiFi1'; cueAction{end+1} = ['P', 1];
     end
-
+    stimAction = {'BNC1', 1}; % sync
     switch trialTypes(currentTrial)
         case 1 % CS+
-            stimAction = {'BNC1', 1}; % sync
             switch CSplus
                 case 'Odour'
                     stimAction{end+1} = 'SoftCode'; stimAction{end+1} = 2;
@@ -331,9 +335,8 @@ function [sma, S] = PrepareStateMachine(S, trialTypes, currentTrial, ITI, curren
                     stimAction{end+1} = 'HiFi1'; stimAction{end+1} = ['P', 2];
                     chooseState2 = 'DeliverStim';
             end
-            goAction = 'Reward'; noGoAction = 'Punishment'; 
+            goAction = 'Reward'; noGoAction = 'InterTrialInterval'; 
         case 2 % CS-
-            stimAction = {};
             switch CSminus
                 case 'Odour'
                     stimAction{end+1} = 'SoftCode'; stimAction{end+1} = 3;
@@ -387,13 +390,13 @@ function [sma, S] = PrepareStateMachine(S, trialTypes, currentTrial, ITI, curren
         
                 sma = AddState(sma, 'Name', 'Barcode3', ...
                 'Timer', normrnd(S.GUI.muBarcodeDur, S.GUI.sigmaBarcodeDur),...
-                'StateChangeConditions', {'Tup', 'TrialStart'},...
+                'StateChangeConditions', {'Tup', 'Barcode4'},...
                 'OutputActions', {'BNC1', 1}); 
 
                 sma = AddState(sma, 'Name', 'Barcode4', ...
                 'Timer', normrnd(S.GUI.muBarcodeDur, S.GUI.sigmaBarcodeDur),...
                 'StateChangeConditions', {'Tup', 'TrialStart'},...
-                'OutputActions', {'BNC1', 1}); 
+                'OutputActions', {'BNC1', 0}); 
             else
                 sma = NewStateMachine();
             end
@@ -443,18 +446,23 @@ function [sma, S] = PrepareStateMachine(S, trialTypes, currentTrial, ITI, curren
         
                 sma = AddState(sma, 'Name', 'Barcode3', ...
                 'Timer', normrnd(S.GUI.muBarcodeDur, S.GUI.sigmaBarcodeDur),...
-                'StateChangeConditions', {'Tup', 'TrialStart'},...
+                'StateChangeConditions', {'Tup', 'Barcode4'},...
                 'OutputActions', {'BNC1', 1}); 
+
+                sma = AddState(sma, 'Name', 'Barcode4', ...
+                'Timer', normrnd(S.GUI.muBarcodeDur, S.GUI.sigmaBarcodeDur),...
+                'StateChangeConditions', {'Tup', 'TrialStart'},...
+                'OutputActions', {'BNC1', 0}); 
             else
                 sma = NewStateMachine();
             end
             %%
             sma = AddState(sma, 'Name', 'TrialStart', ...
-                'Timer', S.GUI.CueTime,...
+                'Timer', 0,...
                 'StateChangeConditions', {'Tup', 'ShowCue'},...
                 'OutputActions', startAction); % light on
             sma = AddState(sma, 'Name', 'ShowCue', ... % Turn on LED of port1. Wait for InitDelay seconds. Ensure that wheel does not move.
-                'Timer', 0,...
+                'Timer', S.GUI.CueTime,...
                 'StateChangeConditions', {'Tup', chooseState1},...
                 'OutputActions', cueAction); % '*' = push new thresholds to rotary encoder 'Z' = zero position
             sma = AddState(sma, 'Name', 'InitRE', ...
@@ -464,7 +472,7 @@ function [sma, S] = PrepareStateMachine(S, trialTypes, currentTrial, ITI, curren
             sma = AddState(sma, 'Name', 'GetSniff', ...
                 'Timer', 0, ...
                 'StateChangeConditions', {'Flex1Trig1', 'DeliverStim'}, ...
-                'OutputActions', {'BNC1', 1});
+                'OutputActions', {});
             sma = AddState(sma, 'Name', 'DeliverStim', ... 
                 'Timer', S.GUI.StimTime,...
                 'StateChangeConditions', {'Tup', 'GetResponse'},...
@@ -500,9 +508,7 @@ function handle_pause_condition(H, R, A)
             H.stop;
             R.stopUSBStream;
             A.stopUSBStream;
-            A.scope_StartStop; % Stop Oscope GUI
-            A.endAcq; % Close Oscope GUI
-            A.stopReportingEvents; % Stop sending events to state machine
+            % A.scope_StartStop; % Stop Oscope GUI
             return
     end
 end
@@ -512,5 +518,8 @@ function cleanup()
     global BpodSystem dmdModel
     BpodSystem.Data = AddFlexIOAnalogData(BpodSystem.Data, 'Volts', 1); % Save FlexI/O analog input data
     SaveBpodSessionData;
+    SaveBpodProtocolSettings;
     dmdModel.disconnect_dmd();
+    % A.endAcq; % Close Oscope GUI
+    A.stopReportingEvents; % Stop sending events to state machine
 end

@@ -1,5 +1,5 @@
 function GUIparams_luminose_hf_goNogo()
-    global S BpodSystem
+    global S
     
     %% ===== Trials =====
     S.GUITabs.Trials = {'ProtocolSettings', 'TestPulses', 'TrainingParams'};
@@ -9,7 +9,7 @@ function GUIparams_luminose_hf_goNogo()
     S.GUIPanels.ProtocolSettings = {'muBarcodeDur', 'sigmaBarcodeDur'};
 
     % == Training Params ==
-    S.GUI.TrainingLevel = 2; % Default Training Level
+    S.GUI.TrainingLevel = 1; % Default Training Level
     S.GUIMeta.TrainingLevel.Style = 'popupmenu';
     S.GUIMeta.TrainingLevel.String = {'Habituation', 'Training'};
     S.GUI.BiasCorrection = false;
@@ -35,7 +35,7 @@ function GUIparams_luminose_hf_goNogo()
         'Amplitude_error', 'NoiseTime', 'SoundSamplingRate'};
     S.GUIPanels.ITI = {'VariableITI', 'InterTrialInterval', 'MaxITI'};
     % == CueParams ==
-    S.GUI.CueType = 4;
+    S.GUI.CueType = 3;
     S.GUIMeta.CueType.Style = 'popupmenu';
     S.GUIMeta.CueType.String = {'Odour', 'Pattern', 'Light', 'Sound'};
     S.GUI.CueTime = 1;
@@ -47,7 +47,7 @@ function GUIparams_luminose_hf_goNogo()
     S.GUI.CSminusType = 1;
     S.GUIMeta.CSminusType.Style = 'popupmenu';
     S.GUIMeta.CSminusType.String = {'Odour', 'Pattern', 'Light', 'Sound'};
-    S.GUI.StimTime = 2.05;
+    S.GUI.StimTime = 1*(0.001+1+0.001); % olfactometer: preSequence_delay + pulseTime + postSequence_delay
     
     % == Response ==
     S.GUI.SoundSamplingRate = 192000;
@@ -55,30 +55,31 @@ function GUIparams_luminose_hf_goNogo()
     S.GUI.ResponseType = 1;
     S.GUIMeta.ResponseType.Style = 'popupmenu';
     S.GUIMeta.ResponseType.String = {'Lick', 'Rotary Encoder'};
-    S.GUI.ResponseTime = 10;
-    S.GUI.RewardAmount = 30;
-    S.GUI.ErrorDelay = 1;
-    S.GUI.NoiseTime = 0.6; % must be less than error delay
+    S.GUI.ResponseTime = 1;
+    S.GUI.RewardAmount = 4;
+    S.GUI.ErrorDelay = 5;
+    S.GUI.NoiseTime = 1; % must be less than error delay
 
     % == ITI ==
     S.GUI.VariableITI = true;
     S.GUI.InterTrialInterval = 5;
     S.GUIMeta.VariableITI.Style = 'checkbox';
-    S.GUI.MaxITI = 10;
+    S.GUI.MaxITI = 6;
 
     %% ===== Cue =====
-    S.GUITabs.Cue = {'Pattern', 'Odour', 'Light', 'Sound'};
-    S.GUIPanels.Odour = {'valves_cue', 'dutyCycles_cue', 'label_cue'};
-    S.GUIPanels.Sound = {'Amplitude_cue', 'HighFreq_cue', 'LowFreq_cue'};
-    S.GUIPanels.Light = {'Intensity_cue'};
-    S.GUIPanels.Pattern = {'Nimages_cue', 'imgIdx_cue', 'exposure_cue', 'dark_cue', 'repeat_cue'};
+    S.GUITabs.Cue = {'Pattern_cue', 'Odour_cue', 'Light_cue', 'Sound_cue'};
+    S.GUIPanels.Odour_cue = {'valves_cue', 'dutyCycles_cue', 'label_cue'};
+    S.GUIPanels.Sound_cue = {'Amplitude_cue', 'Freq_cue'};
+    S.GUIPanels.Light_cue = {'Intensity_cue'};
+    S.GUIPanels.Pattern_cue = {'Nimages_cue', 'imgIdx_cue', 'exposure_cue', 'dark_cue', 'repeat_cue'};
     % == Odour ==
     S.GUI.valves_cue = [7];
     S.GUI.dutyCycles_cue = repelem(1, 1); % specify scalar 0 to use default duty cycles
     S.GUI.label_cue = 'cue';
     % == Sound ==
     S.GUI.Amplitude_cue = [0.001, 0.001];
-    S.GUI.Freq_cue = 5000;     
+    S.GUI.Freq_cue = 5000;   
+
     % == Light ==
     S.GUI.Intensity_cue = 100;
     % == Pattern ==
@@ -89,13 +90,13 @@ function GUIparams_luminose_hf_goNogo()
     S.GUI.repeat_cue = 1;
 
     %% ===== CS+ =====
-    S.GUITabs.CSplus = {'Light', 'Sound', 'Pattern', 'Odour'};
-    S.GUIPanels.Odour = {'valves_CSplus', 'dutyCycles_CSplus', 'label_CSplus'};
-    S.GUIPanels.Sound = {'Amplitude_CSplus', 'HighFreq_CSplus', 'LowFreq_CSplus'};
-    S.GUIPanels.Light = {'Intensity_CSplus'};
-    S.GUIPanels.Pattern = {'Nimages_CSplus', 'imgIdx_CSplus', 'exposure_CSplus', 'dark_CSplus', 'repeat_CSplus'};
+    S.GUITabs.CSplus = {'Light_CSplus', 'Sound_CSplus', 'Pattern_CSplus', 'Odour_CSplus'};
+    S.GUIPanels.Odour_CSplus = {'valves_CSplus', 'dutyCycles_CSplus', 'label_CSplus'};
+    S.GUIPanels.Sound_CSplus = {'Amplitude_CSplus', 'HighFreq_CSplus', 'LowFreq_CSplus'};
+    S.GUIPanels.Light_CSplus = {'Intensity_CSplus'};
+    S.GUIPanels.Pattern_CSplus = {'Nimages_CSplus', 'imgIdx_CSplus', 'exposure_CSplus', 'dark_CSplus', 'repeat_CSplus'};
     % == Odour ==
-    S.GUI.valves_CSplus = [12];
+    S.GUI.valves_CSplus = [11];
     S.GUI.dutyCycles_CSplus = repelem(1, 1); % specify scalar 0 to use default duty cycles
     S.GUI.label_CSplus = 'CSplus';
     % == Sound ==
@@ -112,13 +113,13 @@ function GUIparams_luminose_hf_goNogo()
     S.GUI.repeat_CSplus = 1;
 
     %% ===== CS- =====
-    S.GUITabs.CSminus = {'Light', 'Sound', 'Pattern', 'Odour'};
-    S.GUIPanels.Odour = {'valves_CSminus', 'dutyCycles_CSminus', 'label_CSminus'};
-    S.GUIPanels.Sound = {'Amplitude_CSminus', 'HighFreq_CSminus', 'LowFreq_CSminus'};
-    S.GUIPanels.Light = {'Intensity_CSminus'};
-    S.GUIPanels.Pattern = {'Nimages_CSminus', 'imgIdx_CSminus', 'exposure_CSminus', 'dark_CSminus', 'repeat_CSminus'};
+    S.GUITabs.CSminus = {'Light_CSminus', 'Sound_CSminus', 'Pattern_CSminus', 'Odour_CSminus'};
+    S.GUIPanels.Odour_CSminus = {'valves_CSminus', 'dutyCycles_CSminus', 'label_CSminus'};
+    S.GUIPanels.Sound_CSminus = {'Amplitude_CSminus', 'HighFreq_CSminus', 'LowFreq_CSminus'};
+    S.GUIPanels.Light_CSminus = {'Intensity_CSminus'};
+    S.GUIPanels.Pattern_CSminus = {'Nimages_CSminus', 'imgIdx_CSminus', 'exposure_CSminus', 'dark_CSminus', 'repeat_CSminus'};
     % == Odour ==
-    S.GUI.valves_CSminus = [15];
+    S.GUI.valves_CSminus = [12];
     S.GUI.dutyCycles_CSminus = repelem(1, 1); % specify scalar 0 to use default duty cycles
     S.GUI.label_CSminus = 'CSminus';
     % == Sound ==

@@ -8,21 +8,21 @@ function olfactometer_hf_goNogo(code)
     
     %Define label and other parameters by SoftCode value
     switch code
-        case 1  % Trial Type CS-
+        case 1  % Cue
             odour_valves = S.GUI.valves_cue;
             duty_cycles = S.GUI.dutyCycles_cue;
             if duty_cycles == 0
                 duty_cycles = olfModel.get_odour_dutycycles(odour_valves);
             end
             label = S.GUI.label_cue;
-        case 2  % Trial Type CS+
+        case 2  % CS+
             odour_valves = S.GUI.valves_CSplus;
             duty_cycles = S.GUI.dutyCycles_CSplus;
             if duty_cycles == 0
                 duty_cycles = olfModel.get_odour_dutycycles(odour_valves);
             end
             label = S.GUI.label_CSplus;
-        case 3  % Trial Type CS-
+        case 3  % CS-
             odour_valves = S.GUI.valves_CSminus;
             duty_cycles = S.GUI.dutyCycles_CSminus;
             if duty_cycles == 0
