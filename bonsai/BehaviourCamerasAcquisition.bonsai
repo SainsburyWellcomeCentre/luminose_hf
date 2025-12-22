@@ -20,10 +20,11 @@
       </Expression>
       <Expression xsi:type="ExternalizedMapping">
         <Property Name="FileName" DisplayName="LeftVideo" />
+        <Property Name="Suffix" DisplayName="LeftVideoSuffix" />
       </Expression>
       <Expression xsi:type="Combinator">
         <Combinator xsi:type="cv:VideoWriter">
-          <cv:FileName>C:\Users\harrislab\luminoseData\rawdata\behaviourVideos\CameraAcqLeft.avi</cv:FileName>
+          <cv:FileName>C:\Users\harrislab\luminoseData\rawdata\behaviourVideos\CameraAcqLeft</cv:FileName>
           <cv:Suffix>Timestamp</cv:Suffix>
           <cv:Buffered>true</cv:Buffered>
           <cv:Overwrite>true</cv:Overwrite>
@@ -100,10 +101,11 @@
       </Expression>
       <Expression xsi:type="ExternalizedMapping">
         <Property Name="Path" DisplayName="LeftFrameData" />
+        <Property Name="Suffix" DisplayName="LeftFrameSuffix" />
       </Expression>
       <Expression xsi:type="Combinator">
         <Combinator xsi:type="dsp:MatrixWriter">
-          <dsp:Path>C:\Users\harrislab\luminoseData\rawdata\behaviourVideos\CameraAcqLeft.frameData.bin</dsp:Path>
+          <dsp:Path>C:\Users\harrislab\luminoseData\rawdata\behaviourVideos\CameraAcqLeft.frameData</dsp:Path>
           <dsp:Suffix>Timestamp</dsp:Suffix>
           <dsp:Overwrite>true</dsp:Overwrite>
           <dsp:Layout>ColumnMajor</dsp:Layout>
@@ -120,10 +122,11 @@
       </Expression>
       <Expression xsi:type="ExternalizedMapping">
         <Property Name="FileName" DisplayName="RightVideo" />
+        <Property Name="Suffix" DisplayName="RightVideoSuffix" />
       </Expression>
       <Expression xsi:type="Combinator">
         <Combinator xsi:type="cv:VideoWriter">
-          <cv:FileName>C:\Users\harrislab\luminoseData\rawdata\behaviourVideos\CameraAcqRight.avi</cv:FileName>
+          <cv:FileName>C:\Users\harrislab\luminoseData\rawdata\behaviourVideos\CameraAcqRight</cv:FileName>
           <cv:Suffix>Timestamp</cv:Suffix>
           <cv:Buffered>true</cv:Buffered>
           <cv:Overwrite>true</cv:Overwrite>
@@ -200,10 +203,11 @@
       </Expression>
       <Expression xsi:type="ExternalizedMapping">
         <Property Name="Path" DisplayName="RightFrameData" />
+        <Property Name="Suffix" DisplayName="RightFrameSuffix" />
       </Expression>
       <Expression xsi:type="Combinator">
         <Combinator xsi:type="dsp:MatrixWriter">
-          <dsp:Path>C:\Users\harrislab\luminoseData\rawdata\behaviourVideos\CameraAcqRight.frameData.bin</dsp:Path>
+          <dsp:Path>C:\Users\harrislab\luminoseData\rawdata\behaviourVideos\CameraAcqRight.frameData</dsp:Path>
           <dsp:Suffix>Timestamp</dsp:Suffix>
           <dsp:Overwrite>true</dsp:Overwrite>
           <dsp:Layout>ColumnMajor</dsp:Layout>
@@ -220,10 +224,11 @@
       </Expression>
       <Expression xsi:type="ExternalizedMapping">
         <Property Name="FileName" DisplayName="BodyVideo" />
+        <Property Name="Suffix" DisplayName="BodyVideoSuffix" />
       </Expression>
       <Expression xsi:type="Combinator">
         <Combinator xsi:type="cv:VideoWriter">
-          <cv:FileName>C:\Users\harrislab\luminoseData\rawdata\behaviourVideos\CameraAcqBody.avi</cv:FileName>
+          <cv:FileName>C:\Users\harrislab\luminoseData\rawdata\behaviourVideos\CameraAcqBody</cv:FileName>
           <cv:Suffix>Timestamp</cv:Suffix>
           <cv:Buffered>true</cv:Buffered>
           <cv:Overwrite>true</cv:Overwrite>
@@ -300,10 +305,11 @@
       </Expression>
       <Expression xsi:type="ExternalizedMapping">
         <Property Name="Path" DisplayName="BodyFrameData" />
+        <Property Name="Suffix" DisplayName="BodyFrameSuffix" />
       </Expression>
       <Expression xsi:type="Combinator">
         <Combinator xsi:type="dsp:MatrixWriter">
-          <dsp:Path>C:\Users\harrislab\luminoseData\rawdata\behaviourVideos\CameraAcqBody.frameData.bin--no-boot</dsp:Path>
+          <dsp:Path>C:\Users\harrislab\luminoseData\rawdata\behaviourVideos\CameraAcqBody.frameData</dsp:Path>
           <dsp:Suffix>Timestamp</dsp:Suffix>
           <dsp:Overwrite>true</dsp:Overwrite>
           <dsp:Layout>ColumnMajor</dsp:Layout>
