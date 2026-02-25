@@ -100,12 +100,12 @@ function luminose_hf_goNogo
     emulator = BpodSystem.EmulatorMode == 1;
     if ~emulator
         %% Configure Flex I/O Channels
-        chanSniff = 1; chanPhotodetector = 2; chanFlowmeterIn = 3; % chanFlowmeterOut = 4;
+        chanSniff = 1; chanPhotodetector = 2; chanFlowmeterIn = 3; chanFlowmeterOut = 4;
         channelTypes(1:4) = 4; % Disabled
         channelTypes(chanSniff) = 2; % Analog Input
-        channelTypes(chanPhotodetector) = 2; % Analog Input
+        channelTypes(chanPhotodetector) = 4; % Analog Input
         channelTypes(chanFlowmeterIn) = 2; % Analog Input
-        % channelTypes(chanFlowmeterOut) = 2; % Analog Input
+        channelTypes(chanFlowmeterOut) = 2; % Analog Input
         BpodSystem.FlexIOConfig.channelTypes = channelTypes;
         
         % Set sniff threshold for inhalation triggered stimulus
@@ -114,7 +114,7 @@ function luminose_hf_goNogo
         BpodSystem.FlexIOConfig.thresholdMode(chanSniff) = 0;
 
         % Set sampling rate 
-        BpodSystem.FlexIOConfig.analogSamplingRate = 1000; % Sampling rate
+        BpodSystem.FlexIOConfig.analogSamplingRate = 500; % Sampling rate
         % Initialize analog viewer GUI (online monitor of FlexIO analog inputs, not necessary for data logging)
         BpodSystem.startAnalogViewer; 
 
@@ -329,7 +329,7 @@ function [sma, S] = PrepareStateMachine(S, trialTypes, currentTrial, ITI, emulat
                     stimAction{end+1} = 'SoftCode'; stimAction{end+1} = 9;
                     chooseState2 = 'GetSniff';
                 case 'Light'
-                    stimAction{end+1} = 'PWM2'; stimAction{end+1} = S.GUI.Intensity_CSplus;
+                    stimAction{end+1} = 'PWM1'; stimAction{end+1} = S.GUI.Intensity_CSplus;
                     chooseState2 = 'DeliverStim';
                 case 'Sound'
                     stimAction{end+1} = 'HiFi1'; stimAction{end+1} = ['P', 2];
@@ -339,14 +339,15 @@ function [sma, S] = PrepareStateMachine(S, trialTypes, currentTrial, ITI, emulat
         case 2 % CS-
             switch CSminus
                 case 'Odour'
-                    stimAction{end+1} = 'SoftCode'; stimAction{end+1} = 3;
+                    chosenOdour = randi([1, 2]);
+                    stimAction{end+1} = 'SoftCode'; stimAction{end+1} = chosenOdour + 2;
                     chooseState2 = 'DeliverStim';
                 case 'Pattern'
                     stimAction{end+1} = 'SoftCode'; stimAction{end+1} = 10;
                     stimAction{end+1} = 'Serial3'; stimAction{end+1} = ['=' 0 'High'];
                     chooseState2 = 'GetSniff';
                 case 'Light'
-                    stimAction{end+1} = 'PWM3'; stimAction{end+1} = S.GUI.Intensity_CSminus;
+                    stimAction{end+1} = 'PWM2'; stimAction{end+1} = S.GUI.Intensity_CSminus;
                     chooseState2 = 'DeliverStim';
                 case 'Sound'
                     stimAction{end+1} = 'HiFi1'; stimAction{end+1} = ['P', 3];

@@ -1,5 +1,5 @@
-function liveBarPlot_hf_2AFC(ax, op, data)
-    % barPlot - Creates and updates a bar plot showing accuracy for CS+ and CS- trials
+ function liveBarPlot_hf_2AFC(ax, op, data)
+    % barPlot - Creates and updates a bar plot showing accuracy for Left and Right trials
     %
     % Syntax:
     %   barPlot(ax, 'init', trialTypes, [])  - Initialize the plot
@@ -8,7 +8,7 @@ function liveBarPlot_hf_2AFC(ax, op, data)
     % Inputs:
     %   ax - axes handle for plotting
     %   op - operation: 'init' or 'update'
-    %   trialTypes - vector of trial types (1 = CS+, 2 = CS-)
+    %   trialTypes - vector of trial types (1 = Left, 2 = Right)
     %   data - BpodSystem.Data structure containing trial outcomes
     
     global BpodSystem
@@ -24,12 +24,12 @@ function liveBarPlot_hf_2AFC(ax, op, data)
             % Create initial bars with zero height
             BpodSystem.GUIHandles.AccuracyPlot.Bars = bar(ax, [1 2], [0 0], 0.6);
             BpodSystem.GUIHandles.AccuracyPlot.Bars.FaceColor = 'flat';
-            BpodSystem.GUIHandles.AccuracyPlot.Bars.CData(1,:) = [0.2 0.5 0.8];  % CS+ color (blue)
-            BpodSystem.GUIHandles.AccuracyPlot.Bars.CData(2,:) = [0.8 0.4 0.2];  % CS- color (orange)
+            BpodSystem.GUIHandles.AccuracyPlot.Bars.CData(1,:) = [0.2 0.5 0.8];  % Left color (blue)
+            BpodSystem.GUIHandles.AccuracyPlot.Bars.CData(2,:) = [0.8 0.4 0.2];  % Right color (orange)
             
             % Formatting
             ax.XTick = [1 2];
-            ax.XTickLabel = {'CS+', 'CS-'};
+            ax.XTickLabel = {'Left', 'Right'};
             ax.YLim = [0 100];
             ax.YLabel.String = 'Accuracy (%)';
             ax.FontSize = 11;
@@ -73,10 +73,10 @@ function liveBarPlot_hf_2AFC(ax, op, data)
             end
             
             % Initialize counters
-            nCSplus = 0;
-            nCSminus = 0;
-            correctCSplus = 0;
-            correctCSminus = 0;
+            nLeft = 0;
+            nRight = 0;
+            correctLeft = 0;
+            correctRight = 0;
             
             % Count trials and correct responses
             for i = 1:nTrials
@@ -86,37 +86,37 @@ function liveBarPlot_hf_2AFC(ax, op, data)
                 hasReward = ~isnan(data.RawEvents.Trial{i}.States.Reward(1));
                 hasPunishment = ~isnan(data.RawEvents.Trial{i}.States.Punishment(1));
                 
-                if trialType == 1  % CS+ trial (should GO - lick)
-                    nCSplus = nCSplus + 1;
+                if trialType == 1  % left trial (should GO - lick)
+                    nLeft = nLeft + 1;
                     if hasReward
-                        correctCSplus = correctCSplus + 1;
+                        correctLeft = correctLeft + 1;
                     end
-                elseif trialType == 2  % CS- trial (should NO-GO - withhold)
-                    nCSminus = nCSminus + 1;
+                elseif trialType == 2  % right trial (should NO-GO - withhold)
+                    nRight = nRight + 1;
                     % Correct if reached ITI without punishment
                     hasITI = ~isnan(data.RawEvents.Trial{i}.States.InterTrialInterval(1));
                     if hasITI && ~hasPunishment
-                        correctCSminus = correctCSminus + 1;
+                        correctRight = correctRight + 1;
                     end
                 end
             end
             
             % Calculate accuracies
-            if nCSplus > 0
-                accuracyCSplus = (correctCSplus / nCSplus) * 100;
+            if nLeft > 0
+                accuracyLeft = (correctLeft / nLeft) * 100;
             else
-                accuracyCSplus = 0;
+                accuracyLeft = 0;
             end
             
-            if nCSminus > 0
-                accuracyCSminus = (correctCSminus / nCSminus) * 100;
+            if nRight > 0
+                accuracyRight = (correctRight / nRight) * 100;
             else
-                accuracyCSminus = 0;
+                accuracyRight = 0;
             end
             
             % Overall accuracy
-            totalTrials = nCSplus + nCSminus;
-            totalCorrect = correctCSplus + correctCSminus;
+            totalTrials = nLeft + nRight;
+            totalCorrect = correctLeft + correctRight;
             if totalTrials > 0
                 overallAccuracy = (totalCorrect / totalTrials) * 100;
             else
@@ -124,19 +124,19 @@ function liveBarPlot_hf_2AFC(ax, op, data)
             end
             
             % Update bar heights
-            set(BpodSystem.GUIHandles.AccuracyPlot.Bars, 'YData', [accuracyCSplus, accuracyCSminus]);
+            set(BpodSystem.GUIHandles.AccuracyPlot.Bars, 'YData', [accuracyLeft, accuracyRight]);
             
             % Update text labels
-            if accuracyCSplus > 0
-                set(BpodSystem.GUIHandles.AccuracyPlot.Text1, 'Position', [1, accuracyCSplus + 3, 0]);
-                set(BpodSystem.GUIHandles.AccuracyPlot.Text1, 'String', sprintf('%.1f%%', accuracyCSplus));
+            if accuracyLeft > 0
+                set(BpodSystem.GUIHandles.AccuracyPlot.Text1, 'Position', [1, accuracyLeft + 3, 0]);
+                set(BpodSystem.GUIHandles.AccuracyPlot.Text1, 'String', sprintf('%.1f%%', accuracyLeft));
             else
                 set(BpodSystem.GUIHandles.AccuracyPlot.Text1, 'String', '');
             end
             
-            if accuracyCSminus > 0
-                set(BpodSystem.GUIHandles.AccuracyPlot.Text2, 'Position', [2, accuracyCSminus + 3, 0]);
-                set(BpodSystem.GUIHandles.AccuracyPlot.Text2, 'String', sprintf('%.1f%%', accuracyCSminus));
+            if accuracyRight > 0
+                set(BpodSystem.GUIHandles.AccuracyPlot.Text2, 'Position', [2, accuracyRight + 3, 0]);
+                set(BpodSystem.GUIHandles.AccuracyPlot.Text2, 'String', sprintf('%.1f%%', accuracyRight));
             else
                 set(BpodSystem.GUIHandles.AccuracyPlot.Text2, 'String', '');
             end

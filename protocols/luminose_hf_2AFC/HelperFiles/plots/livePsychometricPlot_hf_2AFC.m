@@ -1,4 +1,4 @@
-function livePsychometricPlot_2AFC(ax, op, data, difficultyLevels)
+function livePsychometricPlot_hf_2AFC(ax, op, data, difficultyLevels)
     % psychometricPlot - Creates and updates psychometric curve
     %
     % Syntax:

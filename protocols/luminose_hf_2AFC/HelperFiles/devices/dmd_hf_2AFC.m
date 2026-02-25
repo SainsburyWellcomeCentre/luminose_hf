@@ -1,4 +1,4 @@
-function dmd_2AFC(code)
+function dmd_hf_2AFC(code)
     persistent dmdModel
     global S luminose
 

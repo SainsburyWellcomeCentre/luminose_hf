@@ -92,9 +92,9 @@ function varargout = LuminoseParameterGUI(varargin)
                 ThisTabPanelNames = Tabs.(TabNames{t});
                 nPanels = length(ThisTabPanelNames);
                 % Determine tab color
-                if contains(lower(TabNames{t}),'csplus')
+                if contains(lower(TabNames{t}),'left')
                     tabColor = COLORS.accentCS_plus;
-                elseif contains(lower(TabNames{t}),'csminus')
+                elseif contains(lower(TabNames{t}),'right')
                     tabColor = COLORS.accentCS_minus;
                 elseif contains(lower(TabNames{t}),'cue')
                     tabColor = COLORS.accentCue;
@@ -238,8 +238,22 @@ function varargout = LuminoseParameterGUI(varargin)
                     if HPos > MaxHPos
                         MaxHPos = HPos;
                     end
-                end                  
-                
+                end        
+
+                % --- Start Button ---
+                if contains(lower(TabNames{t}),'trial')
+                    BpodSystem.GUIHandles.ParameterGUI.StartButton = uicontrol(htab, ...
+                        'Style', 'pushbutton', ...
+                        'String', 'START', ...
+                        'Position', [15 VPos 455 50], ...
+                        'FontSize', 16, 'FontWeight', 'Bold', ...
+                        'BackgroundColor', [0.2 0.7 0.3], ...
+                        'ForegroundColor', 'white', ...
+                        'FontName', 'Segoe UI', ...
+                        'Callback', @(~,~) setappdata(BpodSystem.ProtocolFigures.ParameterGUI, 'StartPressed', true));
+                    VPos = VPos + 60;
+                end
+
                 % ---Logo Display Panel ---
                 if contains(lower(TabNames{t}),'trial')
                     panelName = 'logo';
@@ -279,7 +293,7 @@ function varargout = LuminoseParameterGUI(varargin)
                     VPos = VPos + ThisPanelHeight + 15;
                 end
                 % --- Stimulus indicators ---
-                if any(contains(lower(TabNames{t}), {'cue','csplus','csminus'}))
+                if any(contains(lower(TabNames{t}), {'cue','left','right'}))
                     panelName = sprintf('%s_StimulusIndicators', TabNames{t});
                     ThisPanelHeight = 70;
                     BpodSystem.GUIHandles.ParameterGUI.Panels.(panelName) = uipanel(htab,...
@@ -302,12 +316,12 @@ function varargout = LuminoseParameterGUI(varargin)
                             case 'cue'
                                 selIdx = Params.CueType;
                                 stimLabels = Meta.CueType.String;
-                            case 'csplus'
-                                selIdx = Params.CSplusType;
-                                stimLabels = Meta.CSplusType.String;
-                            case 'csminus'
-                                selIdx = Params.CSminusType;
-                                stimLabels = Meta.CSminusType.String;
+                            case 'left'
+                                selIdx = Params.LeftType;
+                                stimLabels = Meta.LeftType.String;
+                            case 'right'
+                                selIdx = Params.RightType;
+                                stimLabels = Meta.RightType.String;
                             otherwise
                                 selIdx = 0;
                                 stimLabels = {};
@@ -365,9 +379,8 @@ function varargout = LuminoseParameterGUI(varargin)
                     % Update layout tracking
                     VPos = VPos + panelHeight + 15;
                 end
-
-
-                set(BpodSystem.ProtocolFigures.ParameterGUI,'Position',[100 100 MaxHPos+500 min(MaxVPos+120,GUIHeight)]);
+                
+                set(BpodSystem.ProtocolFigures.ParameterGUI,'Position',[1760 555 MaxHPos+500 min(MaxVPos+120,GUIHeight)]);
             end
         case 'sync'
             ParamNames = BpodSystem.GUIData.ParameterGUI.ParamNames;
@@ -440,14 +453,14 @@ function varargout = LuminoseParameterGUI(varargin)
                             selIdx = Params.GUI.CueType;
                             tabColor = COLORS.accentCue;
                             stimLabels = Meta.CueType.String;
-                        case 'csplus'
-                            selIdx = Params.GUI.CSplusType;
+                        case 'left'
+                            selIdx = Params.GUI.LeftType;
                             tabColor = COLORS.accentCS_plus;
-                            stimLabels = Meta.CSplusType.String;
-                        case 'csminus'
-                            selIdx = Params.GUI.CSminusType;
+                            stimLabels = Meta.LeftType.String;
+                        case 'right'
+                            selIdx = Params.GUI.RightType;
                             tabColor = COLORS.accentCS_minus;
-                            stimLabels = Meta.CSminusType.String;
+                            stimLabels = Meta.RightType.String;
                         otherwise
                             continue;
                     end
@@ -517,7 +530,7 @@ function DrawTrialStructure(Params, Meta)
     cueTime = Params.CueTime;
     cueType = Meta.CueType.String{Params.CueType};
     stimTime = Params.StimTime;
-    stimType = strcat(Meta.CSplusType.String{Params.CSplusType}, '/', Meta.CSminusType.String{Params.CSminusType});
+    stimType = strcat(Meta.LeftType.String{Params.LeftType}, '/', Meta.RightType.String{Params.RightType});
     responseTime = Params.ResponseTime;
     errorDelay = Params.ErrorDelay;
     iti = Params.InterTrialInterval;
