@@ -6,6 +6,7 @@ classdef OlfactometerModel < handle
         syncTTL
         triggered
         inputTrigger
+        DigitalTriggerTimeout
         preSequenceTime
         postSequenceTime
         pulseTime
@@ -32,6 +33,7 @@ classdef OlfactometerModel < handle
 
             self.triggered = triggered;
             self.inputTrigger = constants.inputTrigger;
+            self.DigitalTriggerTimeout = constants.DigitalTriggerTimeout;
 
             self.preSequenceTime = constants.preSequenceTime;
             self.postSequenceTime = constants.postSequenceTime;
@@ -50,9 +52,8 @@ classdef OlfactometerModel < handle
         end
 
         function initTask(self)
-            
             self.valveSession = daq("ni");
-
+            self.valveSession.DigitalTriggerTimeout = 30;
             self.valveSession.addoutput(self.frontValves.deviceID, self.frontValves.channelID, self.frontValves.measurementType);
             self.valveSession.addoutput(self.backValves.deviceID, self.backValves.channelID, self.backValves.measurementType);
             self.valveSession.addoutput(self.syncTTL.deviceID, self.syncTTL.channelID, self.syncTTL.measurementType);
@@ -61,7 +62,6 @@ classdef OlfactometerModel < handle
             % Configure digital start trigger
             if self.triggered
                 self.valveSession.addtrigger("Digital", "StartTrigger", "External", self.inputTrigger);
-                self.valveSession.DigitalTriggerTimeout = 30;
             end
             self.valveSession.Rate = self.sampleRate;
         end
@@ -105,12 +105,37 @@ classdef OlfactometerModel < handle
         end
 
         function play_valve_sequence(self, odourValves, dutyCycles)
-            pattern = self.generate_valve_pattern(odourValves, dutyCycles);
-            self.valveSession.preload(double(pattern)');
-            self.valveSession.start();
-            pause(self.acquisitionTime);
-            self.valveSession.stop();
-            self.valveSession.flush();
+            try
+                pattern = self.generate_valve_pattern(odourValves, dutyCycles);
+                self.valveSession.preload(double(pattern)');
+                self.valveSession.start("Finite");
+                tic;
+                while self.valveSession.WaitingForDigitalTrigger
+                    if toc > self.DigitalTriggerTimeout
+                        self.valveSession.stop();
+                        self.valveSession.flush();
+                        fprintf('Trigger timeout: no trigger received within %d seconds', self.DigitalTriggerTimeout);
+                    end
+                    pause(0.1);
+                end
+        
+                pause(self.acquisitionTime);
+                self.valveSession.stop();
+                self.valveSession.flush();
+            catch ME
+                % Always release hardware on error
+                try
+                    self.valveSession.stop();
+                catch
+                end
+                try
+                    self.valveSession.flush();
+                catch
+                end
+                delete(self.valveSession);
+                self.initTask();  % reinitialise fresh session
+                rethrow(ME);
+            end
         end
 
         function checkStatus(status)

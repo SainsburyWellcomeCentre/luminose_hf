@@ -59,12 +59,6 @@ function luminose_hf_goNogo
     CSplus = S.GUIMeta.CSplusType.String{S.GUI.CSplusType};
     CSminus = S.GUIMeta.CSminusType.String{S.GUI.CSminusType};
     
-    if strcmp(cue, 'Odour') % currently coded such that cue and stim cannot both be odours at the same trial 
-        olfactometer_hf_goNogo(1);
-    elseif any([strcmp(CSplus, 'Odour'), strcmp(CSminus, 'Odour')])
-        olfactometer_hf_goNogo(currentTrialType + 1);
-    end
-    
     if S.GUI.VariableITI
         ITI = S.GUI.InterTrialInterval * (1.01 .^ (0:S.GUI.maxTrials-1)); % Generate incremental ITI values using a geometric progression
         ITI(ITI > S.GUI.MaxITI) = S.GUI.MaxITI; % Enforce maximum ITI duration for all trials
@@ -77,7 +71,7 @@ function luminose_hf_goNogo
     
     %% Begin plotting
     % Initialize parameter GUI plugin
-    LuminoseParameterGUI_hf_goNogo('init', S);liveOutcome
+    LuminoseParameterGUI_hf_goNogo('init', S);
     % Wait for Start button press
     disp('Waiting for START button...');
     setappdata(BpodSystem.ProtocolFigures.ParameterGUI, 'StartPressed', false);
@@ -126,12 +120,12 @@ function luminose_hf_goNogo
     emulator = BpodSystem.EmulatorMode == 1;
     if ~emulator
         %% Configure Flex I/O Channels
-        chanSniff = 1; chanPhotodetector = 2; chanFlowmeterIn = 3; chanFlowmeterOut = 4;
+        chanSniff = 1; chanPhotodetector = 2; chanFlowmeter = 3; chanNIDAQ = 4;
         channelTypes(1:4) = 4; % Disabled
         channelTypes(chanSniff) = 2; % Analog Input
-        channelTypes(chanPhotodetector) = 4; % Analog Input
-        channelTypes(chanFlowmeterIn) = 2; % Analog Input
-        channelTypes(chanFlowmeterOut) = 2; % Analog Input
+        channelTypes(chanPhotodetector) = 2; % Analog Input
+        channelTypes(chanFlowmeter) = 2; % Analog Input
+        channelTypes(chanNIDAQ) = 0; % Digital Input
         BpodSystem.FlexIOConfig.channelTypes = channelTypes;
         
         % Set sniff threshold for inhalation triggered stimulus
@@ -145,15 +139,15 @@ function luminose_hf_goNogo
         % Initialize analog viewer GUI (online monitor of FlexIO analog inputs, not necessary for data logging)
         BpodSystem.startAnalogViewer; 
         flexioPos = get(BpodSystem.GUIHandles.OscopeFig_Builtin, 'Position');
-        flexioPos(1:2) = [10, 100];
+        flexioPos(1:2) = [30, 65];
         set(BpodSystem.GUIHandles.OscopeFig_Builtin, 'Position', flexioPos);
 
         %% Assert modules are USB-paired
-        BpodSystem.assertModule({'HiFi','RotaryEncoder', 'AnalogIn'}, [1 1 1]); 
+        BpodSystem.assertModule({'HiFi','RotaryEncoder'}, [1 1]); 
     
         H = BpodHiFi(BpodSystem.ModuleUSB.HiFi1);
         R = RotaryEncoderModule(BpodSystem.ModuleUSB.RotaryEncoder1); 
-        A = BpodAnalogIn(BpodSystem.ModuleUSB.AnalogIn1);
+        % A = BpodAnalogIn(BpodSystem.ModuleUSB.AnalogIn1);
     
         if BpodSystem.Modules.HWVersion_Major(strcmp(BpodSystem.Modules.Name, 'RotaryEncoder1')) < 2
             error('Error: This protocol requires rotary encoder module v2 or newer');
@@ -203,7 +197,7 @@ function luminose_hf_goNogo
         % A.SamplingRate = 1000; % Hz
         % A.nActiveChannels = 0; 
         % A.Stream2USB(1:2) = 1; % Configure only channels 1 and 2 for USB streaming
-        A.DIOconfig(1:2) = 1;
+        % A.DIOconfig(1:2) = 1;
         % A.SMeventsEnabled(1) = 1; % Return threshold crossing events from Ch1
         % A.Thresholds(1) = 2.5; % Set voltage threshold of Ch1 to 2.5V
         % A.ResetVoltages(1) = 1; % Voltage must return below 1V before another threshold crossing event can be triggered
@@ -215,6 +209,11 @@ function luminose_hf_goNogo
         
         
         %% Prepare and start first trial      
+        if strcmp(cue, 'Odour') % currently coded such that cue and stim cannot both be odours at the same trial 
+            SoftCodeHandler_luminose_hf_goNogo(1);
+        elseif any([strcmp(CSplus, 'Odour'), strcmp(CSminus, 'Odour')])
+            SoftCodeHandler_luminose_hf_goNogo(currentTrialType + 1);
+        end
         trialManager = BpodTrialManager;
         sma = PrepareStateMachine(S, currentTrialType, 1, ITI, emulator); % Prepare state machine for trial 1 with empty "current events" variable
         trialManager.startTrial(sma); % Sends & starts running first trial's state machine. A MATLAB timer object updates the 
@@ -226,7 +225,7 @@ function luminose_hf_goNogo
             currentTrialType = nextTrialType;
             nextTrialType = getNextTrialType_hf_goNogo(BpodSystem.Data, 50, S.GUI.BiasCorrection, 0.2, S.GUI.CSplus_prob);
             
-            handle_pause_condition(H, R, A); % Handle pause/stop by user
+            handle_pause_condition(H, R); % Handle pause/stop by user
             
             if currentTrial < S.GUI.maxTrials
                 [sma, S] = PrepareStateMachine(S, nextTrialType, currentTrial+1, ITI, emulator);
@@ -234,7 +233,7 @@ function luminose_hf_goNogo
             end
             
             RawEvents = trialManager.getTrialData; % Hangs here until trial is over, then retrieves full trial's raw data
-            handle_pause_condition(H, R, A); % Handle pause/stop by user
+            handle_pause_condition(H, R); % Handle pause/stop by user
             
             if currentTrial < S.GUI.maxTrials
                 trialManager.startTrial(); % Start processing the next trial's events (call with no argument since SM was already sent)
@@ -259,16 +258,16 @@ function luminose_hf_goNogo
                     BpodSystem.Data.EncoderData{currentTrial}.EventTimestamps - BpodSystem.Data.TrialStartTimestamp(currentTrial) ;
 
                 %% Update plots
-                liveOutcomePlot_hf_2AFC(BpodSystem.GUIHandles.OutcomeAxes, 'update', BpodSystem.Data, nextTrialType);
+                liveOutcomePlot_hf_goNogo(BpodSystem.GUIHandles.OutcomeAxes, 'update', BpodSystem.Data, nextTrialType);
                 
                 liveBarPlot_hf_goNogo(BpodSystem.GUIHandles.AccuracyAxes, 'update', BpodSystem.Data);
                 
                 % livePsychometricPlot_hf_goNogo(BpodSystem.GUIHandles.PsychometricAxes, 'update', ...
                     % BpodSystem.Data, [1]);
                 
-                liveRewardPlot_hf_2AFC(BpodSystem.GUIHandles.RewardAxes, 'update', BpodSystem.Data);
+                liveRewardPlot_hf_goNogo(BpodSystem.GUIHandles.RewardAxes, 'update', BpodSystem.Data);
 
-                liveResponseTimePlot_hf_2AFC(BpodSystem.GUIHandles.ResponseAxes, 'update', BpodSystem.Data);
+                liveResponseTimePlot_hf_goNogo(BpodSystem.GUIHandles.ResponseAxes, 'update', BpodSystem.Data);
                 
                 % Update rotary encoder plot
                 if currentTrial == 1 % Only on the first trial, the first and second trial's trial-start timestamps will be retrieved in the rotary encoder data
@@ -312,16 +311,16 @@ function luminose_hf_goNogo
                 % Update plots
                 TrialDuration = BpodSystem.Data.TrialEndTimestamp(currentTrial)-BpodSystem.Data.TrialStartTimestamp(currentTrial);
                 
-                liveOutcomePlot_hf_2AFC(BpodSystem.GUIHandles.OutcomeAxes, 'update', BpodSystem.Data, nextTrialType);
+                liveOutcomePlot_hf_goNogo(BpodSystem.GUIHandles.OutcomeAxes, 'update', BpodSystem.Data, nextTrialType);
 
                 liveBarPlot_hf_goNogo(BpodSystem.GUIHandles.AccuracyAxes, 'update', BpodSystem.Data);
 
                 % livePsychometricPlot_hf_goNogo(BpodSystem.GUIHandles.PsychometricAxes, 'update', ...
                     % BpodSystem.Data, [1]);
 
-                liveRewardPlot_hf_2AFC(BpodSystem.GUIHandles.RewardAxes, 'update', BpodSystem.Data);
+                liveRewardPlot_hf_goNogo(BpodSystem.GUIHandles.RewardAxes, 'update', BpodSystem.Data);
                 
-                liveResponseTimePlot_hf_2AFC(BpodSystem.GUIHandles.ResponseAxes, 'update', BpodSystem.Data);
+                liveResponseTimePlot_hf_goNogo(BpodSystem.GUIHandles.ResponseAxes, 'update', BpodSystem.Data);
             end
             HandlePauseCondition; % Checks to see if the protocol is paused. If so, waits until user resumes.
             if BpodSystem.Status.BeingUsed == 0 % If protocol was stopped, exit the loop
@@ -545,13 +544,14 @@ function [sma, S] = PrepareStateMachine(S, currentTrialType, currentTrial, ITI, 
     end
 end
 %% Handle pause condition
-function handle_pause_condition(H, R, A)
+% function handle_pause_condition(H, R, A)
+function handle_pause_condition(H, R)
     global BpodSystem
     HandlePauseCondition;
     if BpodSystem.Status.BeingUsed == 0
             H.stop;
             R.stopUSBStream;
-            A.stopUSBStream;
+            % A.stopUSBStream;
             % A.scope_StartStop; % Stop Oscope GUI
             return
     end
@@ -565,5 +565,5 @@ function cleanup()
     SaveBpodProtocolSettings;
     dmdModel.disconnect_dmd();
     % A.endAcq; % Close Oscope GUI
-    A.stopReportingEvents; % Stop sending events to state machine
+    % A.stopReportingEvents; % Stop sending events to state machine
 end

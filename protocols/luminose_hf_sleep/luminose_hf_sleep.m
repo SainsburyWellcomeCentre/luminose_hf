@@ -119,13 +119,13 @@ function luminose_hf_sleep
         % Initialize analog viewer GUI (online monitor of FlexIO analog inputs, not necessary for data logging)
         BpodSystem.startAnalogViewer; 
         flexioPos = get(BpodSystem.GUIHandles.OscopeFig_Builtin, 'Position');
-        flexioPos(1:2) = [10, 100];
+        flexioPos(1:2) = [30, 65];
         set(BpodSystem.GUIHandles.OscopeFig_Builtin, 'Position', flexioPos);
         %% Assert modules are USB-paired
-        BpodSystem.assertModule({'RotaryEncoder', 'AnalogIn'}, [1 1]); 
+        BpodSystem.assertModule({'RotaryEncoder'}, [1]); 
     
         R = RotaryEncoderModule(BpodSystem.ModuleUSB.RotaryEncoder1); 
-        A = BpodAnalogIn(BpodSystem.ModuleUSB.AnalogIn1);
+        % A = BpodAnalogIn(BpodSystem.ModuleUSB.AnalogIn1);
     
         if BpodSystem.Modules.HWVersion_Major(strcmp(BpodSystem.Modules.Name, 'RotaryEncoder1')) < 2
             error('Error: This protocol requires rotary encoder module v2 or newer');
@@ -144,7 +144,7 @@ function luminose_hf_sleep
         % A.SamplingRate = 1000; % Hz
         % A.nActiveChannels = 0; 
         % A.Stream2USB(1:2) = 1; % Configure only channels 1 and 2 for USB streaming
-        A.DIOconfig(1:2) = 1;
+        % A.DIOconfig(1:2) = 1;
         % A.SMeventsEnabled(1) = 1; % Return threshold crossing events from Ch1
         % A.Thresholds(1) = 2.5; % Set voltage threshold of Ch1 to 2.5V
         % A.ResetVoltages(1) = 1; % Voltage must return below 1V before another threshold crossing event can be triggered
@@ -164,7 +164,7 @@ function luminose_hf_sleep
         for currentTrial = 1:S.GUI.maxTrials
             currentTrialType = trialTypes(currentTrial);
             S = LuminoseParameterGUI_hf_sleep('sync', S); % Sync parameters with LuminoseParameterGUI_hf_sleep plugin
-            handle_pause_condition(R, A); % Handle pause/stop by user
+            handle_pause_condition(R); % Handle pause/stop by user
             
             if currentTrial < S.GUI.maxTrials
                 [sma, S] = PrepareStateMachine(S, trialTypes, currentTrial+1, stimTime, ITI, emulator);
@@ -172,7 +172,7 @@ function luminose_hf_sleep
             end
             
             RawEvents = trialManager.getTrialData; % Hangs here until trial is over, then retrieves full trial's raw data
-            handle_pause_condition(H, R, A); % Handle pause/stop by user
+            handle_pause_condition(R); % Handle pause/stop by user
             
             if currentTrial < S.GUI.maxTrials
                 trialManager.startTrial(); % Start processing the next trial's events (call with no argument since SM was already sent)
@@ -372,7 +372,7 @@ function [sma, S] = PrepareStateMachine(S, trialTypes, currentTrial, stimTime, I
 end
 
 %% Handle pause condition
-function handle_pause_condition(R, A)
+function handle_pause_condition(R)
     global BpodSystem
     HandlePauseCondition;
     if BpodSystem.Status.BeingUsed == 0
@@ -380,7 +380,7 @@ function handle_pause_condition(R, A)
             % A.stopUSBStream;
             % A.scope_StartStop; % Stop Oscope GUI
             % A.endAcq; % Close Oscope GUI
-            A.stopReportingEvents; % Stop sending events to state machine
+            % A.stopReportingEvents; % Stop sending events to state machine
             return
     end
 end

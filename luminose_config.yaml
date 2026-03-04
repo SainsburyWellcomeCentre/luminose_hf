@@ -51,6 +51,7 @@ olfactometer:
   
   # Input trigger configuration
   inputTrigger: "cDAQ1/PFI0"
+  DigitalTriggerTimeout: 10
 
 # DMD (Digital Micromirror Device) configuration
 dmd:

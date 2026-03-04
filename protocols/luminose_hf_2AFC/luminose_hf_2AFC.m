@@ -59,12 +59,6 @@ function luminose_hf_2AFC
     Left = S.GUIMeta.CueType.String{S.GUI.LeftType};
     Right = S.GUIMeta.CueType.String{S.GUI.RightType};
 
-    if strcmp(cue, 'Odour') % currently coded such that cue and stim cannot both be odours at the same trial 
-        olfactometer_hf_2AFC(1);
-    elseif any([strcmp(Left, 'Odour'), strcmp(Right, 'Odour')])
-        olfactometer_hf_2AFC(currentTrialType + 1);
-    end
-
     if S.GUI.VariableITI
         ITI = S.GUI.InterTrialInterval * (1.01 .^ (0:S.GUI.maxTrials-1)); % Generate incremental ITI values using a geometric progression
         ITI(ITI > S.GUI.MaxITI) = S.GUI.MaxITI; % Enforce maximum ITI duration for all trials
@@ -145,14 +139,16 @@ function luminose_hf_2AFC
         % Initialize analog viewer GUI (online monitor of FlexIO analog inputs, not necessary for data logging)
         BpodSystem.startAnalogViewer; 
         flexioPos = get(BpodSystem.GUIHandles.OscopeFig_Builtin, 'Position');
-        flexioPos(1:2) = [10, 100];
+        flexioPos(1:2) = [30, 65];
         set(BpodSystem.GUIHandles.OscopeFig_Builtin, 'Position', flexioPos);
+
         %% Assert modules are USB-paired
-        BpodSystem.assertModule({'HiFi','RotaryEncoder', 'AnalogIn'}, [1 1 1]); 
+        % BpodSystem.assertModule({'HiFi','RotaryEncoder', 'AnalogIn'}, [1 1 1]); 
+        BpodSystem.assertModule({'HiFi','RotaryEncoder'}, [1 1]); 
     
         H = BpodHiFi(BpodSystem.ModuleUSB.HiFi1);
         R = RotaryEncoderModule(BpodSystem.ModuleUSB.RotaryEncoder1); 
-        A = BpodAnalogIn(BpodSystem.ModuleUSB.AnalogIn1);
+        % A = BpodAnalogIn(BpodSystem.ModuleUSB.AnalogIn1);
     
         if BpodSystem.Modules.HWVersion_Major(strcmp(BpodSystem.Modules.Name, 'RotaryEncoder1')) < 2
             error('Error: This protocol requires rotary encoder module v2 or newer');
@@ -202,7 +198,7 @@ function luminose_hf_2AFC
         % A.SamplingRate = 1000; % Hz
         % A.nActiveChannels = 0; 
         % A.Stream2USB(1:2) = 1; % Configure only channels 1 and 2 for USB streaming
-        A.DIOconfig(1:2) = 1;
+        % A.DIOconfig(1:2) = 1;
         % A.SMeventsEnabled(1) = 1; % Return threshold crossing events from Ch1
         % A.Thresholds(1) = 2.5; % Set voltage threshold of Ch1 to 2.5V
         % A.ResetVoltages(1) = 1; % Voltage must return below 1V before another threshold crossing event can be triggered
@@ -214,6 +210,11 @@ function luminose_hf_2AFC
         
         
         %% Prepare and start first trial
+        if strcmp(cue, 'Odour') % currently coded such that cue and stim cannot both be odours at the same trial 
+            SoftCodeHandler_luminose_hf_2AFC(1);
+        elseif any([strcmp(Left, 'Odour'), strcmp(Right, 'Odour')])
+            SoftCodeHandler_luminose_hf_2AFC(currentTrialType + 1);
+        end
         trialManager = BpodTrialManager;
         sma = PrepareStateMachine(S, currentTrialType, 1, ITI, emulator); % Prepare state machine for trial 1 with empty "current events" variable
         trialManager.startTrial(sma); % Sends & starts running first trial's state machine. A MATLAB timer object updates the 
@@ -225,7 +226,7 @@ function luminose_hf_2AFC
             currentTrialType = nextTrialType;
             nextTrialType = getNextTrialType_hf_2AFC(BpodSystem.Data, 50, S.GUI.BiasCorrection, 0.2, S.GUI.Leftprob);
             
-            handle_pause_condition(H, R, A); % Handle pause/stop by user
+            handle_pause_condition(H, R); % Handle pause/stop by user
             
             if currentTrial < S.GUI.maxTrials
                 [sma, S] = PrepareStateMachine(S, nextTrialType, currentTrial+1, ITI, emulator);
@@ -233,13 +234,12 @@ function luminose_hf_2AFC
             end
             
             RawEvents = trialManager.getTrialData; % Hangs here until trial is over, then retrieves full trial's raw data
-            handle_pause_condition(H, R, A); % Handle pause/stop by user
+            handle_pause_condition(H, R); % Handle pause/stop by user
             
             if currentTrial < S.GUI.maxTrials
                 trialManager.startTrial(); % Start processing the next trial's events (call with no argument since SM was already sent)
             end
             
-            %%
             if ~isempty(fieldnames(RawEvents))
                 BpodSystem.Data = AddTrialEvents(BpodSystem.Data,RawEvents);
                 BpodSystem.Data.TrialSettings(currentTrial) = S;
@@ -634,7 +634,8 @@ function [sma, S] = PrepareStateMachine(S, currentTrialType, currentTrial, ITI, 
 end
 
 %% Handle pause condition
-function handle_pause_condition(H, R, A)
+% function handle_pause_condition(H, R, A)
+function handle_pause_condition(H, R)
     global BpodSystem
     HandlePauseCondition;
     if BpodSystem.Status.BeingUsed == 0
@@ -643,7 +644,7 @@ function handle_pause_condition(H, R, A)
             % A.stopUSBStream;
             % A.scope_StartStop; % Stop Oscope GUI
             % A.endAcq; % Close Oscope GUI
-            A.stopReportingEvents; % Stop sending events to state machine
+            % A.stopReportingEvents; % Stop sending events to state machine
             return
     end
 end
