@@ -1,17 +1,17 @@
-function RBias = computeBias_hf_2AFC(data, N)
+function Bias = computeBias_hf_goNogo(data, N)
 % computeBias calculates the response bias over the last N trials
 % BpodData: BpodSystem.Data
 % N: number of previous trials to consider
 %
 % Returns:
-%   RBias: bias measure (Right proportion - Left proportion), from -1 to 1
+%   Bias: bias measure (CSminus proportion - CSplus proportion), from -1 to 1
 
 if nargin < 2
     N = 50; % default window
 end
 
 if ~isfield(data,'RawEvents') || isempty(data.RawEvents)
-    RBias = 0;
+    Bias = 0;
     return
 end
 nTrials = length(data.RawEvents.Trial);
@@ -21,12 +21,12 @@ startIdx = max(1, nTrials - N + 1);
 choices = nan(1, nTrials);
 for i = startIdx:nTrials
     events = data.RawEvents.Trial{i}.Events;
-    hasLeft  = isfield(events,'BNC1High');
-    hasRight = isfield(events,'BNC2High');
+    hasPlus  = isfield(events,'BNC1High');
+    hasMinus = isfield(events,'BNC2High');
     
-    if hasLeft && ~hasRight
+    if hasPlus && ~hasMinus
         choices(i) = 1; % left
-    elseif hasRight && ~hasLeft
+    elseif hasMinus && ~hasPlus
         choices(i) = 2; % right
     else
         choices(i) = NaN;
@@ -41,24 +41,24 @@ validChoices = window(validMask);
 correctSides = correctSides(validMask);
 
 if isempty(validChoices)
-    RBias = 0;
+    Bias = 0;
     return
 end
 
-WrongSides = validChoices ~= correctSides;
-nWrong = sum(WrongSides);
-WrongSideProportion = nWrong / length(WrongSides);
+WrongResps = validChoices ~= correctSides;
+nWrong = sum(WrongResps);
+WrongRespProportion = nWrong / length(WrongResps);
 
 % Fraction of wrong responses to each side (guard against zero wrong trials)
 if nWrong == 0
-    WrongRightsProportion = 0;
-    WrongLeftsProportion  = 0;
+    WrongMinusProportion = 0;
+    WrongPlusProportion  = 0;
 else
-    WrongRightsProportion = WrongSideProportion * sum(WrongSides & validChoices==2) / nWrong;
-    WrongLeftsProportion  = WrongSideProportion * sum(WrongSides & validChoices==1) / nWrong;
+    WrongMinusProportion = WrongRespProportion * sum(WrongResps & validChoices==2) / nWrong;
+    WrongPlusProportion  = WrongRespProportion * sum(WrongResps & validChoices==1) / nWrong;
 end
 
 % Bias (positive = right bias, negative = left bias)
-RBias = WrongRightsProportion - WrongLeftsProportion;
+Bias = WrongMinusProportion - WrongPlusProportion;
 
 end

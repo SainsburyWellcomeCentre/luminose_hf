@@ -24,10 +24,7 @@ function luminose_hf_2AFC
     disp(luminose.bonsai);
     
     dmdModel = DMDmodel(luminose.dmd);
-    olfModel = OlfactometerModel(luminose.olfactometer);
-    
-    olfModel.generate_valve_pattern([14, 14], [1, 0.5], 'test'); % test olfactometer with blank odour bottle
-    olfModel.play_valve_sequence([14, 14], [1, 0.5], 'test');
+    olfModel = OlfactometerModel(luminose.olfactometer, true);
 
     %% Launch bonsai
     % Ask user whether to launch Bonsai
@@ -45,19 +42,11 @@ function luminose_hf_2AFC
     end
 
     %% Configure trials  
-    choice = questdlg('Choose training level:', ...
-        'Training Level', ...
-        'Habituation', 'Training', 'Training');   % default = Yes
-    if strcmp(choice, 'Habituation')
-        TrainingLevel = 1;
-    else
-        TrainingLevel = 2;
-    end
     S = BpodSystem.ProtocolSettings;
     if isempty(fieldnames(S))
         GUIparams_luminose_hf_2AFC();
     end
-    
+
     BpodSystem.Data.TrialTypes = []; % The trial type of each trial completed will be added here.
     if rand < S.GUI.Leftprob
         nextTrialType = 1;
@@ -65,6 +54,16 @@ function luminose_hf_2AFC
         nextTrialType = 2;
     end
     currentTrialType = nextTrialType;
+    
+    cue = S.GUIMeta.CueType.String{S.GUI.CueType};
+    Left = S.GUIMeta.CueType.String{S.GUI.LeftType};
+    Right = S.GUIMeta.CueType.String{S.GUI.RightType};
+
+    if strcmp(cue, 'Odour') % currently coded such that cue and stim cannot both be odours at the same trial 
+        olfactometer_hf_2AFC(1);
+    elseif any([strcmp(Left, 'Odour'), strcmp(Right, 'Odour')])
+        olfactometer_hf_2AFC(currentTrialType + 1);
+    end
 
     if S.GUI.VariableITI
         ITI = S.GUI.InterTrialInterval * (1.01 .^ (0:S.GUI.maxTrials-1)); % Generate incremental ITI values using a geometric progression
@@ -89,7 +88,7 @@ function luminose_hf_2AFC
         end
     end
     disp('START pressed — beginning experiment.');
-    
+
     % Live outcome plot
     BpodSystem.ProtocolFigures.OutcomePlot = figure('Position', [30 1035 1000 350], ...
         'name', 'Outcome Plot', 'numbertitle', 'off', 'MenuBar', 'none', 'Resize', 'on');
@@ -142,9 +141,12 @@ function luminose_hf_2AFC
 
         % Set sampling rate 
         BpodSystem.FlexIOConfig.analogSamplingRate = 500; % Sampling rate
+        
         % Initialize analog viewer GUI (online monitor of FlexIO analog inputs, not necessary for data logging)
         BpodSystem.startAnalogViewer; 
-
+        flexioPos = get(BpodSystem.GUIHandles.OscopeFig_Builtin, 'Position');
+        flexioPos(1:2) = [10, 100];
+        set(BpodSystem.GUIHandles.OscopeFig_Builtin, 'Position', flexioPos);
         %% Assert modules are USB-paired
         BpodSystem.assertModule({'HiFi','RotaryEncoder', 'AnalogIn'}, [1 1 1]); 
     
@@ -159,24 +161,17 @@ function luminose_hf_2AFC
         %% Setup sound
         % Configure HiFi module
         H.SamplingRate = 192000;
-        if S.GUI.NoiseTime~= 0
-            errorSound = GenerateWhiteNoise(H.SamplingRate, S.GUI.NoiseTime, S.GUI.Amplitude_error, 2);
-            H.load(1, errorSound);
-        end
-        if any(strcmp(S.GUIMeta.CueType.String{S.GUI.CueType}, 'Sound'))
-            cueSound = GenerateSineWave(H.SamplingRate, S.GUI.Freq_cue, S.GUI.CueTime);
-            H.load(2, cueSound);
-        end
-        if any(strcmp(S.GUIMeta.LeftType.String{S.GUI.LeftType}, 'Sound'))
-            TimeSoundLeft = 0:1/H.SamplingRate:S.GUI.StimTime;
-            LeftSound = chirp(TimeSoundLeft, S.GUI.LowFreq_Left, S.GUI.CueTime, S.GUI.HighFreq_Left);
-            H.load(3, LeftSound);
-        end
-        if any(strcmp(S.GUIMeta.RightType.String{S.GUI.RightType}, 'Sound'))
-            TimeSoundRight = 0:1/H.SamplingRate:S.GUI.StimTime;
-            RightSound = chirp(TimeSoundRight, S.GUI.LowFreq_Right, S.GUI.CueTime, S.GUI.HighFreq_Right);
-            H.load(4, RightSound);
-        end
+        errorSound = GenerateWhiteNoise(H.SamplingRate, S.GUI.NoiseTime, S.GUI.Amplitude_error, 2);
+        H.load(1, errorSound);
+        cueSound = GenerateSineWave(H.SamplingRate, S.GUI.Freq_cue, S.GUI.CueTime);
+        H.load(2, cueSound);
+        TimeSoundLeft = 0:1/H.SamplingRate:S.GUI.StimTime;
+        LeftSound = chirp(TimeSoundLeft, S.GUI.LowFreq_Left, S.GUI.CueTime, S.GUI.HighFreq_Left);
+        H.load(3, LeftSound);
+        TimeSoundRight = 0:1/H.SamplingRate:S.GUI.StimTime;
+        RightSound = chirp(TimeSoundRight, S.GUI.LowFreq_Right, S.GUI.CueTime, S.GUI.HighFreq_Right);
+        H.load(4, RightSound);
+
         H.HeadphoneAmpEnabled = true; H.HeadphoneAmpGain = 10; % Ignored if using HD version of the HiFi module
         H.DigitalAttenuation_dB = -60; % Set a negative value here if necessary for digital volume control.
         
@@ -220,18 +215,20 @@ function luminose_hf_2AFC
         
         %% Prepare and start first trial
         trialManager = BpodTrialManager;
-        sma = PrepareStateMachine(S, currentTrialType, 1, ITI, TrainingLevel, emulator); % Prepare state machine for trial 1 with empty "current events" variable
+        sma = PrepareStateMachine(S, currentTrialType, 1, ITI, emulator); % Prepare state machine for trial 1 with empty "current events" variable
         trialManager.startTrial(sma); % Sends & starts running first trial's state machine. A MATLAB timer object updates the 
                                   % console UI, while code below proceeds in parallel.
         %% Main trial loop
         for currentTrial = 1:S.GUI.maxTrials
-            currentTrialType = nextTrialType;
             S = LuminoseParameterGUI_hf_2AFC('sync', S); % Sync parameters with LuminoseParameterGUI_hf_2AFC plugin
+            
+            currentTrialType = nextTrialType;
             nextTrialType = getNextTrialType_hf_2AFC(BpodSystem.Data, 50, S.GUI.BiasCorrection, 0.2, S.GUI.Leftprob);
+            
             handle_pause_condition(H, R, A); % Handle pause/stop by user
             
             if currentTrial < S.GUI.maxTrials
-                [sma, S] = PrepareStateMachine(S, nextTrialType, currentTrial+1, ITI, TrainingLevel, emulator);
+                [sma, S] = PrepareStateMachine(S, nextTrialType, currentTrial+1, ITI, emulator);
                 SendStateMachine(sma, 'RunASAP');
             end
             
@@ -296,10 +293,11 @@ function luminose_hf_2AFC
         %% Main trial loop
         for currentTrial = 1:S.GUI.maxTrials
             S = LuminoseParameterGUI_hf_2AFC('sync', S); % Sync parameters with LuminoseParameterGUI_hf_2AFC plugin
+            
             currentTrialType = nextTrialType;
             nextTrialType = getNextTrialType_hf_2AFC(BpodSystem.Data, 50, S.GUI.BiasCorrection, 0.2, S.GUI.Leftprob);
 
-            sma = PrepareStateMachine(S, currentTrialType, 1, ITI, [], TrainingLevel, emulator);
+            sma = PrepareStateMachine(S, currentTrialType, currentTrial+1, ITI, [], emulator);
             SendStateMachine(sma);
             RawEvents = RunStateMachine; % Run the trial and return events
 
@@ -322,7 +320,6 @@ function luminose_hf_2AFC
                 liveRewardPlot_hf_2AFC(BpodSystem.GUIHandles.RewardAxes, 'update', BpodSystem.Data);
                 
                 liveResponseTimePlot_hf_2AFC(BpodSystem.GUIHandles.ResponseAxes, 'update', BpodSystem.Data);
-                PokesPlot('update');
             end
             HandlePauseCondition; % Checks to see if the protocol is paused. If so, waits until user resumes.
             if BpodSystem.Status.BeingUsed == 0 % If protocol was stopped, exit the loop
@@ -334,7 +331,7 @@ function luminose_hf_2AFC
 end
 
 %% State machine 
-function [sma, S] = PrepareStateMachine(S, currentTrialType, currentTrial, ITI, TrainingLevel, emulator)
+function [sma, S] = PrepareStateMachine(S, currentTrialType, currentTrial, ITI, emulator)
     cue = S.GUIMeta.CueType.String{S.GUI.CueType};
     Left = S.GUIMeta.LeftType.String{S.GUI.LeftType};
     Right = S.GUIMeta.RightType.String{S.GUI.RightType};   
@@ -349,9 +346,11 @@ function [sma, S] = PrepareStateMachine(S, currentTrialType, currentTrial, ITI, 
         startAction{end+1} = 'Serial3'; startAction{end+1} = ['#' 1]; % analog input module sync
     end
     cueAction = {'RotaryEncoder1', '*Z'};
+    prepareOdourAction = {}; % send odour info to olfactometer and wait for BNC2 trigger
     switch cue
         case 'Odour'
-            cueAction{end+1} = 'SoftCode'; cueAction{end+1} = 1;
+            cueAction{end+1} = 'BNC2'; cueAction{end+1} = 1;
+            prepareOdourAction{end+1} = 'SoftCode'; prepareOdourAction{end+1} = 1;
         case 'Pattern'
             cueAction{end+1} = 'SoftCode'; cueAction{end+1} = 8;
         case 'Light'
@@ -359,13 +358,13 @@ function [sma, S] = PrepareStateMachine(S, currentTrialType, currentTrial, ITI, 
         case 'Sound'
             cueAction{end+1} = 'HiFi1'; cueAction{end+1} = ['P', 1];
     end
-
+    stimAction = {'BNC1', 1}; % sync
     switch currentTrialType
         case 1 % Left
-            stimAction = {'BNC1', 1}; % sync
             switch Left
                 case 'Odour'
-                    stimAction{end+1} = 'SoftCode'; stimAction{end+1} = 2;
+                    stimAction{end+1} = 'BNC2'; stimAction{end+1} = 1;
+                    prepareOdourAction{end+1} = 'SoftCode'; prepareOdourAction{end+1} = 2;
                     chooseState2 = 'DeliverStim';
                 case 'Pattern'
                     stimAction{end+1} = 'SoftCode'; stimAction{end+1} = 9;
@@ -382,7 +381,8 @@ function [sma, S] = PrepareStateMachine(S, currentTrialType, currentTrial, ITI, 
             stimAction = {};
             switch Right
                 case 'Odour'
-                    stimAction{end+1} = 'SoftCode'; stimAction{end+1} = 3;
+                    stimAction{end+1} = 'BNC2'; stimAction{end+1} = 1;
+                    prepareOdourAction{end+1} = 'SoftCode'; prepareOdourAction{end+1} = 3;
                     chooseState2 = 'DeliverStim';
                 case 'Pattern'
                     stimAction{end+1} = 'SoftCode'; stimAction{end+1} = 10;
@@ -482,7 +482,7 @@ function [sma, S] = PrepareStateMachine(S, currentTrialType, currentTrial, ITI, 
                 'OutputActions', {});
         case false
             %%
-            switch TrainingLevel
+            switch S.GUI.TrainingLevel
                 case 1 % Habituation
                     %%
                     if currentTrial == 1
@@ -555,7 +555,7 @@ function [sma, S] = PrepareStateMachine(S, currentTrialType, currentTrial, ITI, 
                     sma = AddState(sma, 'Name', 'InterTrialInterval', ...
                         'Timer', ITI(currentTrial),...
                         'StateChangeConditions', {'Tup', 'exit'},...
-                        'OutputActions', {});
+                        'OutputActions', prepareOdourAction);
                 case 2 % Training
                     %%
                     if currentTrial == 1
@@ -628,7 +628,7 @@ function [sma, S] = PrepareStateMachine(S, currentTrialType, currentTrial, ITI, 
                     sma = AddState(sma, 'Name', 'InterTrialInterval', ...
                         'Timer', ITI(currentTrial),...
                         'StateChangeConditions', {'Tup', 'exit'},...
-                        'OutputActions', {});
+                        'OutputActions', prepareOdourAction);
             end
     end
 end

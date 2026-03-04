@@ -1,4 +1,4 @@
-function liveResponseTimePlot_hf_2AFC(ax, op, data)
+function liveResponseTimePlot_hf_goNogo(ax, op, data)
 % liveResponseTimePlot - Live response time plot
 %
 % Response time definition:

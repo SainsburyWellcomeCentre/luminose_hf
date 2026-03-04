@@ -3,11 +3,14 @@ function GUIparams_luminose_hf_2AFC()
     
     %% ===== Trials =====
     S.GUITabs.Trials = {'ProtocolSettings', 'TestPulses', 'TrainingParams'};
-    S.GUIPanels.TrainingParams = {'BiasCorrection', 'maxTrials', 'Leftprob'};
+    S.GUIPanels.TrainingParams = {'TrainingLevel', 'BiasCorrection', 'maxTrials', 'Leftprob'};
     S.GUIPanels.TestPulses = {'TestPulses', 'TestPulsesType'};
     S.GUIPanels.ProtocolSettings = {'muBarcodeDur', 'sigmaBarcodeDur'};
 
     % == Training Params ==
+    S.GUI.TrainingLevel = 1; % Default Training Level
+    S.GUIMeta.TrainingLevel.Style = 'popupmenu';
+    S.GUIMeta.TrainingLevel.String = {'Habituation', 'Training'};
     S.GUI.BiasCorrection = false;
     S.GUIMeta.BiasCorrection.Style = 'checkbox';
     S.GUI.maxTrials = 2000;  
@@ -28,8 +31,8 @@ function GUIparams_luminose_hf_2AFC()
     S.GUITabs.Task = {'ITI', 'Response', 'Stimulus', 'CueParams'};
     S.GUIPanels.CueParams = {'CueType', 'CueTime'};
     S.GUIPanels.Stimulus = {'LeftType', 'RightType', 'StimTime'};
-    S.GUIPanels.Response = {'ResponseType', 'ResponseTime', 'RewardAmount', 'ErrorDelay', ...
-        'Amplitude_error', 'NoiseTime', 'Punishment'};
+    S.GUIPanels.Response = {'ResponseType', 'ResponseTime', 'RewardAmount', 'Punishment', ...
+        'ErrorDelay', 'Amplitude_error', 'NoiseTime'};
     S.GUIPanels.ITI = {'VariableITI', 'InterTrialInterval', 'MaxITI'};
     % == CueParams ==
     S.GUI.CueType = 3;
@@ -66,14 +69,13 @@ function GUIparams_luminose_hf_2AFC()
 
     %% ===== Cue =====
     S.GUITabs.Cue = {'Pattern_cue', 'Odour_cue', 'Light_cue', 'Sound_cue'};
-    S.GUIPanels.Odour_cue = {'valves_cue', 'dutyCycles_cue', 'label_cue'};
+    S.GUIPanels.Odour_cue = {'valves_cue', 'dutyCycles_cue'};
     S.GUIPanels.Sound_cue = {'Amplitude_cue', 'Freq_cue'};
     S.GUIPanels.Light_cue = {'Intensity_cue'};
     S.GUIPanels.Pattern_cue = {'Nimages_cue', 'imgIdx_cue', 'exposure_cue', 'dark_cue', 'repeat_cue'};
     % == Odour ==
     S.GUI.valves_cue = [7];
     S.GUI.dutyCycles_cue = repelem(1, 1); % specify scalar 0 to use default duty cycles
-    S.GUI.label_cue = 'cue';
     % == Sound ==
     S.GUI.Amplitude_cue = [0.001, 0.001];
     S.GUI.Freq_cue = 5000;   
@@ -88,14 +90,13 @@ function GUIparams_luminose_hf_2AFC()
 
     %% ===== Left =====
     S.GUITabs.Left = {'Light_Left', 'Sound_Left', 'Pattern_Left', 'Odour_Left'};
-    S.GUIPanels.Odour_Left = {'valves_Left', 'dutyCycles_Left', 'label_Left'};
+    S.GUIPanels.Odour_Left = {'valves_Left', 'dutyCycles_Left'};
     S.GUIPanels.Sound_Left = {'Amplitude_Left', 'HighFreq_Left', 'LowFreq_Left'};
     S.GUIPanels.Light_Left = {'Intensity_Left'};
     S.GUIPanels.Pattern_Left = {'Nimages_Left', 'imgIdx_Left', 'exposure_Left', 'dark_Left', 'repeat_Left'};
     % == Odour ==
     S.GUI.valves_Left = [12];
     S.GUI.dutyCycles_Left = repelem(1, 1); % specify scalar 0 to use default duty cycles
-    S.GUI.label_Left = 'Left';
     % == Sound ==
     S.GUI.Amplitude_Left = [0.1, 0.1];
     S.GUI.HighFreq_Left = 8;   
@@ -111,14 +112,13 @@ function GUIparams_luminose_hf_2AFC()
 
     %% ===== Right =====
     S.GUITabs.Right = {'Light_Right', 'Sound_Right', 'Pattern_Right', 'Odour_Right'};
-    S.GUIPanels.Odour_Right = {'valves_Right', 'dutyCycles_Right', 'label_Right'};
+    S.GUIPanels.Odour_Right = {'valves_Right', 'dutyCycles_Right'};
     S.GUIPanels.Sound_Right = {'Amplitude_Right', 'HighFreq_Right', 'LowFreq_Right'};
     S.GUIPanels.Light_Right = {'Intensity_Right'};
     S.GUIPanels.Pattern_Right = {'Nimages_Right', 'imgIdx_Right', 'exposure_Right', 'dark_Right', 'repeat_Right'};
     % == Odour ==
     S.GUI.valves_Right = [16];
     S.GUI.dutyCycles_Right = repelem(1, 1); % specify scalar 0 to use default duty cycles
-    S.GUI.label_Right = 'Right';
     % == Sound ==
     S.GUI.Amplitude_Right = [0.1, 0.1];
     S.GUI.HighFreq_Right = 16;   

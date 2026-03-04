@@ -322,7 +322,7 @@ classdef LuminoseConstants < handle
             obj.olfactometer.backValves = obj.loadDeviceConfig(cfg.backValves);
             obj.olfactometer.frontValves = obj.loadDeviceConfig(cfg.frontValves);
             obj.olfactometer.syncTTL = obj.loadDeviceConfig(cfg.syncTTL);
-            obj.olfactometer.inputTrigger = obj.loadDeviceConfig(cfg.inputTrigger);
+            obj.olfactometer.inputTrigger = cfg.inputTrigger;
         end
         
         function device = loadDeviceConfig(obj, dev)

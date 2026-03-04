@@ -18,6 +18,17 @@ function varargout = LuminoseParameterGUI_hf_sleep(varargin)
     COLORS.accentCue = [0.4 0.7 0.4];
     COLORS.accentTrial = [0.6 0.4 0.7];
     COLORS.textDark = [0.2 0.2 0.2];
+
+    % Parameters to lock after START is pressed
+    LOCKED_PARAMS = { ...
+        'maxTrials', ...
+        'muBarcodeDur', ...
+        'sigmaBarcodeDur', ...
+        'TestPulsesType', ...
+        'Ephys', 'EphysType', 'EphysCoords', ...
+        'EEG', 'EEGchannels', 'EMGchannels', ...
+        'Drug', 'DrugType', 'DrugDose' ...
+    };
     
     switch Op
         case 'init'
@@ -92,9 +103,9 @@ function varargout = LuminoseParameterGUI_hf_sleep(varargin)
                 ThisTabPanelNames = Tabs.(TabNames{t});
                 nPanels = length(ThisTabPanelNames);
                 % Determine tab color
-                if contains(lower(TabNames{t}),'csplus')
+                if contains(lower(TabNames{t}),'left')
                     tabColor = COLORS.accentCS_plus;
-                elseif contains(lower(TabNames{t}),'csminus')
+                elseif contains(lower(TabNames{t}),'right')
                     tabColor = COLORS.accentCS_minus;
                 elseif contains(lower(TabNames{t}),'cue')
                     tabColor = COLORS.accentCue;
@@ -238,8 +249,22 @@ function varargout = LuminoseParameterGUI_hf_sleep(varargin)
                     if HPos > MaxHPos
                         MaxHPos = HPos;
                     end
-                end                  
-                
+                end        
+
+                % --- Start Button ---
+                if contains(lower(TabNames{t}),'trial')
+                    BpodSystem.GUIHandles.ParameterGUI.StartButton = uicontrol(htab, ...
+                        'Style', 'pushbutton', ...
+                        'String', 'START', ...
+                        'Position', [15 VPos 455 50], ...
+                        'FontSize', 16, 'FontWeight', 'Bold', ...
+                        'BackgroundColor', [0.2 0.7 0.3], ...
+                        'ForegroundColor', 'white', ...
+                        'FontName', 'Segoe UI', ...
+                        'Callback', @(~,~) StartButtonPressed(LOCKED_PARAMS));
+                    VPos = VPos + 60;
+                end
+
                 % ---Logo Display Panel ---
                 if contains(lower(TabNames{t}),'trial')
                     panelName = 'logo';
@@ -260,79 +285,7 @@ function varargout = LuminoseParameterGUI_hf_sleep(varargin)
                     
                     VPos = VPos + ThisPanelHeight + 15;
                 end
-                % --- Trial Structure Panel ---
-                if contains(lower(TabNames{t}),'task')
-                    panelName = 'TrialStructure';
-                    ThisPanelHeight = 90;
-                
-                    BpodSystem.GUIHandles.ParameterGUI.Panels.(panelName) = uipanel(htab,...
-                        'title',sprintf('  %s  ',panelName),'FontSize',12,'FontWeight','Bold',...
-                        'ForegroundColor',COLORS.accentTrial,'BackgroundColor',COLORS.panelBg,...
-                        'Units','Pixels','Position',[HPos VPos 455 ThisPanelHeight],...
-                        'BorderType','line','HighlightColor',COLORS.accentTrial,'BorderWidth',2,'ShadowColor',[0.8 0.8 0.8]);
-                    BpodSystem.GUIHandles.ParameterGUI.TrialStructureAxes = axes('Parent',...
-                        BpodSystem.GUIHandles.ParameterGUI.Panels.(panelName),...
-                        'Units','normalized','Position',[0.08 0.15 0.9 0.7],...
-                        'Box','on','XColor',[0.3 0.3 0.3],'YColor','none','Color',COLORS.panelBg);
-                    DrawTrialStructure(Params, Meta);
-    
-                    VPos = VPos + ThisPanelHeight + 15;
-                end
-                % --- Stimulus indicators ---
-                if any(contains(lower(TabNames{t}), {'cue','csplus','csminus'}))
-                    panelName = sprintf('%s_StimulusIndicators', TabNames{t});
-                    ThisPanelHeight = 70;
-                    BpodSystem.GUIHandles.ParameterGUI.Panels.(panelName) = uipanel(htab,...
-                        'title',' Stimulus Type ','FontSize',11,'FontWeight','Bold',...
-                        'ForegroundColor',tabColor,'BackgroundColor',COLORS.panelBg,...
-                        'Units','Pixels','Position',[15 VPos 455 ThisPanelHeight],...
-                        'BorderType','line','HighlightColor',tabColor,'BorderWidth',2);
-    
-                    % Create four boxes + labels
-                    boxWidth = 80;
-                    spacing = 20;
-                    x0 = 25;
-                    for iBox = 1:4
-                        x = x0 + (iBox-1)*(boxWidth+spacing);
-                        % Default gray
-                        bgColor = [0.9 0.9 0.9];
-                        
-                        % Determine selected index for this tab
-                        switch lower(TabNames{t})
-                            case 'cue'
-                                selIdx = Params.CueType;
-                                stimLabels = Meta.CueType.String;
-                            case 'csplus'
-                                selIdx = Params.CSplusType;
-                                stimLabels = Meta.CSplusType.String;
-                            case 'csminus'
-                                selIdx = Params.CSminusType;
-                                stimLabels = Meta.CSminusType.String;
-                            otherwise
-                                selIdx = 0;
-                                stimLabels = {};
-                        end
-                        
-                        % If this box is the selected type, color it with the tab color
-                        if iBox == selIdx
-                            bgColor = tabColor;
-                        end
-                        
-                        BpodSystem.GUIHandles.ParameterGUI.StimIndicators.(TabNames{t})(iBox) = ...
-                            uipanel(BpodSystem.GUIHandles.ParameterGUI.Panels.(panelName), ...
-                            'Units','pixels','Position',[x 15 boxWidth 30], ...
-                            'BackgroundColor', bgColor, 'BorderType','line', ...
-                            'HighlightColor',[0.6 0.6 0.6], 'BorderWidth',1);
-                        
-                        uicontrol('Parent',BpodSystem.GUIHandles.ParameterGUI.StimIndicators.(TabNames{t})(iBox), ...
-                            'Style','text','String',stimLabels{iBox}, ...
-                            'Units','normalized','Position',[0 0 1 1], ...
-                            'BackgroundColor',bgColor,'ForegroundColor',[0.2 0.2 0.2], ...
-                            'FontName','Segoe UI','FontWeight','Bold','FontSize',10, ...
-                            'HorizontalAlignment','center');
-                    end
-    
-                end
+
                 % --- OptoStim Visualization Panel ---
                 if strcmpi(TabNames{t}, 'OptoStim')
                     panelName = 'OptoStimPreview';
@@ -342,7 +295,7 @@ function varargout = LuminoseParameterGUI_hf_sleep(varargin)
                     BpodSystem.GUIHandles.ParameterGUI.Panels.(panelName) = uipanel(htab, ...
                         'title', '  OptoStim Preview  ', ...
                         'FontSize', 12, 'FontWeight', 'Bold', ...
-                        'ForegroundColor', tabColor, ... % light blue accent
+                        'ForegroundColor', tabColor, ...
                         'BackgroundColor', COLORS.panelBg, ...
                         'Units', 'Pixels', ...
                         'Position', [15 VPos 455 panelHeight], ...
@@ -365,9 +318,8 @@ function varargout = LuminoseParameterGUI_hf_sleep(varargin)
                     % Update layout tracking
                     VPos = VPos + panelHeight + 15;
                 end
-
-
-                set(BpodSystem.ProtocolFigures.ParameterGUI,'Position',[100 100 MaxHPos+500 min(MaxVPos+120,GUIHeight)]);
+                
+                set(BpodSystem.ProtocolFigures.ParameterGUI,'Position',[1760 555 MaxHPos+500 min(MaxVPos+120,GUIHeight)]);
             end
         case 'sync'
             ParamNames = BpodSystem.GUIData.ParameterGUI.ParamNames;
@@ -377,7 +329,7 @@ function varargout = LuminoseParameterGUI_hf_sleep(varargin)
                 ThisParamStyle = BpodSystem.GUIData.ParameterGUI.Styles(p);
                 ThisParamHandle = BpodSystem.GUIHandles.ParameterGUI.Params(p);
                 ThisParamLastValue = BpodSystem.GUIData.ParameterGUI.LastParamValues{p};
-                ThisParamCurrentValue = Params.GUI.(ThisParamName); % Use single precision to avoid problems with ==
+                ThisParamCurrentValue = Params.GUI.(ThisParamName);
                 switch ThisParamStyle
                     case 1 % Edit
                         GUIParam = str2double(get(ThisParamHandle, 'String'));
@@ -412,64 +364,12 @@ function varargout = LuminoseParameterGUI_hf_sleep(varargin)
                     BpodSystem.GUIData.ParameterGUI.LastParamValues{p} = Params.GUI.(ThisParamName);
                 end
             end
-            Meta = Params.GUIMeta;
-                
-            % Update Trial Structure diagram
-            if isfield(BpodSystem.GUIHandles.ParameterGUI, 'TrialStructureAxes')
-                DrawTrialStructure(Params.GUI, Meta);
-            end
             
             % Update OptoStim preview
             if isfield(BpodSystem.GUIHandles.ParameterGUI, 'OptoStimAxes')
                 DrawOptoStim(Params.GUI);
             end
             
-            % Update Stimulus Indicators
-            if isfield(BpodSystem.GUIHandles.ParameterGUI, 'StimIndicators')
-                tabNames = fieldnames(BpodSystem.GUIHandles.ParameterGUI.StimIndicators);
-                COLORS.accentCS_plus = [0.2 0.5 0.8];
-                COLORS.accentCS_minus = [0.8 0.4 0.2];
-                COLORS.accentCue = [0.4 0.7 0.4];
-                
-                for iTab = 1:length(tabNames)
-                    tabName = tabNames{iTab};
-                    
-                    % Determine which parameter and color scheme to use
-                    switch lower(tabName)
-                        case 'cue'
-                            selIdx = Params.GUI.CueType;
-                            tabColor = COLORS.accentCue;
-                            stimLabels = Meta.CueType.String;
-                        case 'csplus'
-                            selIdx = Params.GUI.CSplusType;
-                            tabColor = COLORS.accentCS_plus;
-                            stimLabels = Meta.CSplusType.String;
-                        case 'csminus'
-                            selIdx = Params.GUI.CSminusType;
-                            tabColor = COLORS.accentCS_minus;
-                            stimLabels = Meta.CSminusType.String;
-                        otherwise
-                            continue;
-                    end
-                    
-                    % Update each indicator box
-                    for iBox = 1:4
-                        if iBox == selIdx
-                            bgColor = tabColor;
-                        else
-                            bgColor = [0.9 0.9 0.9];
-                        end
-                        set(BpodSystem.GUIHandles.ParameterGUI.StimIndicators.(tabName)(iBox), ...
-                            'BackgroundColor', bgColor);
-                        % Update text color
-                        children = get(BpodSystem.GUIHandles.ParameterGUI.StimIndicators.(tabName)(iBox), 'Children');
-                        if ~isempty(children)
-                            set(children(1), 'BackgroundColor', bgColor);
-                        end
-                    end
-                end
-            end
-
         otherwise
         error('ParameterGUI must be called with a valid op code: ''init'' or ''sync''');
     end
@@ -478,22 +378,50 @@ function varargout = LuminoseParameterGUI_hf_sleep(varargin)
     end
     varargout{1} = Params;
 end
+
+function StartButtonPressed(lockedParams)
+    global BpodSystem
+
+    % Signal that start was pressed
+    setappdata(BpodSystem.ProtocolFigures.ParameterGUI, 'StartPressed', true);
+
+    % Disable each locked parameter's GUI control
+    paramNames = BpodSystem.GUIData.ParameterGUI.ParamNames;
+    for i = 1:length(paramNames)
+        if any(strcmp(paramNames{i}, lockedParams))
+            if iscell(BpodSystem.GUIHandles.ParameterGUI.Params)
+                h = BpodSystem.GUIHandles.ParameterGUI.Params{i};
+            else
+                h = BpodSystem.GUIHandles.ParameterGUI.Params(i);
+            end
+            try
+                set(h, 'Enable', 'off');
+            catch
+            end
+        end
+    end
+
+    % Relabel the START button — keep Enable 'on' so ForegroundColor is visible
+    set(BpodSystem.GUIHandles.ParameterGUI.StartButton, ...
+        'String', '● RUNNING', ...
+        'BackgroundColor', [0.15 0.55 0.25], ...
+        'ForegroundColor', [1 1 0.4], ...
+        'FontSize', 16, ...
+        'Enable', 'on', ...
+        'Callback', @(~,~) []);
+end
+
 function DisplayPNGImage()
     global BpodSystem
     ax = BpodSystem.GUIHandles.ParameterGUI.ImageAxes;
     
-    % Define the path to your PNG file
-    % Option 1: Relative to current directory
     imagePath = fullfile(BpodSystem.Path.ProtocolFolder, '..', 'logo.png');
 
-    % Check if file exists
     if exist(imagePath, 'file')
-        % Read and display the image
         img = imread(imagePath);
         imshow(img, 'Parent', ax);
         axis(ax, 'off');
     else
-        % Display error message if image not found
         cla(ax);
         text(0.5, 0.5, {'Image not found:', imagePath, '', 'Please place your PNG file in the correct location'}, ...
             'Parent', ax, ...
@@ -507,89 +435,28 @@ function DisplayPNGImage()
         ax.YLim = [0 1];
     end
 end
-function DrawTrialStructure(Params, Meta)
-    global BpodSystem
-    ax = BpodSystem.GUIHandles.ParameterGUI.TrialStructureAxes;
-    cla(ax);  % Clear previous graphics
-    hold(ax,'on');
-
-    % Get parameters
-    cueTime = Params.CueTime;
-    cueType = Meta.CueType.String{Params.CueType};
-    stimTime = Params.StimTime;
-    stimType = strcat(Meta.CSplusType.String{Params.CSplusType}, '/', Meta.CSminusType.String{Params.CSminusType});
-    responseTime = Params.ResponseTime;
-    errorDelay = Params.ErrorDelay;
-    iti = Params.InterTrialInterval;
-    itiVariable = Params.VariableITI;
-    if itiVariable
-        itiType = 'Variable';
-    else
-        itiType = 'Fixed';
-    end
-    % Create timeline
-    tStart = 0;
-    x = [];
-    y = [];
-    
-    % Define block positions (y-axis)
-    blocks = {'Cue','Stim','Response','Reward/Error','ITI'};
-    blockNames = {cueType, stimType, 'Lick spout', strcat('Water/','Noise'), itiType};
-    colors = [0.4 0.7 0.4;    % Cue green
-              0.2 0.5 0.8;    % Stim blue
-              0.8 0.8 0.2;    % Response yellow
-              0.8 0.4 0.2;    % Reward/Error red
-              0.6 0.6 0.6];   % ITI gray
-    ypos = 0.4;
-    height = 0.4;
-
-    % Draw blocks sequentially
-    t = tStart;
-    blockTimes = [cueTime, stimTime, responseTime, errorDelay, iti];
-    
-    for i = 1:length(blocks)
-        rectangle(ax,'Position',[t ypos blockTimes(i) height], ...
-            'FaceColor', colors(i,:), 'EdgeColor','k');
-        text(t + blockTimes(i) - blockTimes(i)*0.5, ypos+height*1.4, blocks{i}, ...
-            'HorizontalAlignment','center','VerticalAlignment','middle','Parent',ax);
-        text(t + blockTimes(i) - blockTimes(i)*0.5, ypos+height/2, string(blockTimes(i))+'s', ...
-            'HorizontalAlignment','center','VerticalAlignment','middle','Parent',ax);
-        text(t + blockTimes(i) - blockTimes(i)*0.5, ypos-height*0.6, blockNames{i}, ...
-            'HorizontalAlignment','center','VerticalAlignment','middle', ...
-            'Rotation', 25,'Parent',ax);
-        t = t + blockTimes(i);
-    end
-
-    % Set axes limits
-    ax.XLim = [0 t];
-    ax.YLim = [0 1];
-    ax.XTick = [];
-    ax.YTick = [];
-    hold(ax,'on');
-    axis(ax,'off');
-end
 
 function DrawOptoStim(Params)
     global BpodSystem
     ax = BpodSystem.GUIHandles.ParameterGUI.OptoStimAxes;
     cla(ax); hold(ax,'on');
 
-    % === Parameters ===
     widthScale = 0.5;
     ypos = 0.3; 
     height = 0.4;
-    totalTrial = Params.CueTime + Params.StimTime + Params.ResponseTime + ...
-                 Params.ErrorDelay + Params.InterTrialInterval;
+    if Params.TestPulsesType == 1
+        totalTrial = 1 / Params.SPfrequency;
+    elseif Params.TestPulsesType == 2
+        totalTrial = 1 / Params.SPfrequency;
+    end
     scaledTotal = totalTrial * widthScale;
 
-    % === Trial rectangle ===
     rectangle(ax, 'Position', [0 ypos scaledTotal height], ...
         'FaceColor', [0.85 0.85 0.85], 'EdgeColor', [0 0 0]);
     text(scaledTotal/2, height*1.5, 'Single trial', ...
         'HorizontalAlignment','center','VerticalAlignment','middle', ...
         'Parent',ax);
 
-    % === Determine pulse type from Trials tab ===
     if Params.TestPulsesType == 1
         freq = Params.SPfrequency;
         duration = Params.SPduration;
@@ -602,26 +469,22 @@ function DrawOptoStim(Params)
         symbol = '**';
     end
 
-    % === Draw optostim markers ===
     if freq > 0
         dt = 1 / freq;
         tEvents = 0:dt:totalTrial;
-        color = [0 0 max(min(amplitude,1),0)]; % darker with amplitude
+        color = [0 0 max(min(amplitude,1),0)];
 
         for tEv = tEvents
             tScaled = tEv * widthScale;
             text(ax, tScaled, ypos + height + 0.05, symbol, ...
                  'Color', color, ...
-                 'FontSize', 10 + 8 * (duration / 1000), ... % scale by duration
+                 'FontSize', 10 + 8 * (duration / 1000), ...
                  'HorizontalAlignment', 'center', ...
                  'VerticalAlignment', 'bottom');
         end
     end
 
-    % === Formatting ===
     ax.XLim = [0 scaledTotal];
     ax.YLim = [0 1];
     axis(ax, 'off');
 end
-
-

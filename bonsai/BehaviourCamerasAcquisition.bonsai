@@ -24,8 +24,8 @@
       </Expression>
       <Expression xsi:type="Combinator">
         <Combinator xsi:type="cv:VideoWriter">
-          <cv:FileName>C:\Users\harrislab\luminoseData\rawdata\behaviourVideos\CameraAcqLeft.avi</cv:FileName>
-          <cv:Suffix>Timestamp</cv:Suffix>
+          <cv:FileName>C:\Users\harrislab\luminoseData\rawdata\FakeSubject\luminose_hf_2AFC\Session Videos\FakeSubject_luminose_hf_2AFC_20260303_173607_CameraAcqLeft.avi</cv:FileName>
+          <cv:Suffix>None</cv:Suffix>
           <cv:Buffered>false</cv:Buffered>
           <cv:Overwrite>true</cv:Overwrite>
           <cv:FourCC>FMP4</cv:FourCC>
@@ -105,8 +105,8 @@
       </Expression>
       <Expression xsi:type="Combinator">
         <Combinator xsi:type="dsp:MatrixWriter">
-          <dsp:Path>C:\Users\harrislab\luminoseData\rawdata\behaviourVideos\CameraAcqLeft.frameData.bin</dsp:Path>
-          <dsp:Suffix>Timestamp</dsp:Suffix>
+          <dsp:Path>C:\Users\harrislab\luminoseData\rawdata\FakeSubject\luminose_hf_2AFC\Session Videos\FakeSubject_luminose_hf_2AFC_20260303_173607_CameraAcqLeft.frameData.bin</dsp:Path>
+          <dsp:Suffix>None</dsp:Suffix>
           <dsp:Overwrite>true</dsp:Overwrite>
           <dsp:Layout>ColumnMajor</dsp:Layout>
         </Combinator>
@@ -126,8 +126,8 @@
       </Expression>
       <Expression xsi:type="Combinator">
         <Combinator xsi:type="cv:VideoWriter">
-          <cv:FileName>C:\Users\harrislab\luminoseData\rawdata\behaviourVideos\CameraAcqRight.avi</cv:FileName>
-          <cv:Suffix>Timestamp</cv:Suffix>
+          <cv:FileName>C:\Users\harrislab\luminoseData\rawdata\FakeSubject\luminose_hf_2AFC\Session Videos\FakeSubject_luminose_hf_2AFC_20260303_173607_CameraAcqRight.avi</cv:FileName>
+          <cv:Suffix>None</cv:Suffix>
           <cv:Buffered>false</cv:Buffered>
           <cv:Overwrite>true</cv:Overwrite>
           <cv:FourCC>FMP4</cv:FourCC>
@@ -207,8 +207,8 @@
       </Expression>
       <Expression xsi:type="Combinator">
         <Combinator xsi:type="dsp:MatrixWriter">
-          <dsp:Path>C:\Users\harrislab\luminoseData\rawdata\behaviourVideos\CameraAcqRight.frameData.bin</dsp:Path>
-          <dsp:Suffix>Timestamp</dsp:Suffix>
+          <dsp:Path>C:\Users\harrislab\luminoseData\rawdata\FakeSubject\luminose_hf_2AFC\Session Videos\FakeSubject_luminose_hf_2AFC_20260303_173607_CameraAcqRight.frameData.bin</dsp:Path>
+          <dsp:Suffix>None</dsp:Suffix>
           <dsp:Overwrite>true</dsp:Overwrite>
           <dsp:Layout>ColumnMajor</dsp:Layout>
         </Combinator>
@@ -228,8 +228,8 @@
       </Expression>
       <Expression xsi:type="Combinator">
         <Combinator xsi:type="cv:VideoWriter">
-          <cv:FileName>C:\Users\harrislab\luminoseData\rawdata\behaviourVideos\CameraAcqBody.avi</cv:FileName>
-          <cv:Suffix>Timestamp</cv:Suffix>
+          <cv:FileName>C:\Users\harrislab\luminoseData\rawdata\FakeSubject\luminose_hf_2AFC\Session Videos\FakeSubject_luminose_hf_2AFC_20260303_173607_CameraAcqBody.avi</cv:FileName>
+          <cv:Suffix>None</cv:Suffix>
           <cv:Buffered>false</cv:Buffered>
           <cv:Overwrite>true</cv:Overwrite>
           <cv:FourCC>FMP4</cv:FourCC>
@@ -309,8 +309,8 @@
       </Expression>
       <Expression xsi:type="Combinator">
         <Combinator xsi:type="dsp:MatrixWriter">
-          <dsp:Path>C:\Users\harrislab\luminoseData\rawdata\behaviourVideos\CameraAcqBody.frameData.bin</dsp:Path>
-          <dsp:Suffix>Timestamp</dsp:Suffix>
+          <dsp:Path>C:\Users\harrislab\luminoseData\rawdata\FakeSubject\luminose_hf_2AFC\Session Videos\FakeSubject_luminose_hf_2AFC_20260303_173607_CameraAcqBody.frameData.bin</dsp:Path>
+          <dsp:Suffix>None</dsp:Suffix>
           <dsp:Overwrite>true</dsp:Overwrite>
           <dsp:Layout>ColumnMajor</dsp:Layout>
         </Combinator>

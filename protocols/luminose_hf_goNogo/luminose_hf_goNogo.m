@@ -24,11 +24,8 @@ function luminose_hf_goNogo
     disp(luminose.bonsai);
     
     dmdModel = DMDmodel(luminose.dmd);
-    olfModel = OlfactometerModel(luminose.olfactometer);
+    olfModel = OlfactometerModel(luminose.olfactometer, true);
     
-    olfModel.generate_valve_pattern([14, 14], [1, 0.5], 'test'); % test olfactometer with blank odour bottle
-    olfModel.play_valve_sequence([14, 14], [1, 0.5], 'test');
-
     %% Launch bonsai
     % Ask user whether to launch Bonsai
     choice = questdlg('Launch Bonsai workflow?', ...
@@ -49,19 +46,25 @@ function luminose_hf_goNogo
     if isempty(fieldnames(S))
         GUIparams_luminose_hf_goNogo();
     end
-    if S.GUI.TrainingLevel == 1
-        CSplus_prob = 1;
-    elseif S.GUI.TrainingLevel == 2
-        CSplus_prob = 0.5; 
-    end
-
-    trialTypes = 1 + (rand(1, S.GUI.maxTrials) >= CSplus_prob); % distribution of values 1 and 2 with given probability p and 1-p respectively.
+       
     BpodSystem.Data.TrialTypes = []; % The trial type of each trial completed will be added here.
-    
+    if rand < S.GUI.CSplus_prob
+        nextTrialType = 1;
+    else
+        nextTrialType = 2;
+    end
+    currentTrialType = nextTrialType;
+
     cue = S.GUIMeta.CueType.String{S.GUI.CueType};
     CSplus = S.GUIMeta.CSplusType.String{S.GUI.CSplusType};
     CSminus = S.GUIMeta.CSminusType.String{S.GUI.CSminusType};
-
+    
+    if strcmp(cue, 'Odour') % currently coded such that cue and stim cannot both be odours at the same trial 
+        olfactometer_hf_goNogo(1);
+    elseif any([strcmp(CSplus, 'Odour'), strcmp(CSminus, 'Odour')])
+        olfactometer_hf_goNogo(currentTrialType + 1);
+    end
+    
     if S.GUI.VariableITI
         ITI = S.GUI.InterTrialInterval * (1.01 .^ (0:S.GUI.maxTrials-1)); % Generate incremental ITI values using a geometric progression
         ITI(ITI > S.GUI.MaxITI) = S.GUI.MaxITI; % Enforce maximum ITI duration for all trials
@@ -73,13 +76,27 @@ function luminose_hf_goNogo
     end
     
     %% Begin plotting
+    % Initialize parameter GUI plugin
+    LuminoseParameterGUI_hf_goNogo('init', S);liveOutcome
+    % Wait for Start button press
+    disp('Waiting for START button...');
+    setappdata(BpodSystem.ProtocolFigures.ParameterGUI, 'StartPressed', false);
+    while ~getappdata(BpodSystem.ProtocolFigures.ParameterGUI, 'StartPressed')
+        pause(0.1);
+        if ~ishandle(BpodSystem.ProtocolFigures.ParameterGUI)
+            return  % GUI was closed
+        end
+    end
+    disp('START pressed — beginning experiment.');
+
     % Live outcome plot
-    outcomePlot = LiveOutcomePlot([1 2], {'Go', 'No go'}, trialTypes, 90);
-    outcomePlot.RewardStateNames = {'Reward'}; % List of state names where reward was delivered
-    outcomePlot.PunishStateNames = {'Punishment'}; % List of state names where choice was incorrect and negatively reinforced
+    BpodSystem.ProtocolFigures.OutcomePlot = figure('Position', [30 1035 1000 350], ...
+        'name', 'Outcome Plot', 'numbertitle', 'off', 'MenuBar', 'none', 'Resize', 'on');
+    BpodSystem.GUIHandles.OutcomeAxes = axes('Position', [.15 .12 .8 .8]);
+    liveOutcomePlot_hf_goNogo(BpodSystem.GUIHandles.OutcomeAxes, 'init', BpodSystem.Data, currentTrialType);
     
     % Live accuracy bar plot
-    BpodSystem.ProtocolFigures.AccuracyPlot = figure('Position', [900 200 350 350], ...
+    BpodSystem.ProtocolFigures.AccuracyPlot = figure('Position', [1040 1035 350 350], ...
         'name', 'Accuracy Plot', 'numbertitle', 'off', 'MenuBar', 'none', 'Resize', 'on');
     BpodSystem.GUIHandles.AccuracyAxes = axes('Position', [.15 .12 .8 .8]);
     liveBarPlot_hf_goNogo(BpodSystem.GUIHandles.AccuracyAxes, 'init', []);
@@ -89,12 +106,21 @@ function luminose_hf_goNogo
     %     'name', 'Psychometric Curve', 'numbertitle', 'off', 'MenuBar', 'none', 'Resize', 'off');
     % BpodSystem.GUIHandles.PsychometricAxes = axes('Position', [.15 .15 .8 .75]);
     % livePsychometricPlot_hf_goNogo(BpodSystem.GUIHandles.PsychometricAxes, 'init', [], [1]);
+    
+    % Live reward monitor
+    BpodSystem.ProtocolFigures.RewardPlot = figure('Position', [1040 645 350 350], ...
+        'name', 'Reward Plot', 'numbertitle', 'off', 'MenuBar', 'none', 'Resize', 'on');
+    BpodSystem.GUIHandles.RewardAxes = axes('Position', [.15 .12 .8 .8]);
+    liveRewardPlot_hf_goNogo(BpodSystem.GUIHandles.RewardAxes, 'init', []);
+    
+    % Live response time plot
+    BpodSystem.ProtocolFigures.ResponsePlot = figure('Position', [1400 645 350 350], ...
+        'name', 'Response Time Plot', 'numbertitle', 'off', 'MenuBar', 'none', 'Resize', 'on');
+    BpodSystem.GUIHandles.ResponseAxes = axes('Position', [.15 .12 .8 .8]);
+    liveResponseTimePlot_hf_goNogo(BpodSystem.GUIHandles.ResponseAxes, 'init', []);
 
     % Initialize Bpod notebook (for manual data annotation)                                                          
     BpodNotebook('init'); 
-
-    % Initialize parameter GUI plugin
-    LuminoseParameterGUI_hf_goNogo('init', S);
 
     %% Configure bpod
     emulator = BpodSystem.EmulatorMode == 1;
@@ -115,8 +141,12 @@ function luminose_hf_goNogo
 
         % Set sampling rate 
         BpodSystem.FlexIOConfig.analogSamplingRate = 500; % Sampling rate
+        
         % Initialize analog viewer GUI (online monitor of FlexIO analog inputs, not necessary for data logging)
         BpodSystem.startAnalogViewer; 
+        flexioPos = get(BpodSystem.GUIHandles.OscopeFig_Builtin, 'Position');
+        flexioPos(1:2) = [10, 100];
+        set(BpodSystem.GUIHandles.OscopeFig_Builtin, 'Position', flexioPos);
 
         %% Assert modules are USB-paired
         BpodSystem.assertModule({'HiFi','RotaryEncoder', 'AnalogIn'}, [1 1 1]); 
@@ -132,24 +162,17 @@ function luminose_hf_goNogo
         %% Setup sound
         % Configure HiFi module
         H.SamplingRate = S.GUI.SoundSamplingRate;
-        if S.GUI.NoiseTime~= 0
-            errorSound = GenerateWhiteNoise(H.SamplingRate, S.GUI.NoiseTime, S.GUI.Amplitude_error, 2);
-            H.load(1, errorSound);
-        end
-        if any(strcmp(cue, 'Sound'))
-            cueSound = GenerateSineWave(S.GUI.SoundSamplingRate, S.GUI.Freq_cue, S.GUI.CueTime);
-            H.load(2, cueSound);
-        end
-        if any(strcmp(CSplus, 'Sound'))
-            TimeSoundCSplus = 0:1/S.GUI.SoundSamplingRate:S.GUI.StimTime;
-            CSplusSound = chirp(TimeSoundCSplus, S.GUI.LowFreq_CSplus, S.GUI.CueTime, S.GUI.HighFreq_CSplus);
-            H.load(3, CSplusSound);
-        end
-        if any(strcmp(CSminus, 'Sound'))
-            TimeSoundCSminus = 0:1/S.GUI.SoundSamplingRate:S.GUI.StimTime;
-            CSminusSound = chirp(TimeSoundCSminus, S.GUI.LowFreq_CSminus, S.GUI.CueTime, S.GUI.HighFreq_CSminus);
-            H.load(4, CSminusSound);
-        end
+        errorSound = GenerateWhiteNoise(H.SamplingRate, S.GUI.NoiseTime, S.GUI.Amplitude_error, 2);
+        H.load(1, errorSound);
+        cueSound = GenerateSineWave(S.GUI.SoundSamplingRate, S.GUI.Freq_cue, S.GUI.CueTime);
+        H.load(2, cueSound);
+        TimeSoundCSplus = 0:1/S.GUI.SoundSamplingRate:S.GUI.StimTime;
+        CSplusSound = chirp(TimeSoundCSplus, S.GUI.LowFreq_CSplus, S.GUI.CueTime, S.GUI.HighFreq_CSplus);
+        H.load(3, CSplusSound);
+        TimeSoundCSminus = 0:1/S.GUI.SoundSamplingRate:S.GUI.StimTime;
+        CSminusSound = chirp(TimeSoundCSminus, S.GUI.LowFreq_CSminus, S.GUI.CueTime, S.GUI.HighFreq_CSminus);
+        H.load(4, CSminusSound);
+
         H.HeadphoneAmpEnabled = true; H.HeadphoneAmpGain = 10; % Ignored if using HD version of the HiFi module
         H.DigitalAttenuation_dB = -60; % Set a negative value here if necessary for digital volume control.
         
@@ -170,7 +193,7 @@ function luminose_hf_goNogo
             R.useAdvancedThresholds = 'off';
         end
         R.startUSBStream; % Begin streaming position data to PC via USB
-        BpodSystem.ProtocolFigures.EncoderPlotFig = figure('Position', [500 200 350 350],'name','Encoder plot',...
+        BpodSystem.ProtocolFigures.EncoderPlotFig = figure('Position', [1400 1035 350 350],'name','Encoder plot',...
                                                    'numbertitle','off', 'MenuBar', 'none', 'Resize', 'off');
         BpodSystem.GUIHandles.EncoderAxes = axes('Position', [.15 .15 .8 .8]);
         liveEncoderPlot_hf_goNogo(BpodSystem.GUIHandles.EncoderAxes, 'init', 0);
@@ -191,20 +214,22 @@ function luminose_hf_goNogo
         % A.scope_StartStop; % Start USB streaming + data logging
         
         
-        %% Prepare and start first trial
+        %% Prepare and start first trial      
         trialManager = BpodTrialManager;
-        sma = PrepareStateMachine(S, trialTypes, 1, ITI, emulator); % Prepare state machine for trial 1 with empty "current events" variable
+        sma = PrepareStateMachine(S, currentTrialType, 1, ITI, emulator); % Prepare state machine for trial 1 with empty "current events" variable
         trialManager.startTrial(sma); % Sends & starts running first trial's state machine. A MATLAB timer object updates the 
                                   % console UI, while code below proceeds in parallel.
         %% Main trial loop
         for currentTrial = 1:S.GUI.maxTrials
-
             S = LuminoseParameterGUI_hf_goNogo('sync', S); % Sync parameters with LuminoseParameterGUI_hf_goNogo plugin
 
+            currentTrialType = nextTrialType;
+            nextTrialType = getNextTrialType_hf_goNogo(BpodSystem.Data, 50, S.GUI.BiasCorrection, 0.2, S.GUI.CSplus_prob);
+            
             handle_pause_condition(H, R, A); % Handle pause/stop by user
             
             if currentTrial < S.GUI.maxTrials
-                [sma, S] = PrepareStateMachine(S, trialTypes, currentTrial+1, ITI, emulator);
+                [sma, S] = PrepareStateMachine(S, nextTrialType, currentTrial+1, ITI, emulator);
                 SendStateMachine(sma, 'RunASAP');
             end
             
@@ -218,8 +243,9 @@ function luminose_hf_goNogo
             if ~isempty(fieldnames(RawEvents))
                 BpodSystem.Data = AddTrialEvents(BpodSystem.Data,RawEvents);
                 BpodSystem.Data.TrialSettings(currentTrial) = S;
-                BpodSystem.Data.TrialTypes(currentTrial) = trialTypes(currentTrial);
+                BpodSystem.Data.TrialTypes(currentTrial) = currentTrialType;
                 BpodSystem.Data = BpodNotebook('sync', BpodSystem.Data); % Sync with Bpod notebook plugin
+                
                 % Save rotary encoder data
                 if currentTrial == 1
                     eventData = R.readUSBStream(0); % Read and dump any REM data captured before first trial start. Subsequent REM data will be saved. 
@@ -233,12 +259,17 @@ function luminose_hf_goNogo
                     BpodSystem.Data.EncoderData{currentTrial}.EventTimestamps - BpodSystem.Data.TrialStartTimestamp(currentTrial) ;
 
                 %% Update plots
-                outcomePlot.update(trialTypes, BpodSystem.Data);
+                liveOutcomePlot_hf_2AFC(BpodSystem.GUIHandles.OutcomeAxes, 'update', BpodSystem.Data, nextTrialType);
                 
                 liveBarPlot_hf_goNogo(BpodSystem.GUIHandles.AccuracyAxes, 'update', BpodSystem.Data);
                 
                 % livePsychometricPlot_hf_goNogo(BpodSystem.GUIHandles.PsychometricAxes, 'update', ...
                     % BpodSystem.Data, [1]);
+                
+                liveRewardPlot_hf_2AFC(BpodSystem.GUIHandles.RewardAxes, 'update', BpodSystem.Data);
+
+                liveResponseTimePlot_hf_2AFC(BpodSystem.GUIHandles.ResponseAxes, 'update', BpodSystem.Data);
+                
                 % Update rotary encoder plot
                 if currentTrial == 1 % Only on the first trial, the first and second trial's trial-start timestamps will be retrieved in the rotary encoder data
                                      % On all subsequent trials, only the next trial's start timestamp will be returned (because data is retrieved mid-trial)
@@ -265,23 +296,32 @@ function luminose_hf_goNogo
         for currentTrial = 1:S.GUI.maxTrials
             S = LuminoseParameterGUI_hf_goNogo('sync', S); % Sync parameters with LuminoseParameterGUI_hf_goNogo plugin
             
-            sma = PrepareStateMachine(S, trialTypes, 1, ITI, [], emulator);
+            currentTrialType = nextTrialType;
+            nextTrialType = getNextTrialType_hf_goNogo(BpodSystem.Data, 50, S.GUI.BiasCorrection, 0.2, S.GUI.CSplus_prob);
+            
+            sma = PrepareStateMachine(S, currentTrialType, currentTrial+1, ITI, [], emulator);
             SendStateMachine(sma);
             RawEvents = RunStateMachine; % Run the trial and return events
 
             if ~isempty(fieldnames(RawEvents))
                 BpodSystem.Data = AddTrialEvents(BpodSystem.Data,RawEvents);
                 BpodSystem.Data.TrialSettings(currentTrial) = S;
-                BpodSystem.Data.TrialTypes(currentTrial) = trialTypes(currentTrial);
+                BpodSystem.Data.TrialTypes(currentTrial) = currentTrialType;
                 BpodSystem.Data = BpodNotebook('sync', BpodSystem.Data); % Sync with Bpod notebook plugin
 
                 % Update plots
                 TrialDuration = BpodSystem.Data.TrialEndTimestamp(currentTrial)-BpodSystem.Data.TrialStartTimestamp(currentTrial);
-                outcomePlot.update(trialTypes, BpodSystem.Data);
+                
+                liveOutcomePlot_hf_2AFC(BpodSystem.GUIHandles.OutcomeAxes, 'update', BpodSystem.Data, nextTrialType);
+
                 liveBarPlot_hf_goNogo(BpodSystem.GUIHandles.AccuracyAxes, 'update', BpodSystem.Data);
+
                 % livePsychometricPlot_hf_goNogo(BpodSystem.GUIHandles.PsychometricAxes, 'update', ...
                     % BpodSystem.Data, [1]);
 
+                liveRewardPlot_hf_2AFC(BpodSystem.GUIHandles.RewardAxes, 'update', BpodSystem.Data);
+                
+                liveResponseTimePlot_hf_2AFC(BpodSystem.GUIHandles.ResponseAxes, 'update', BpodSystem.Data);
             end
             HandlePauseCondition; % Checks to see if the protocol is paused. If so, waits until user resumes.
             if BpodSystem.Status.BeingUsed == 0 % If protocol was stopped, exit the loop
@@ -293,7 +333,7 @@ function luminose_hf_goNogo
 end
 
 %% State machine 
-function [sma, S] = PrepareStateMachine(S, trialTypes, currentTrial, ITI, emulator)
+function [sma, S] = PrepareStateMachine(S, currentTrialType, currentTrial, ITI, emulator)
     cue = S.GUIMeta.CueType.String{S.GUI.CueType};
     CSplus = S.GUIMeta.CSplusType.String{S.GUI.CSplusType};
     CSminus = S.GUIMeta.CSminusType.String{S.GUI.CSminusType};   
@@ -308,9 +348,11 @@ function [sma, S] = PrepareStateMachine(S, trialTypes, currentTrial, ITI, emulat
         startAction{end+1} = 'Serial3'; startAction{end+1} = ['#' 1]; % analog input module sync
     end
     cueAction = {'RotaryEncoder1', '*Z'};
+    prepareOdourAction = {}; % send odour info to olfactometer and wait for BNC2 trigger
     switch cue
         case 'Odour'
-            cueAction{end+1} = 'SoftCode'; cueAction{end+1} = 1;
+            cueAction{end+1} = 'BNC2'; cueAction{end+1} = 1;
+            prepareOdourAction{end+1} = 'SoftCode'; prepareOdourAction{end+1} = 1;
         case 'Pattern'
             cueAction{end+1} = 'SoftCode'; cueAction{end+1} = 8;
         case 'Light'
@@ -319,11 +361,12 @@ function [sma, S] = PrepareStateMachine(S, trialTypes, currentTrial, ITI, emulat
             cueAction{end+1} = 'HiFi1'; cueAction{end+1} = ['P', 1];
     end
     stimAction = {'BNC1', 1}; % sync
-    switch trialTypes(currentTrial)
+    switch currentTrialType
         case 1 % CS+
             switch CSplus
                 case 'Odour'
-                    stimAction{end+1} = 'SoftCode'; stimAction{end+1} = 2;
+                    stimAction{end+1} = 'BNC2'; stimAction{end+1} = 1;
+                    prepareOdourAction{end+1} = 'SoftCode'; prepareOdourAction{end+1} = 2;
                     chooseState2 = 'DeliverStim';
                 case 'Pattern'
                     stimAction{end+1} = 'SoftCode'; stimAction{end+1} = 9;
@@ -339,8 +382,8 @@ function [sma, S] = PrepareStateMachine(S, trialTypes, currentTrial, ITI, emulat
         case 2 % CS-
             switch CSminus
                 case 'Odour'
-                    chosenOdour = randi([1, 2]);
-                    stimAction{end+1} = 'SoftCode'; stimAction{end+1} = chosenOdour + 2;
+                    stimAction{end+1} = 'BNC2'; stimAction{end+1} = 1;
+                    prepareOdourAction{end+1} = 'SoftCode'; prepareOdourAction{end+1} = 3;
                     chooseState2 = 'DeliverStim';
                 case 'Pattern'
                     stimAction{end+1} = 'SoftCode'; stimAction{end+1} = 10;
@@ -373,6 +416,7 @@ function [sma, S] = PrepareStateMachine(S, trialTypes, currentTrial, ITI, emulat
     end
 
     switch emulator
+        %%
         case true
             %%
             if currentTrial == 1
@@ -400,7 +444,7 @@ function [sma, S] = PrepareStateMachine(S, trialTypes, currentTrial, ITI, emulat
             else
                 sma = NewStateMachine();
             end
-            %%
+
             sma = AddState(sma, 'Name', 'TrialStart', ...
                 'Timer', S.GUI.CueTime,...
                 'StateChangeConditions', {'Tup', 'DeliverStim'},...
@@ -428,7 +472,8 @@ function [sma, S] = PrepareStateMachine(S, trialTypes, currentTrial, ITI, emulat
             sma = AddState(sma, 'Name', 'InterTrialInterval', ...
                 'Timer', ITI(currentTrial),...
                 'StateChangeConditions', {'Tup', 'exit'},...
-                'OutputActions', {});
+                'OutputActions', prepareOdourAction);
+    
         case false
             %%
             if currentTrial == 1
@@ -452,7 +497,7 @@ function [sma, S] = PrepareStateMachine(S, trialTypes, currentTrial, ITI, emulat
                 sma = AddState(sma, 'Name', 'Barcode4', ...
                 'Timer', normrnd(S.GUI.muBarcodeDur, S.GUI.sigmaBarcodeDur),...
                 'StateChangeConditions', {'Tup', 'TrialStart'},...
-                'OutputActions', {'BNC1', 0}); 
+                'OutputActions', {'BNC1', 0});
             else
                 sma = NewStateMachine();
             end
@@ -492,14 +537,13 @@ function [sma, S] = PrepareStateMachine(S, trialTypes, currentTrial, ITI, emulat
             sma = AddState(sma, 'Name', 'TimeOut', ...
                 'Timer', S.GUI.ErrorDelay - S.GUI.NoiseTime,...
                 'StateChangeConditions', {'Tup', 'InterTrialInterval'},...
-                'OutputActions', {});
+                'OutputActions', prepareOdourAction);
             sma = AddState(sma, 'Name', 'InterTrialInterval', ...
                 'Timer', ITI(currentTrial),...
                 'StateChangeConditions', {'Tup', 'exit'},...
-                'OutputActions', {});
+                'OutputActions', prepareOdourAction);
     end
 end
-
 %% Handle pause condition
 function handle_pause_condition(H, R, A)
     global BpodSystem

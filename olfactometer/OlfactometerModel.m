@@ -4,6 +4,7 @@ classdef OlfactometerModel < handle
         backValves
         frontValves
         syncTTL
+        triggered
         inputTrigger
         preSequenceTime
         postSequenceTime
@@ -23,12 +24,15 @@ classdef OlfactometerModel < handle
     end
 
     methods
-        function self = OlfactometerModel(constants)
+        function self = OlfactometerModel(constants, triggered)
             self.sampleRate = constants.sampleRate;
             self.backValves = constants.backValves;
             self.frontValves = constants.frontValves;
             self.syncTTL = constants.syncTTL;
-            
+
+            self.triggered = triggered;
+            self.inputTrigger = constants.inputTrigger;
+
             self.preSequenceTime = constants.preSequenceTime;
             self.postSequenceTime = constants.postSequenceTime;
             self.pulseTime = constants.pulseTime;
@@ -40,23 +44,25 @@ classdef OlfactometerModel < handle
             self.cycleSamples = round(0.004 * self.sampleRate);
             self.ttlBitSamples = round(0.004 * self.sampleRate);
 
-            self.allOdourValves = [2:7, 10:16];
-            self.allCleanAirValves = [0, 1, 8, 9];
-
+            self.allOdourValves = [3:8, 11:16];
+            self.allCleanAirValves = [1, 2, 9, 10];
             self.initTask();
         end
 
         function initTask(self)
             
             self.valveSession = daq("ni");
-            
-            addoutput(self.valveSession, self.frontValves.deviceID, self.frontValves.channelID, self.frontValves.measurementType);
-            addoutput(self.valveSession, self.backValves.deviceID, self.backValves.channelID, self.backValves.measurementType);
-            addoutput(self.valveSession, self.syncTTL.deviceID, self.syncTTL.channelID, self.syncTTL.measurementType);
-            % there must be at least one analog input channel to access the
-            % internal clock on the NI board.
-            addinput(self.valveSession, "analogInput", "ai0", "Voltage");
 
+            self.valveSession.addoutput(self.frontValves.deviceID, self.frontValves.channelID, self.frontValves.measurementType);
+            self.valveSession.addoutput(self.backValves.deviceID, self.backValves.channelID, self.backValves.measurementType);
+            self.valveSession.addoutput(self.syncTTL.deviceID, self.syncTTL.channelID, self.syncTTL.measurementType);
+            % there must be at least one analog input channel to access the internal clock on the NI board.
+            self.valveSession.addinput("analogInput", "ai0", "Voltage");
+            % Configure digital start trigger
+            if self.triggered
+                self.valveSession.addtrigger("Digital", "StartTrigger", "External", self.inputTrigger);
+                self.valveSession.DigitalTriggerTimeout = 30;
+            end
             self.valveSession.Rate = self.sampleRate;
         end
 
@@ -66,7 +72,7 @@ classdef OlfactometerModel < handle
                 if k > 9
                     valveMap(k) = floor(k/8)*8 + 1 + mod(k, 2);
                 else
-                    valveMap(k) = 1 + mod(k, 2);
+                    valveMap(k) = mod(k, 2) + 1;
                 end
             end
             if isKey(valveMap, odourValve)
@@ -76,13 +82,13 @@ classdef OlfactometerModel < handle
             end
         end
 
-        function valveStates = generate_valve_pattern(self, odourValves, dutyCycles, label)
+        function valveStates = generate_valve_pattern(self, odourValves, dutyCycles)
             self.acquisitionTime = (self.preSequenceTime + self.pulseTime + self.postSequenceTime) * length(odourValves);
             self.acquisitionSamples = round(self.acquisitionTime * self.sampleRate);
             
             valveStates = false(self.frontValves.channelCount+self.backValves.channelCount+self.syncTTL.channelCount, self.acquisitionSamples);
             cleanAirValves = arrayfun(@(v) self.determine_clean_air_valve(v), odourValves);
-            valveStates(self.allCleanAirValves + 1, :) = true;
+            valveStates(self.allCleanAirValves, :) = true;
 
             for k = 1:length(odourValves)
                 onSamples = round(self.cycleSamples * dutyCycles(k));
@@ -94,25 +100,17 @@ classdef OlfactometerModel < handle
                     valveStates(odourValves(k) + 16, (self.preSequenceSamples + self.pulseSamples * (k - 1) + self.backValveDelaySamples):(self.preSequenceSamples + self.pulseSamples * k - self.backValveDelaySamples)) = true;
                 end
                 valveStates(cleanAirValves(k), idx) = false;
+                valveStates(end-4:end, idx) = true;
             end
-
-            bytes = uint8(char(label));
-            bits = dec2bin(bytes, 8)';
-            bits = bits(:);
-            bits = bits(1:(length(label) * 7));
-            trueIdx = find(bits) + 2;
-            trueIdx = [0; trueIdx];
-            ttlIdx = reshape((trueIdx' .* self.ttlBitSamples) + (0:(self.ttlBitSamples-1))', [], 1) + self.preSequenceSamples;
-            valveStates(33, ttlIdx) = true;
         end
 
-        function play_valve_sequence(self, odourValves, dutyCycles, label)
-            pattern = self.generate_valve_pattern(odourValves, dutyCycles, label);
-            preload(self.valveSession, double(pattern)');
-            start(self.valveSession);
+        function play_valve_sequence(self, odourValves, dutyCycles)
+            pattern = self.generate_valve_pattern(odourValves, dutyCycles);
+            self.valveSession.preload(double(pattern)');
+            self.valveSession.start();
             pause(self.acquisitionTime);
-            stop(self.valveSession);
-            flush(self.valveSession);
+            self.valveSession.stop();
+            self.valveSession.flush();
         end
 
         function checkStatus(status)

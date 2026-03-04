@@ -1,4 +1,4 @@
- function liveBarPlot_hf_2AFC(ax, op, data)
+function liveBarPlot_hf_2AFC(ax, op, data)
     % barPlot - Creates and updates a bar plot showing accuracy for Left and Right trials
     %
     % Syntax:
@@ -83,8 +83,9 @@
                 trialType = data.TrialTypes(i);
                 
                 % Check if trial had a reward (correct) or punishment (incorrect)
-                hasReward = ~isnan(data.RawEvents.Trial{i}.States.Reward(1));
-                hasPunishment = ~isnan(data.RawEvents.Trial{i}.States.Punishment(1));
+                states = data.RawEvents.Trial{i}.States;
+                hasReward = isfield(states, 'Reward') && ~isnan(states.Reward(1));
+                hasPunishment = isfield(states, 'Punishment') && ~isnan(states.Punishment(1));
                 
                 if trialType == 1  % left trial (should GO - lick)
                     nLeft = nLeft + 1;
@@ -94,7 +95,7 @@
                 elseif trialType == 2  % right trial (should NO-GO - withhold)
                     nRight = nRight + 1;
                     % Correct if reached ITI without punishment
-                    hasITI = ~isnan(data.RawEvents.Trial{i}.States.InterTrialInterval(1));
+                    hasITI = isfield(states, 'InterTrialInterval') && ~isnan(states.InterTrialInterval(1));
                     if hasITI && ~hasPunishment
                         correctRight = correctRight + 1;
                     end

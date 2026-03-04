@@ -45,15 +45,12 @@ olfactometer:
   # Sync TTL configuration
   syncTTL:
     deviceID: "frontValves"
-    channelID: "port0/line16"
+    channelID: "port0/line16:19"
     measurementType: "Digital"
-    channelCount: 1
+    channelCount: 4
   
   # Input trigger configuration
-  inputTrigger:
-    deviceID: "frontValves"
-    channelID: "port0/line31"
-    measurementType: "Digital"
+  inputTrigger: "cDAQ1/PFI0"
 
 # DMD (Digital Micromirror Device) configuration
 dmd:
