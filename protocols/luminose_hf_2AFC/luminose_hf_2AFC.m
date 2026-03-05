@@ -81,6 +81,7 @@ function luminose_hf_2AFC
             return  % GUI was closed
         end
     end
+    S = LuminoseParameterGUI_hf_2AFC('sync', S);
     disp('START pressed — beginning experiment.');
 
     % Live outcome plot
@@ -178,10 +179,10 @@ function luminose_hf_2AFC
         H.AMenvelope = Envelope;
     
         %% Setup Rotary Encoder module
-        if strcmp(S.GUIMeta.ResponseType(S.GUI.ResponseType), 'Rotary Encoder')
+        if strcmp(S.GUIMeta.ResponseType.String(S.GUI.ResponseType), 'Rotary Encoder')
             R.useAdvancedThresholds = 'on'; % Advanced thresholds are available on rotary encoder module r2.0 or newer.
                                 % See notes in setAdvancedThresholds() function in /Modules/RotaryEncoderModule.m for parameters and usage
-            R.setAdvancedThresholds([90 -90 10],... 
+            R.setAdvancedThresholds([-35 35 10],... 
                 [0 0 1], [0 0 0.2]); % Syntax: setAdvancedThresholds(thresholds, thresholdTypes, thresholdTimes)
             R.sendThresholdEvents = 'on'; % Enable sending threshold crossing events to state machine
         else
@@ -236,6 +237,11 @@ function luminose_hf_2AFC
             RawEvents = trialManager.getTrialData; % Hangs here until trial is over, then retrieves full trial's raw data
             handle_pause_condition(H, R); % Handle pause/stop by user
             
+            if strcmp(S.GUIMeta.ResponseType.String(S.GUI.ResponseType), 'Rotary Encoder')
+                R.setAdvancedThresholds([-35 35 10], [0 0 1],... 
+                    [0 0 0.2]);
+            end
+
             if currentTrial < S.GUI.maxTrials
                 trialManager.startTrial(); % Start processing the next trial's events (call with no argument since SM was already sent)
             end
@@ -525,8 +531,8 @@ function [sma, S] = PrepareStateMachine(S, currentTrialType, currentTrial, ITI, 
                         'StateChangeConditions', {'Tup', chooseState1},...
                         'OutputActions', cueAction); % '*' = push new thresholds to rotary encoder 'Z' = zero position
                     sma = AddState(sma, 'Name', 'InitRE', ...
-                        'Timer', 0.2,...
-                        'StateChangeConditions', {'RotaryEncoder1_3', 'GetResponse', 'RotaryEncoder1_4', 'GetResponse'},...
+                        'Timer', 0,...
+                        'StateChangeConditions', {'RotaryEncoder1_3', chooseState2, 'RotaryEncoder1_4', chooseState2},...
                         'OutputActions', {'RotaryEncoder1', [';' 4]}); % ';' = enable thresholds specified by bits of a byte. 4 = binary 100 (enable threshold# 3)  
                     sma = AddState(sma, 'Name', 'GetSniff', ...
                         'Timer', 0, ...

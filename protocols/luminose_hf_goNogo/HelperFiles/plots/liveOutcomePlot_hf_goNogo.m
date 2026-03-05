@@ -34,8 +34,8 @@ switch action
 
         % Plot all completed trials
         for i = 1:nDone
-            side    = getTrialSide_hf_2AFC(data, i);
-            outcome = getTrialOutcome_hf_2AFC(data, i);
+            side    = getTrialSide_hf_goNogo(data, i);
+            outcome = getTrialOutcome_hf_goNogo(data, i);
 
             if outcome == 1
                 xC(end+1) = i; yC(end+1) = side;

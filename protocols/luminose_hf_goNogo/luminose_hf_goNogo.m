@@ -81,6 +81,7 @@ function luminose_hf_goNogo
             return  % GUI was closed
         end
     end
+    S = LuminoseParameterGUI_hf_goNogo('sync', S);
     disp('START pressed — beginning experiment.');
 
     % Live outcome plot
@@ -177,11 +178,12 @@ function luminose_hf_goNogo
         H.AMenvelope = Envelope;
     
         %% Setup Rotary Encoder module
-        if strcmp(S.GUIMeta.ResponseType(S.GUI.ResponseType), 'Rotary Encoder')
+        disp(S.GUIMeta.ResponseType.String(S.GUI.ResponseType));
+        if strcmp(S.GUIMeta.ResponseType.String(S.GUI.ResponseType), 'Rotary Encoder')
             R.useAdvancedThresholds = 'on'; % Advanced thresholds are available on rotary encoder module r2.0 or newer.
                                 % See notes in setAdvancedThresholds() function in /Modules/RotaryEncoderModule.m for parameters and usage
-            R.setAdvancedThresholds([90 -90 10],... 
-                [0 0 1], [0 0 0.2]); % Syntax: setAdvancedThresholds(thresholds, thresholdTypes, thresholdTimes)
+            R.setAdvancedThresholds([-35 10 10],... 
+                [0 1 1], [0 S.GUI.ResponseTime 0.2]); % Syntax: setAdvancedThresholds(thresholds, thresholdTypes, thresholdTimes)
             R.sendThresholdEvents = 'on'; % Enable sending threshold crossing events to state machine
         else
             R.useAdvancedThresholds = 'off';
@@ -232,9 +234,14 @@ function luminose_hf_goNogo
                 SendStateMachine(sma, 'RunASAP');
             end
             
+            if strcmp(S.GUIMeta.ResponseType.String(S.GUI.ResponseType), 'Rotary Encoder')
+                R.setAdvancedThresholds([-35 10 10],... 
+                    [0 1 1], [0 S.GUI.ResponseTime 0.2]);
+            end
+
             RawEvents = trialManager.getTrialData; % Hangs here until trial is over, then retrieves full trial's raw data
             handle_pause_condition(H, R); % Handle pause/stop by user
-            
+
             if currentTrial < S.GUI.maxTrials
                 trialManager.startTrial(); % Start processing the next trial's events (call with no argument since SM was already sent)
             end
@@ -398,14 +405,15 @@ function [sma, S] = PrepareStateMachine(S, currentTrialType, currentTrial, ITI, 
             noGoAction = 'InterTrialInterval'; goAction = 'Punishment';
     end
     responseDetect = {};
+    responseAction = {};
     switch response
         case 'Lick'
             responseDetect = {'Port3In', goAction, 'Tup', noGoAction};
             chooseState1 = chooseState2;
         case 'Rotary Encoder'
-            stimAction{end+1} = 'RotaryEncoder1'; stimAction{end+1} = ['Z;' 3];
-            responseDetect = {'RotaryEncoder1_1', goAction, 'Tup', noGoAction};
+            responseDetect = {'RotaryEncoder1_1', goAction, 'RotaryEncoder1_2', noGoAction};
             chooseState1 = 'InitRE';
+            responseAction{end+1} = 'RotaryEncoder1'; responseAction{end+1} = ['Z;' 3];
     end
     valveTime = GetValveTimes(S.GUI.RewardAmount, 3);
     if S.GUI.NoiseTime ~= 0
@@ -520,11 +528,11 @@ function [sma, S] = PrepareStateMachine(S, currentTrialType, currentTrial, ITI, 
             sma = AddState(sma, 'Name', 'DeliverStim', ... 
                 'Timer', S.GUI.StimTime,...
                 'StateChangeConditions', {'Tup', 'GetResponse'},...
-                'OutputActions', stimAction); % light on
+                'OutputActions', stimAction); 
             sma = AddState(sma, 'Name', 'GetResponse', ...
                 'Timer', S.GUI.ResponseTime,...
                 'StateChangeConditions', responseDetect,...
-                'OutputActions', {});
+                'OutputActions', responseAction);
             sma = AddState(sma, 'Name', 'Reward', ...
                 'Timer', valveTime,...
                 'StateChangeConditions', {'Tup', 'InterTrialInterval'},...

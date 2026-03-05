@@ -6,9 +6,9 @@ function outcome = getTrialOutcome_hf_goNogo(data, trialIdx)
 trialType = getTrialSide_hf_goNogo(data, trialIdx);
 
 hasReward = isfield(data.RawEvents.Trial{trialIdx}.States,'Reward') && ...
-            ~isnan(RE.States.Reward(1));
+            ~isnan(data.RawEvents.Trial{trialIdx}.States.Reward(1));
 hasPunishment = isfield(data.RawEvents.Trial{trialIdx}.States,'Punishment') && ...
-            ~isnan(RE.States.Punishment(1));
+            ~isnan(data.RawEvents.Trial{trialIdx}.States.Punishment(1));
 
 if trialType == 1 
     if hasReward
