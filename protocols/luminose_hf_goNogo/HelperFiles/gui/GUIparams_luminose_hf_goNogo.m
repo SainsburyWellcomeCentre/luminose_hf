@@ -32,7 +32,7 @@ function GUIparams_luminose_hf_goNogo()
     S.GUIPanels.CueParams = {'CueType', 'CueTime'};
     S.GUIPanels.Stimulus = {'CSplusType', 'CSminusType', 'StimTime'};
     S.GUIPanels.Response = {'ResponseType', 'ResponseTime', 'RewardAmount', ...
-        'ErrorDelay', 'Amplitude_error', 'NoiseTime', 'SoundSamplingRate', };
+        'ErrorDelay', 'Amplitude_error', 'NoiseTime'};
     S.GUIPanels.ITI = {'VariableITI', 'InterTrialInterval', 'MaxITI'};
     % == CueParams ==
     S.GUI.CueType = 3;
@@ -50,7 +50,6 @@ function GUIparams_luminose_hf_goNogo()
     S.GUI.StimTime = 1*(0.001+1+0.001); % olfactometer: preSequence_delay + pulseTime + postSequence_delay
     
     % == Response ==
-    S.GUI.SoundSamplingRate = 192000;
     S.GUI.Amplitude_error = [10000, 10000];
     S.GUI.ResponseType = 1;
     S.GUIMeta.ResponseType.Style = 'popupmenu';

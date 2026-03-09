@@ -5,6 +5,7 @@ function luminose_hf_goNogo
     global BpodSystem S luminose dmdModel olfModel
     beep('off'); % native matlab error sounds OFF
     BpodSystem.SoftCodeHandlerFunction = 'SoftCodeHandler_luminose_hf_goNogo';
+    ManualOverride('OP', 5);
 
     %% Define luminose constants
     % Add folders and save path
@@ -156,15 +157,15 @@ function luminose_hf_goNogo
 
         %% Setup sound
         % Configure HiFi module
-        H.SamplingRate = S.GUI.SoundSamplingRate;
+        H.SamplingRate = 192000;
         errorSound = GenerateWhiteNoise(H.SamplingRate, S.GUI.NoiseTime, S.GUI.Amplitude_error, 2);
         H.load(1, errorSound);
-        cueSound = GenerateSineWave(S.GUI.SoundSamplingRate, S.GUI.Freq_cue, S.GUI.CueTime);
+        cueSound = GenerateSineWave(H.SamplingRate, S.GUI.Freq_cue, S.GUI.CueTime);
         H.load(2, cueSound);
-        TimeSoundCSplus = 0:1/S.GUI.SoundSamplingRate:S.GUI.StimTime;
+        TimeSoundCSplus = 0:1/H.SamplingRate:S.GUI.StimTime;
         CSplusSound = chirp(TimeSoundCSplus, S.GUI.LowFreq_CSplus, S.GUI.CueTime, S.GUI.HighFreq_CSplus);
         H.load(3, CSplusSound);
-        TimeSoundCSminus = 0:1/S.GUI.SoundSamplingRate:S.GUI.StimTime;
+        TimeSoundCSminus = 0:1/H.SamplingRate:S.GUI.StimTime;
         CSminusSound = chirp(TimeSoundCSminus, S.GUI.LowFreq_CSminus, S.GUI.CueTime, S.GUI.HighFreq_CSminus);
         H.load(4, CSminusSound);
 
@@ -174,11 +175,10 @@ function luminose_hf_goNogo
         H.push; % Add any recently loaded sounds to the current sound set
     
         % Define 1ms linear ramp envelope of amplitude coefficients, to apply at sound onset + in reverse at sound offset
-        Envelope = 1/(S.GUI.SoundSamplingRate*0.001):1/(S.GUI.SoundSamplingRate*0.001):1; 
+        Envelope = 1/(H.SamplingRate*0.001):1/(H.SamplingRate*0.001):1; 
         H.AMenvelope = Envelope;
     
         %% Setup Rotary Encoder module
-        disp(S.GUIMeta.ResponseType.String(S.GUI.ResponseType));
         if strcmp(S.GUIMeta.ResponseType.String(S.GUI.ResponseType), 'Rotary Encoder')
             R.useAdvancedThresholds = 'on'; % Advanced thresholds are available on rotary encoder module r2.0 or newer.
                                 % See notes in setAdvancedThresholds() function in /Modules/RotaryEncoderModule.m for parameters and usage
@@ -222,120 +222,130 @@ function luminose_hf_goNogo
                                   % console UI, while code below proceeds in parallel.
         %% Main trial loop
         for currentTrial = 1:S.GUI.maxTrials
-            S = LuminoseParameterGUI_hf_goNogo('sync', S); % Sync parameters with LuminoseParameterGUI_hf_goNogo plugin
-
-            currentTrialType = nextTrialType;
-            nextTrialType = getNextTrialType_hf_goNogo(BpodSystem.Data, 50, S.GUI.BiasCorrection, 0.2, S.GUI.CSplus_prob);
-            
-            handle_pause_condition(H, R); % Handle pause/stop by user
-            
-            if currentTrial < S.GUI.maxTrials
-                [sma, S] = PrepareStateMachine(S, nextTrialType, currentTrial+1, ITI, emulator);
-                SendStateMachine(sma, 'RunASAP');
-            end
-            
-            if strcmp(S.GUIMeta.ResponseType.String(S.GUI.ResponseType), 'Rotary Encoder')
-                R.setAdvancedThresholds([-35 10 10],... 
-                    [0 1 1], [0 S.GUI.ResponseTime 0.2]);
-            end
-
-            RawEvents = trialManager.getTrialData; % Hangs here until trial is over, then retrieves full trial's raw data
-            handle_pause_condition(H, R); % Handle pause/stop by user
-
-            if currentTrial < S.GUI.maxTrials
-                trialManager.startTrial(); % Start processing the next trial's events (call with no argument since SM was already sent)
-            end
-            
-            if ~isempty(fieldnames(RawEvents))
-                BpodSystem.Data = AddTrialEvents(BpodSystem.Data,RawEvents);
-                BpodSystem.Data.TrialSettings(currentTrial) = S;
-                BpodSystem.Data.TrialTypes(currentTrial) = currentTrialType;
-                BpodSystem.Data = BpodNotebook('sync', BpodSystem.Data); % Sync with Bpod notebook plugin
+            try
+                S = LuminoseParameterGUI_hf_goNogo('sync', S); % Sync parameters with LuminoseParameterGUI_hf_goNogo plugin
+    
+                currentTrialType = nextTrialType;
+                nextTrialType = getNextTrialType_hf_goNogo(BpodSystem.Data, 50, S.GUI.BiasCorrection, 0.2, S.GUI.CSplus_prob);
                 
-                % Save rotary encoder data
-                if currentTrial == 1
-                    eventData = R.readUSBStream(0); % Read and dump any REM data captured before first trial start. Subsequent REM data will be saved. 
-                    TrialStartTime = eventData.EventTimestamps(1); % First trial start time on REM clock is taken from this initial read
+                handle_pause_condition(H, R); % Handle pause/stop by user
+                
+                if currentTrial < S.GUI.maxTrials
+                    [sma, S] = PrepareStateMachine(S, nextTrialType, currentTrial+1, ITI, emulator);
+                    SendStateMachine(sma, 'RunASAP');
                 end
                 
-                BpodSystem.Data.EncoderData{currentTrial} = R.readUSBStream(0); % Returns REM data up to event '0'
-                                                                                % see {'RotaryEncoder1', ['#' 0]} in output actions of first state 
-                BpodSystem.Data.EncoderData{currentTrial}.Times = BpodSystem.Data.EncoderData{currentTrial}.Times - BpodSystem.Data.TrialStartTimestamp(currentTrial);
-                BpodSystem.Data.EncoderData{currentTrial}.EventTimestamps = ...
-                    BpodSystem.Data.EncoderData{currentTrial}.EventTimestamps - BpodSystem.Data.TrialStartTimestamp(currentTrial) ;
-
-                %% Update plots
-                liveOutcomePlot_hf_goNogo(BpodSystem.GUIHandles.OutcomeAxes, 'update', BpodSystem.Data, nextTrialType);
-                
-                liveBarPlot_hf_goNogo(BpodSystem.GUIHandles.AccuracyAxes, 'update', BpodSystem.Data);
-                
-                % livePsychometricPlot_hf_goNogo(BpodSystem.GUIHandles.PsychometricAxes, 'update', ...
-                    % BpodSystem.Data, [1]);
-                
-                liveRewardPlot_hf_goNogo(BpodSystem.GUIHandles.RewardAxes, 'update', BpodSystem.Data);
-
-                liveResponseTimePlot_hf_goNogo(BpodSystem.GUIHandles.ResponseAxes, 'update', BpodSystem.Data);
-                
-                % Update rotary encoder plot
-                if currentTrial == 1 % Only on the first trial, the first and second trial's trial-start timestamps will be retrieved in the rotary encoder data
-                                     % On all subsequent trials, only the next trial's start timestamp will be returned (because data is retrieved mid-trial)
-                    % For first trial, TrialStartTime is computed above
-                    NextTrialStartTime = BpodSystem.Data.EncoderData{currentTrial}.EventTimestamps(1);
-                else
-                    TrialStartTime = NextTrialStartTime;
-                    NextTrialStartTime = BpodSystem.Data.EncoderData{currentTrial}.EventTimestamps(1);
+                if strcmp(S.GUIMeta.ResponseType.String(S.GUI.ResponseType), 'Rotary Encoder')
+                    R.setAdvancedThresholds([-35 10 10],... 
+                        [0 1 1], [0 S.GUI.ResponseTime 0.2]);
                 end
-                BpodSystem.Data.EncoderData{currentTrial}.Times = BpodSystem.Data.EncoderData{currentTrial}.Times - TrialStartTime; % Align timestamps to state machine's trial time 0
-                BpodSystem.Data.EncoderData{currentTrial}.EventTimestamps = ...
-                    BpodSystem.Data.EncoderData{currentTrial}.EventTimestamps - TrialStartTime; % Align event timestamps to state machine's trial time 0
+    
+                RawEvents = trialManager.getTrialData; % Hangs here until trial is over, then retrieves full trial's raw data
+                handle_pause_condition(H, R); % Handle pause/stop by user
+    
+                if currentTrial < S.GUI.maxTrials
+                    trialManager.startTrial(); % Start processing the next trial's events (call with no argument since SM was already sent)
+                end
                 
-                TrialDuration = BpodSystem.Data.TrialEndTimestamp(currentTrial)-BpodSystem.Data.TrialStartTimestamp(currentTrial);
-                liveEncoderPlot_hf_goNogo(BpodSystem.GUIHandles.EncoderAxes, 'update', 0, BpodSystem.Data.EncoderData{currentTrial},TrialDuration);
-
-                SaveBpodSessionData; 
-                SaveBpodProtocolSettings;
-            end
+                if ~isempty(fieldnames(RawEvents))
+                    BpodSystem.Data = AddTrialEvents(BpodSystem.Data,RawEvents);
+                    BpodSystem.Data.TrialSettings(currentTrial) = S;
+                    BpodSystem.Data.TrialTypes(currentTrial) = currentTrialType;
+                    BpodSystem.Data = BpodNotebook('sync', BpodSystem.Data); % Sync with Bpod notebook plugin
+                    
+                    % Save rotary encoder data
+                    if currentTrial == 1
+                        eventData = R.readUSBStream(0); % Read and dump any REM data captured before first trial start. Subsequent REM data will be saved. 
+                        TrialStartTime = eventData.EventTimestamps(1); % First trial start time on REM clock is taken from this initial read
+                    end
+                    
+                    BpodSystem.Data.EncoderData{currentTrial} = R.readUSBStream(0); % Returns REM data up to event '0'
+                                                                                    % see {'RotaryEncoder1', ['#' 0]} in output actions of first state 
+                    BpodSystem.Data.EncoderData{currentTrial}.Times = BpodSystem.Data.EncoderData{currentTrial}.Times - BpodSystem.Data.TrialStartTimestamp(currentTrial);
+                    BpodSystem.Data.EncoderData{currentTrial}.EventTimestamps = ...
+                        BpodSystem.Data.EncoderData{currentTrial}.EventTimestamps - BpodSystem.Data.TrialStartTimestamp(currentTrial) ;
+    
+                    %% Update plots
+                    liveOutcomePlot_hf_goNogo(BpodSystem.GUIHandles.OutcomeAxes, 'update', BpodSystem.Data, nextTrialType);
+                    
+                    liveBarPlot_hf_goNogo(BpodSystem.GUIHandles.AccuracyAxes, 'update', BpodSystem.Data);
+                    
+                    % livePsychometricPlot_hf_goNogo(BpodSystem.GUIHandles.PsychometricAxes, 'update', ...
+                        % BpodSystem.Data, [1]);
+                    
+                    liveRewardPlot_hf_goNogo(BpodSystem.GUIHandles.RewardAxes, 'update', BpodSystem.Data);
+    
+                    liveResponseTimePlot_hf_goNogo(BpodSystem.GUIHandles.ResponseAxes, 'update', BpodSystem.Data);
+                    
+                    % Update rotary encoder plot
+                    if currentTrial == 1 % Only on the first trial, the first and second trial's trial-start timestamps will be retrieved in the rotary encoder data
+                                         % On all subsequent trials, only the next trial's start timestamp will be returned (because data is retrieved mid-trial)
+                        % For first trial, TrialStartTime is computed above
+                        NextTrialStartTime = BpodSystem.Data.EncoderData{currentTrial}.EventTimestamps(1);
+                    else
+                        TrialStartTime = NextTrialStartTime;
+                        NextTrialStartTime = BpodSystem.Data.EncoderData{currentTrial}.EventTimestamps(1);
+                    end
+                    BpodSystem.Data.EncoderData{currentTrial}.Times = BpodSystem.Data.EncoderData{currentTrial}.Times - TrialStartTime; % Align timestamps to state machine's trial time 0
+                    BpodSystem.Data.EncoderData{currentTrial}.EventTimestamps = ...
+                        BpodSystem.Data.EncoderData{currentTrial}.EventTimestamps - TrialStartTime; % Align event timestamps to state machine's trial time 0
+                    
+                    TrialDuration = BpodSystem.Data.TrialEndTimestamp(currentTrial)-BpodSystem.Data.TrialStartTimestamp(currentTrial);
+                    liveEncoderPlot_hf_goNogo(BpodSystem.GUIHandles.EncoderAxes, 'update', 0, BpodSystem.Data.EncoderData{currentTrial},TrialDuration);
+    
+                    SaveBpodSessionData; 
+                    SaveBpodProtocolSettings;
+                end
+            catch
+                cleanup; % Save FlexI/O analog input data
+                ManualOverride('OP', 5);
+                break
+            end  
         end
-        cleanup; % Save FlexI/O analog input data
     else % emulator mode
         %% Main trial loop
         for currentTrial = 1:S.GUI.maxTrials
-            S = LuminoseParameterGUI_hf_goNogo('sync', S); % Sync parameters with LuminoseParameterGUI_hf_goNogo plugin
-            
-            currentTrialType = nextTrialType;
-            nextTrialType = getNextTrialType_hf_goNogo(BpodSystem.Data, 50, S.GUI.BiasCorrection, 0.2, S.GUI.CSplus_prob);
-            
-            sma = PrepareStateMachine(S, currentTrialType, currentTrial+1, ITI, [], emulator);
-            SendStateMachine(sma);
-            RawEvents = RunStateMachine; % Run the trial and return events
-
-            if ~isempty(fieldnames(RawEvents))
-                BpodSystem.Data = AddTrialEvents(BpodSystem.Data,RawEvents);
-                BpodSystem.Data.TrialSettings(currentTrial) = S;
-                BpodSystem.Data.TrialTypes(currentTrial) = currentTrialType;
-                BpodSystem.Data = BpodNotebook('sync', BpodSystem.Data); % Sync with Bpod notebook plugin
-
-                % Update plots
-                TrialDuration = BpodSystem.Data.TrialEndTimestamp(currentTrial)-BpodSystem.Data.TrialStartTimestamp(currentTrial);
+            try
+                S = LuminoseParameterGUI_hf_goNogo('sync', S); % Sync parameters with LuminoseParameterGUI_hf_goNogo plugin
                 
-                liveOutcomePlot_hf_goNogo(BpodSystem.GUIHandles.OutcomeAxes, 'update', BpodSystem.Data, nextTrialType);
-
-                liveBarPlot_hf_goNogo(BpodSystem.GUIHandles.AccuracyAxes, 'update', BpodSystem.Data);
-
-                % livePsychometricPlot_hf_goNogo(BpodSystem.GUIHandles.PsychometricAxes, 'update', ...
-                    % BpodSystem.Data, [1]);
-
-                liveRewardPlot_hf_goNogo(BpodSystem.GUIHandles.RewardAxes, 'update', BpodSystem.Data);
+                currentTrialType = nextTrialType;
+                nextTrialType = getNextTrialType_hf_goNogo(BpodSystem.Data, 50, S.GUI.BiasCorrection, 0.2, S.GUI.CSplus_prob);
                 
-                liveResponseTimePlot_hf_goNogo(BpodSystem.GUIHandles.ResponseAxes, 'update', BpodSystem.Data);
-            end
-            HandlePauseCondition; % Checks to see if the protocol is paused. If so, waits until user resumes.
-            if BpodSystem.Status.BeingUsed == 0 % If protocol was stopped, exit the loop
-                return
+                sma = PrepareStateMachine(S, currentTrialType, currentTrial+1, ITI, [], emulator);
+                SendStateMachine(sma);
+                RawEvents = RunStateMachine; % Run the trial and return events
+    
+                if ~isempty(fieldnames(RawEvents))
+                    BpodSystem.Data = AddTrialEvents(BpodSystem.Data,RawEvents);
+                    BpodSystem.Data.TrialSettings(currentTrial) = S;
+                    BpodSystem.Data.TrialTypes(currentTrial) = currentTrialType;
+                    BpodSystem.Data = BpodNotebook('sync', BpodSystem.Data); % Sync with Bpod notebook plugin
+    
+                    % Update plots
+                    TrialDuration = BpodSystem.Data.TrialEndTimestamp(currentTrial)-BpodSystem.Data.TrialStartTimestamp(currentTrial);
+                    
+                    liveOutcomePlot_hf_goNogo(BpodSystem.GUIHandles.OutcomeAxes, 'update', BpodSystem.Data, nextTrialType);
+    
+                    liveBarPlot_hf_goNogo(BpodSystem.GUIHandles.AccuracyAxes, 'update', BpodSystem.Data);
+    
+                    % livePsychometricPlot_hf_goNogo(BpodSystem.GUIHandles.PsychometricAxes, 'update', ...
+                        % BpodSystem.Data, [1]);
+    
+                    liveRewardPlot_hf_goNogo(BpodSystem.GUIHandles.RewardAxes, 'update', BpodSystem.Data);
+                    
+                    liveResponseTimePlot_hf_goNogo(BpodSystem.GUIHandles.ResponseAxes, 'update', BpodSystem.Data);
+                end
+                HandlePauseCondition; % Checks to see if the protocol is paused. If so, waits until user resumes.
+                if BpodSystem.Status.BeingUsed == 0 % If protocol was stopped, exit the loop
+                    return
+                end
+            catch
+                cleanup; % Save FlexI/O analog input data
+                ManualOverride('OP', 5);
+                break
             end
         end
     end
-    cleanup; % Save FlexI/O analog input data
 end
 
 %% State machine 
@@ -567,11 +577,10 @@ end
 
 %% Cleanup
 function cleanup()
-    global BpodSystem dmdModel
+    global BpodSystem
     BpodSystem.Data = AddFlexIOAnalogData(BpodSystem.Data, 'Volts', 1); % Save FlexI/O analog input data
     SaveBpodSessionData;
-    SaveBpodProtocolSettings;
-    dmdModel.disconnect_dmd();
+    % SaveBpodProtocolSettings;
     % A.endAcq; % Close Oscope GUI
     % A.stopReportingEvents; % Stop sending events to state machine
 end

@@ -5,6 +5,7 @@ function luminose_hf_2AFC
     global BpodSystem S luminose dmdModel olfModel
     beep('off'); % native matlab error sounds OFF
     BpodSystem.SoftCodeHandlerFunction = 'SoftCodeHandler_luminose_hf_2AFC';
+    ManualOverride('OP', 5);
 
     %% Define luminose constants
     % Add folders and save path
@@ -222,118 +223,128 @@ function luminose_hf_2AFC
                                   % console UI, while code below proceeds in parallel.
         %% Main trial loop
         for currentTrial = 1:S.GUI.maxTrials
-            S = LuminoseParameterGUI_hf_2AFC('sync', S); % Sync parameters with LuminoseParameterGUI_hf_2AFC plugin
-            
-            currentTrialType = nextTrialType;
-            nextTrialType = getNextTrialType_hf_2AFC(BpodSystem.Data, 50, S.GUI.BiasCorrection, 0.2, S.GUI.Leftprob);
-            
-            handle_pause_condition(H, R); % Handle pause/stop by user
-            
-            if currentTrial < S.GUI.maxTrials
-                [sma, S] = PrepareStateMachine(S, nextTrialType, currentTrial+1, ITI, emulator);
-                SendStateMachine(sma, 'RunASAP');
-            end
-            
-            RawEvents = trialManager.getTrialData; % Hangs here until trial is over, then retrieves full trial's raw data
-            handle_pause_condition(H, R); % Handle pause/stop by user
-            
-            if strcmp(S.GUIMeta.ResponseType.String(S.GUI.ResponseType), 'Rotary Encoder')
-                R.setAdvancedThresholds([-35 35 10], [0 0 1],... 
-                    [0 0 0.2]);
-            end
-
-            if currentTrial < S.GUI.maxTrials
-                trialManager.startTrial(); % Start processing the next trial's events (call with no argument since SM was already sent)
-            end
-            
-            if ~isempty(fieldnames(RawEvents))
-                BpodSystem.Data = AddTrialEvents(BpodSystem.Data,RawEvents);
-                BpodSystem.Data.TrialSettings(currentTrial) = S;
-                BpodSystem.Data.TrialTypes(currentTrial) = currentTrialType;
-                BpodSystem.Data = BpodNotebook('sync', BpodSystem.Data); % Sync with Bpod notebook plugin
-    
-                % Save rotary encoder data
-                if currentTrial == 1
-                    eventData = R.readUSBStream(0); % Read and dump any REM data captured before first trial start. Subsequent REM data will be saved. 
-                    TrialStartTime = eventData.EventTimestamps(1); % First trial start time on REM clock is taken from this initial read
+            try
+                S = LuminoseParameterGUI_hf_2AFC('sync', S); % Sync parameters with LuminoseParameterGUI_hf_2AFC plugin
+                
+                currentTrialType = nextTrialType;
+                nextTrialType = getNextTrialType_hf_2AFC(BpodSystem.Data, 50, S.GUI.BiasCorrection, 0.2, S.GUI.Leftprob);
+                
+                handle_pause_condition(H, R); % Handle pause/stop by user
+                
+                if currentTrial < S.GUI.maxTrials
+                    [sma, S] = PrepareStateMachine(S, nextTrialType, currentTrial+1, ITI, emulator);
+                    SendStateMachine(sma, 'RunASAP');
                 end
-                BpodSystem.Data.EncoderData{currentTrial} = R.readUSBStream(0); % Returns REM data up to event '0'
-                                                                                % see {'RotaryEncoder1', ['#' 0]} in output actions of first state 
-                BpodSystem.Data.EncoderData{currentTrial}.Times = BpodSystem.Data.EncoderData{currentTrial}.Times - BpodSystem.Data.TrialStartTimestamp(currentTrial);
-                BpodSystem.Data.EncoderData{currentTrial}.EventTimestamps = ...
-                    BpodSystem.Data.EncoderData{currentTrial}.EventTimestamps - BpodSystem.Data.TrialStartTimestamp(currentTrial) ;
-    
-                %% Update plots   
-                liveOutcomePlot_hf_2AFC(BpodSystem.GUIHandles.OutcomeAxes, 'update', BpodSystem.Data, nextTrialType);
-
-                liveBarPlot_hf_2AFC(BpodSystem.GUIHandles.AccuracyAxes, 'update', BpodSystem.Data);
                 
-                % livePsychometricPlot_hf_2AFC(BpodSystem.GUIHandles.PsychometricAxes, 'update', ...
-                %     BpodSystem.Data, [1]);
-
-                liveRewardPlot_hf_2AFC(BpodSystem.GUIHandles.RewardAxes, 'update', BpodSystem.Data);
-
-                liveResponseTimePlot_hf_2AFC(BpodSystem.GUIHandles.ResponseAxes, 'update', BpodSystem.Data);
+                RawEvents = trialManager.getTrialData; % Hangs here until trial is over, then retrieves full trial's raw data
+                handle_pause_condition(H, R); % Handle pause/stop by user
                 
-                % Update rotary encoder plot
-                if currentTrial == 1 % Only on the first trial, the first and second trial's trial-start timestamps will be retrieved in the rotary encoder data
-                                     % On all subsequent trials, only the next trial's start timestamp will be returned (because data is retrieved mid-trial)
-                    % For first trial, TrialStartTime is computed above
-                    NextTrialStartTime = BpodSystem.Data.EncoderData{currentTrial}.EventTimestamps(1);
-                else
-                    TrialStartTime = NextTrialStartTime;
-                    NextTrialStartTime = BpodSystem.Data.EncoderData{currentTrial}.EventTimestamps(1);
+                if strcmp(S.GUIMeta.ResponseType.String(S.GUI.ResponseType), 'Rotary Encoder')
+                    R.setAdvancedThresholds([-35 35 10], [0 0 1],... 
+                        [0 0 0.2]);
                 end
-                BpodSystem.Data.EncoderData{currentTrial}.Times = BpodSystem.Data.EncoderData{currentTrial}.Times - TrialStartTime; % Align timestamps to state machine's trial time 0
-                BpodSystem.Data.EncoderData{currentTrial}.EventTimestamps = ...
-                    BpodSystem.Data.EncoderData{currentTrial}.EventTimestamps - TrialStartTime; % Align event timestamps to state machine's trial time 0
+    
+                if currentTrial < S.GUI.maxTrials
+                    trialManager.startTrial(); % Start processing the next trial's events (call with no argument since SM was already sent)
+                end
                 
-                TrialDuration = BpodSystem.Data.TrialEndTimestamp(currentTrial)-BpodSystem.Data.TrialStartTimestamp(currentTrial);
-                liveEncoderPlot_hf_2AFC(BpodSystem.GUIHandles.EncoderAxes, 'update', 0, BpodSystem.Data.EncoderData{currentTrial},TrialDuration);
-                                                
-                SaveBpodSessionData; 
+                if ~isempty(fieldnames(RawEvents))
+                    BpodSystem.Data = AddTrialEvents(BpodSystem.Data,RawEvents);
+                    BpodSystem.Data.TrialSettings(currentTrial) = S;
+                    BpodSystem.Data.TrialTypes(currentTrial) = currentTrialType;
+                    BpodSystem.Data = BpodNotebook('sync', BpodSystem.Data); % Sync with Bpod notebook plugin
+        
+                    % Save rotary encoder data
+                    if currentTrial == 1
+                        eventData = R.readUSBStream(0); % Read and dump any REM data captured before first trial start. Subsequent REM data will be saved. 
+                        TrialStartTime = eventData.EventTimestamps(1); % First trial start time on REM clock is taken from this initial read
+                    end
+                    BpodSystem.Data.EncoderData{currentTrial} = R.readUSBStream(0); % Returns REM data up to event '0'
+                                                                                    % see {'RotaryEncoder1', ['#' 0]} in output actions of first state 
+                    BpodSystem.Data.EncoderData{currentTrial}.Times = BpodSystem.Data.EncoderData{currentTrial}.Times - BpodSystem.Data.TrialStartTimestamp(currentTrial);
+                    BpodSystem.Data.EncoderData{currentTrial}.EventTimestamps = ...
+                        BpodSystem.Data.EncoderData{currentTrial}.EventTimestamps - BpodSystem.Data.TrialStartTimestamp(currentTrial) ;
+        
+                    %% Update plots   
+                    liveOutcomePlot_hf_2AFC(BpodSystem.GUIHandles.OutcomeAxes, 'update', BpodSystem.Data, nextTrialType);
+    
+                    liveBarPlot_hf_2AFC(BpodSystem.GUIHandles.AccuracyAxes, 'update', BpodSystem.Data);
+                    
+                    % livePsychometricPlot_hf_2AFC(BpodSystem.GUIHandles.PsychometricAxes, 'update', ...
+                    %     BpodSystem.Data, [1]);
+    
+                    liveRewardPlot_hf_2AFC(BpodSystem.GUIHandles.RewardAxes, 'update', BpodSystem.Data);
+    
+                    liveResponseTimePlot_hf_2AFC(BpodSystem.GUIHandles.ResponseAxes, 'update', BpodSystem.Data);
+                    
+                    % Update rotary encoder plot
+                    if currentTrial == 1 % Only on the first trial, the first and second trial's trial-start timestamps will be retrieved in the rotary encoder data
+                                         % On all subsequent trials, only the next trial's start timestamp will be returned (because data is retrieved mid-trial)
+                        % For first trial, TrialStartTime is computed above
+                        NextTrialStartTime = BpodSystem.Data.EncoderData{currentTrial}.EventTimestamps(1);
+                    else
+                        TrialStartTime = NextTrialStartTime;
+                        NextTrialStartTime = BpodSystem.Data.EncoderData{currentTrial}.EventTimestamps(1);
+                    end
+                    BpodSystem.Data.EncoderData{currentTrial}.Times = BpodSystem.Data.EncoderData{currentTrial}.Times - TrialStartTime; % Align timestamps to state machine's trial time 0
+                    BpodSystem.Data.EncoderData{currentTrial}.EventTimestamps = ...
+                        BpodSystem.Data.EncoderData{currentTrial}.EventTimestamps - TrialStartTime; % Align event timestamps to state machine's trial time 0
+                    
+                    TrialDuration = BpodSystem.Data.TrialEndTimestamp(currentTrial)-BpodSystem.Data.TrialStartTimestamp(currentTrial);
+                    liveEncoderPlot_hf_2AFC(BpodSystem.GUIHandles.EncoderAxes, 'update', 0, BpodSystem.Data.EncoderData{currentTrial},TrialDuration);
+                                                    
+                    SaveBpodSessionData; 
+                end
+            catch
+                cleanup; % Save FlexI/O analog input data
+                ManualOverride('OP', 5);
+                break
             end
         end
-        cleanup; % Save FlexI/O analog input data
     else % emulator mode
         %% Main trial loop
         for currentTrial = 1:S.GUI.maxTrials
-            S = LuminoseParameterGUI_hf_2AFC('sync', S); % Sync parameters with LuminoseParameterGUI_hf_2AFC plugin
-            
-            currentTrialType = nextTrialType;
-            nextTrialType = getNextTrialType_hf_2AFC(BpodSystem.Data, 50, S.GUI.BiasCorrection, 0.2, S.GUI.Leftprob);
-
-            sma = PrepareStateMachine(S, currentTrialType, currentTrial+1, ITI, [], emulator);
-            SendStateMachine(sma);
-            RawEvents = RunStateMachine; % Run the trial and return events
-
-            if ~isempty(fieldnames(RawEvents))
-                BpodSystem.Data = AddTrialEvents(BpodSystem.Data,RawEvents);
-                BpodSystem.Data.TrialSettings(currentTrial) = S;
-                BpodSystem.Data.TrialTypes(currentTrial) = currentTrialType;
-                BpodSystem.Data = BpodNotebook('sync', BpodSystem.Data); % Sync with Bpod notebook plugin
-
-                % Update plots
-                TrialDuration = BpodSystem.Data.TrialEndTimestamp(currentTrial)-BpodSystem.Data.TrialStartTimestamp(currentTrial);
+            try
+                S = LuminoseParameterGUI_hf_2AFC('sync', S); % Sync parameters with LuminoseParameterGUI_hf_2AFC plugin
                 
-                liveOutcomePlot_hf_2AFC(BpodSystem.GUIHandles.OutcomeAxes, 'update', BpodSystem.Data, nextTrialType);
-
-                liveBarPlot_hf_2AFC(BpodSystem.GUIHandles.AccuracyAxes, 'update', BpodSystem.Data);
-                
-                % livePsychometricPlot_hf_2AFC(BpodSystem.GUIHandles.PsychometricAxes, 'update', ...
-                %     BpodSystem.Data, [1]);
-
-                liveRewardPlot_hf_2AFC(BpodSystem.GUIHandles.RewardAxes, 'update', BpodSystem.Data);
-                
-                liveResponseTimePlot_hf_2AFC(BpodSystem.GUIHandles.ResponseAxes, 'update', BpodSystem.Data);
-            end
-            HandlePauseCondition; % Checks to see if the protocol is paused. If so, waits until user resumes.
-            if BpodSystem.Status.BeingUsed == 0 % If protocol was stopped, exit the loop
-                return
+                currentTrialType = nextTrialType;
+                nextTrialType = getNextTrialType_hf_2AFC(BpodSystem.Data, 50, S.GUI.BiasCorrection, 0.2, S.GUI.Leftprob);
+    
+                sma = PrepareStateMachine(S, currentTrialType, currentTrial+1, ITI, [], emulator);
+                SendStateMachine(sma);
+                RawEvents = RunStateMachine; % Run the trial and return events
+    
+                if ~isempty(fieldnames(RawEvents))
+                    BpodSystem.Data = AddTrialEvents(BpodSystem.Data,RawEvents);
+                    BpodSystem.Data.TrialSettings(currentTrial) = S;
+                    BpodSystem.Data.TrialTypes(currentTrial) = currentTrialType;
+                    BpodSystem.Data = BpodNotebook('sync', BpodSystem.Data); % Sync with Bpod notebook plugin
+    
+                    % Update plots
+                    TrialDuration = BpodSystem.Data.TrialEndTimestamp(currentTrial)-BpodSystem.Data.TrialStartTimestamp(currentTrial);
+                    
+                    liveOutcomePlot_hf_2AFC(BpodSystem.GUIHandles.OutcomeAxes, 'update', BpodSystem.Data, nextTrialType);
+    
+                    liveBarPlot_hf_2AFC(BpodSystem.GUIHandles.AccuracyAxes, 'update', BpodSystem.Data);
+                    
+                    % livePsychometricPlot_hf_2AFC(BpodSystem.GUIHandles.PsychometricAxes, 'update', ...
+                    %     BpodSystem.Data, [1]);
+    
+                    liveRewardPlot_hf_2AFC(BpodSystem.GUIHandles.RewardAxes, 'update', BpodSystem.Data);
+                    
+                    liveResponseTimePlot_hf_2AFC(BpodSystem.GUIHandles.ResponseAxes, 'update', BpodSystem.Data);
+                end
+                HandlePauseCondition; % Checks to see if the protocol is paused. If so, waits until user resumes.
+                if BpodSystem.Status.BeingUsed == 0 % If protocol was stopped, exit the loop
+                    return
+                end
+            catch
+                cleanup; % Save FlexI/O analog input data
+                ManualOverride('OP', 5);
+                break
             end
         end
     end
-    cleanup; % Save FlexI/O analog input data
 end
 
 %% State machine 
@@ -660,4 +671,7 @@ function cleanup()
     global BpodSystem
     BpodSystem.Data = AddFlexIOAnalogData(BpodSystem.Data, 'Volts', 1); % Save FlexI/O analog input data
     SaveBpodSessionData;
+    % SaveBpodProtocolSettings;
+    % A.endAcq; % Close Oscope GUI
+    % A.stopReportingEvents; % Stop sending events to state machine
 end
