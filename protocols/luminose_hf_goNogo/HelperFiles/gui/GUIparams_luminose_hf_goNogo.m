@@ -17,7 +17,7 @@ function GUIparams_luminose_hf_goNogo()
     S.GUI.maxTrials = 1000;    
     
     % == Test Pulses ==
-    S.GUI.TestPulses = true;
+    S.GUI.TestPulses = false;
     S.GUIMeta.TestPulses.Style = 'checkbox';
     S.GUI.TestPulsesType = 2;
     S.GUIMeta.TestPulsesType.Style = 'popupmenu';

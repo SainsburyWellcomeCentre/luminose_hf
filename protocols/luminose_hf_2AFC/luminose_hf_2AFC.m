@@ -158,25 +158,26 @@ function luminose_hf_2AFC
 
         %% Setup sound
         % Configure HiFi module
-        H.SamplingRate = 192000;
-        errorSound = GenerateWhiteNoise(H.SamplingRate, S.GUI.NoiseTime, S.GUI.Amplitude_error, 2);
+        sf = 192000;
+        H.SamplingRate = sf;
+        errorSound = GenerateWhiteNoise(sf, S.GUI.NoiseTime, 1, 2);
         H.load(1, errorSound);
-        cueSound = GenerateSineWave(H.SamplingRate, S.GUI.Freq_cue, S.GUI.CueTime);
+        cueSound = GenerateSineWave(sf, S.GUI.Freq_cue, S.GUI.CueTime);
         H.load(2, cueSound);
-        TimeSoundLeft = 0:1/H.SamplingRate:S.GUI.StimTime;
+        TimeSoundLeft = 0:1/sf:S.GUI.StimTime;
         LeftSound = chirp(TimeSoundLeft, S.GUI.LowFreq_Left, S.GUI.CueTime, S.GUI.HighFreq_Left);
         H.load(3, LeftSound);
-        TimeSoundRight = 0:1/H.SamplingRate:S.GUI.StimTime;
+        TimeSoundRight = 0:1/sf:S.GUI.StimTime;
         RightSound = chirp(TimeSoundRight, S.GUI.LowFreq_Right, S.GUI.CueTime, S.GUI.HighFreq_Right);
         H.load(4, RightSound);
 
         H.HeadphoneAmpEnabled = true; H.HeadphoneAmpGain = 10; % Ignored if using HD version of the HiFi module
-        H.DigitalAttenuation_dB = -60; % Set a negative value here if necessary for digital volume control.
+        % H.DigitalAttenuation_dB = -60; % Set a negative value here if necessary for digital volume control.
         
         H.push; % Add any recently loaded sounds to the current sound set
     
         % Define 1ms linear ramp envelope of amplitude coefficients, to apply at sound onset + in reverse at sound offset
-        Envelope = 1/(H.SamplingRate*0.001):1/(H.SamplingRate*0.001):1; 
+        Envelope = 1/(sf*0.001):1/(sf*0.001):1; 
         H.AMenvelope = Envelope;
     
         %% Setup Rotary Encoder module
@@ -414,15 +415,15 @@ function [sma, S] = PrepareStateMachine(S, currentTrialType, currentTrial, ITI, 
             rightAction = 'Reward'; leftAction = 'Punishment'; noAction = 'Punishment';
     end
     
-    responseDetect = {};
+    responseDetect = {}; responseAction = {};
     switch response
         case 'Lick'
             responseDetect = {'BNC1High', leftAction, 'BNC2High', rightAction, 'Tup', noAction};
             chooseState1 = chooseState2;
         case 'Rotary Encoder'
-            stimAction{end+1} = 'RotaryEncoder1'; stimAction{end+1} = ['Z;' 3];
             responseDetect = {'RotaryEncoder1_1', leftAction, 'RotaryEncoder1_2', rightAction, 'Tup', noAction};
             chooseState1 = 'InitRE';
+            responseAction{end+1} = 'RotaryEncoder1'; responseAction{end+1} = ['Z;' 3];
     end
     valveTime = GetValveTimes(S.GUI.RewardAmount, 3);
     if S.GUI.Punishment 
@@ -556,7 +557,7 @@ function [sma, S] = PrepareStateMachine(S, currentTrialType, currentTrial, ITI, 
                     sma = AddState(sma, 'Name', 'GetResponse', ...
                         'Timer', S.GUI.ResponseTime,...
                         'StateChangeConditions', responseDetect,...
-                        'OutputActions', {});
+                        'OutputActions', responseAction);
                     sma = AddState(sma, 'Name', 'Reward', ...
                         'Timer', valveTime,...
                         'StateChangeConditions', {'Tup', 'InterTrialInterval'},...
@@ -629,7 +630,7 @@ function [sma, S] = PrepareStateMachine(S, currentTrialType, currentTrial, ITI, 
                     sma = AddState(sma, 'Name', 'GetResponse', ...
                         'Timer', S.GUI.ResponseTime,...
                         'StateChangeConditions', responseDetect,...
-                        'OutputActions', {});
+                        'OutputActions', responseAction);
                     sma = AddState(sma, 'Name', 'Reward', ...
                         'Timer', valveTime,...
                         'StateChangeConditions', {'Tup', 'InterTrialInterval'},...

@@ -11,13 +11,13 @@ function GUIparams_luminose_hf_2AFC()
     S.GUI.TrainingLevel = 1; % Default Training Level
     S.GUIMeta.TrainingLevel.Style = 'popupmenu';
     S.GUIMeta.TrainingLevel.String = {'Habituation', 'Training'};
-    S.GUI.BiasCorrection = false;
+    S.GUI.BiasCorrection = true;
     S.GUIMeta.BiasCorrection.Style = 'checkbox';
     S.GUI.maxTrials = 2000;  
     S.GUI.Leftprob = 0.5;
     
     % == Test Pulses ==
-    S.GUI.TestPulses = true;
+    S.GUI.TestPulses = false;
     S.GUIMeta.TestPulses.Style = 'checkbox';
     S.GUI.TestPulsesType = 2;
     S.GUIMeta.TestPulsesType.Style = 'popupmenu';
@@ -50,7 +50,7 @@ function GUIparams_luminose_hf_2AFC()
     S.GUI.StimTime = 1*(0.001+1+0.001); % olfactometer: preSequence_delay + pulseTime + postSequence_delay
     
     % == Response ==
-    S.GUI.Amplitude_error = [10000, 10000];
+    S.GUI.Amplitude_error = [1, 1];
     S.GUI.ResponseType = 1;
     S.GUIMeta.ResponseType.Style = 'popupmenu';
     S.GUIMeta.ResponseType.String = {'Lick', 'Rotary Encoder'};

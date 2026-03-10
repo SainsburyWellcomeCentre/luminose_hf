@@ -170,7 +170,7 @@ function luminose_hf_goNogo
         H.load(4, CSminusSound);
 
         H.HeadphoneAmpEnabled = true; H.HeadphoneAmpGain = 10; % Ignored if using HD version of the HiFi module
-        H.DigitalAttenuation_dB = -60; % Set a negative value here if necessary for digital volume control.
+        % H.DigitalAttenuation_dB = -60; % Set a negative value here if necessary for digital volume control.
         
         H.push; % Add any recently loaded sounds to the current sound set
     
