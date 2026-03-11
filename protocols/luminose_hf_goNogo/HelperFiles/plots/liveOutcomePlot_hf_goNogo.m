@@ -1,36 +1,27 @@
 function liveOutcomePlot_hf_goNogo(ax, action, data, nextTrialType)
-persistent h
+persistent h xC yC xE yE xN yN
 
 switch action
     case 'init'
+        xC = []; yC = []; xE = []; yE = []; xN = []; yN = [];
         axes(ax); cla; hold on
-
-        % Completed trials
         h.correct = plot(NaN, NaN, 'go', 'MarkerFaceColor', 'g');
         h.error   = plot(NaN, NaN, 'ro', 'MarkerFaceColor', 'r');
         h.noresp  = plot(NaN, NaN, 'ko', 'MarkerFaceColor', 'none');
-
-        % Current trial as blue dot
         h.current = plot(NaN, NaN, 'bo', 'MarkerFaceColor', 'b', 'MarkerSize', 8);
-
         set(ax, 'YLim', [-0.5 1.5], ...
                 'YTick', [0 1], ...
                 'YTickLabel', {'No go', 'Go'}, ...
                 'XLim', [0 10], ...
                 'TickDir', 'out')
         xlabel('Trial #')
-
-        % Draw blue dot for trial 1 immediately
         if nargin >= 4 && ~isempty(nextTrialType)
             set(h.current, 'XData', 1, 'YData', nextTrialType == 1)
         end
-        drawnow
+        drawnow nocallbacks
 
     case 'update'
         nDone = data.nTrials;
-        xC = []; yC = [];
-        xE = []; yE = [];
-        xN = []; yN = [];
 
         % Plot all completed trials
         for i = 1:nDone
@@ -52,18 +43,16 @@ switch action
 
         % Move blue dot to the next trial
         nextTrial = nDone + 1;
-
+        nextSide = NaN;
         if nargin >= 4 && ~isempty(nextTrialType)
-            nextSide = nextTrialType == 1;  % 1->Left(1), 2->Right(0)
-        else
-            nextSide = NaN;
+            nextSide = nextTrialType == 1;
         end
 
         % Extend x-axis if needed
         xlim(ax, [0 max(10, nextTrial + 5)])
-
+        set(ax,'XLim',[max(nDone-100, 0) max(nDone, 100)])
         set(h.current, 'XData', nextTrial, 'YData', nextSide)
-        drawnow
+        drawnow nocallbacks
 end
 end
 

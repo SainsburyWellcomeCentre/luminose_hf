@@ -88,7 +88,8 @@ function luminose_hf_goNogo
     % Live outcome plot
     BpodSystem.ProtocolFigures.OutcomePlot = figure('Position', [30 1035 1000 350], ...
         'name', 'Outcome Plot', 'numbertitle', 'off', 'MenuBar', 'none', 'Resize', 'on');
-    BpodSystem.GUIHandles.OutcomeAxes = axes('Position', [.15 .12 .8 .8]);
+    BpodSystem.GUIHandles.OutcomeAxes = axes('Position', [.06 .15 .92 .8]);
+    BpodSystem.GUIHandles.OutcomeAxes.LooseInset = BpodSystem.GUIHandles.OutcomeAxes.TightInset;
     liveOutcomePlot_hf_goNogo(BpodSystem.GUIHandles.OutcomeAxes, 'init', BpodSystem.Data, currentTrialType);
     
     % Live accuracy bar plot
