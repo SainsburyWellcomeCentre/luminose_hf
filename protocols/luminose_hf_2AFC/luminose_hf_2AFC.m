@@ -42,11 +42,24 @@ function luminose_hf_2AFC
         launch_bonsai(luminose.bonsai.exePath, luminose.bonsai.workflowPath, luminose.bonsai.dataPath, luminose.bonsai.currentFilePrefix);
     end
 
-    %% Configure trials  
+    %% Configure trials
     S = BpodSystem.ProtocolSettings;
     if isempty(fieldnames(S))
         GUIparams_luminose_hf_2AFC();
     end
+    % Initialize parameter GUI plugin
+    LuminoseParameterGUI_hf_2AFC('init', S);
+    % Wait for Start button press
+    disp('Waiting for START button...');
+    setappdata(BpodSystem.ProtocolFigures.ParameterGUI, 'StartPressed', false);
+    while ~getappdata(BpodSystem.ProtocolFigures.ParameterGUI, 'StartPressed')
+        pause(0.1);
+        if ~ishandle(BpodSystem.ProtocolFigures.ParameterGUI)
+            return  % GUI was closed
+        end
+    end
+    S = LuminoseParameterGUI_hf_2AFC('sync', S);
+    disp('START pressed — beginning experiment.');
 
     BpodSystem.Data.TrialTypes = []; % The trial type of each trial completed will be added here.
     if rand < S.GUI.Leftprob
@@ -71,20 +84,6 @@ function luminose_hf_2AFC
     end
 
     %% Begin plotting
-    % Initialize parameter GUI plugin
-    LuminoseParameterGUI_hf_2AFC('init', S);
-    % Wait for Start button press
-    disp('Waiting for START button...');
-    setappdata(BpodSystem.ProtocolFigures.ParameterGUI, 'StartPressed', false);
-    while ~getappdata(BpodSystem.ProtocolFigures.ParameterGUI, 'StartPressed')
-        pause(0.1);
-        if ~ishandle(BpodSystem.ProtocolFigures.ParameterGUI)
-            return  % GUI was closed
-        end
-    end
-    S = LuminoseParameterGUI_hf_2AFC('sync', S);
-    disp('START pressed — beginning experiment.');
-
     % Live outcome plot
     BpodSystem.ProtocolFigures.OutcomePlot = figure('Position', [30 1035 1000 350], ...
         'name', 'Outcome Plot', 'numbertitle', 'off', 'MenuBar', 'none', 'Resize', 'on');
@@ -297,7 +296,7 @@ function luminose_hf_2AFC
                     liveEncoderPlot_hf_2AFC(BpodSystem.GUIHandles.EncoderAxes, 'update', 0, BpodSystem.Data.EncoderData{currentTrial},TrialDuration);
                     
                     SaveBpodSessionData; 
-
+                    SaveOnlinePlots;
                 end
             catch
                 cleanup; % Save FlexI/O analog input data
@@ -666,4 +665,30 @@ function cleanup()
     % SaveBpodProtocolSettings;
     % A.endAcq; % Close Oscope GUI
     % A.stopReportingEvents; % Stop sending events to state machine
+end
+
+%% Save online plots
+function SaveOnlinePlots()
+    global BpodSystem
+
+    % Get full path of the session file
+    dataFile = BpodSystem.Path.CurrentDataFile;
+
+    % Extract folder where the data file is saved
+    savePath = fileparts(dataFile);
+
+    % Get session name without extension
+    [~, sessionName, ~] = fileparts(dataFile);
+    % sessionName = regexprep(sessionName, '_\d{6}$', '');
+    figNames = {'OutcomePlot', 'AccuracyPlot', 'RewardPlot', 'ResponsePlot'};
+
+    for i = 1:numel(figNames)
+        try
+            fig = BpodSystem.ProtocolFigures.(figNames{i});  % get the figure handle
+            fname = fullfile(savePath, [sessionName '_' figNames{i} '.png']);
+            saveas(fig, fname)
+        catch
+            warning('Could not save figure %s', figNames{i})
+        end
+    end
 end
