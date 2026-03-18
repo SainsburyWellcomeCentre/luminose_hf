@@ -100,7 +100,7 @@ classdef OlfactometerModel < handle
                     valveStates(odourValves(k) + 16, (self.preSequenceSamples + self.pulseSamples * (k - 1) + self.backValveDelaySamples):(self.preSequenceSamples + self.pulseSamples * k - self.backValveDelaySamples)) = true;
                 end
                 valveStates(cleanAirValves(k), idx) = false;
-                valveStates(end-4:end, idx) = true;
+                valveStates(end-3:end, idx) = true;
             end
         end
 
