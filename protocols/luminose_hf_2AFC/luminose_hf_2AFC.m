@@ -213,6 +213,7 @@ function luminose_hf_2AFC
         
         
         %% Prepare and start first trial
+        ManualOverride('OP', 5);
         if strcmp(cue, 'Odour') % currently coded such that cue and stim cannot both be odours at the same trial 
             SoftCodeHandler_luminose_hf_2AFC(1);
         elseif any([strcmp(Left, 'Odour'), strcmp(Right, 'Odour')])
@@ -383,9 +384,10 @@ function [sma, S] = PrepareStateMachine(S, currentTrialType, currentTrial, ITI, 
         case 'Sound'
             cueAction{end+1} = 'HiFi1'; cueAction{end+1} = ['P', 1];
     end
-    stimAction = {'BNC1', 1}; % sync
+    stimAction = {'BNC1', 1}; rewardAction = {'BNC1', 1}; % sync
     switch currentTrialType
         case 1 % Left
+            rewardAction{end+1} = 'Valve1'; rewardAction{end+1} = 1;
             switch Left
                 case 'Odour'
                     stimAction{end+1} = 'BNC2'; stimAction{end+1} = 1;
@@ -433,7 +435,7 @@ function [sma, S] = PrepareStateMachine(S, currentTrialType, currentTrial, ITI, 
                     leftAction = 'Reward'; rightAction = 'Punishment'; noAction = 'Punishment';
             end
         case 2 % Right
-            stimAction = {};
+            rewardAction{end+1} = 'Valve4'; rewardAction{end+1} = 1;
             switch Right
                 case 'Odour'
                     stimAction{end+1} = 'BNC2'; stimAction{end+1} = 1;
@@ -458,7 +460,7 @@ function [sma, S] = PrepareStateMachine(S, currentTrialType, currentTrial, ITI, 
                             chooseState2 = 'DeliverStim';
                     end
                 case 'Light'
-                    stimAction{end+1} = 'PWM2'; stimAction{end+1} = S.GUI.Intensity_Right;
+                    stimAction{end+1} = 'PWM4'; stimAction{end+1} = S.GUI.Intensity_Right;
                     switch S.GUI.TrainingLevel
                         case 1 % Habituation
                             chooseState2 = 'GetResponse';
@@ -481,7 +483,6 @@ function [sma, S] = PrepareStateMachine(S, currentTrialType, currentTrial, ITI, 
                     leftAction = 'Punishment'; rightAction = 'Reward'; noAction = 'Punishment';
             end
     end
-    
     responseDetect = {}; responseAction = {};
     switch response
         case 'Lick'
@@ -552,7 +553,7 @@ function [sma, S] = PrepareStateMachine(S, currentTrialType, currentTrial, ITI, 
             sma = AddState(sma, 'Name', 'Reward', ...
                 'Timer', valveTime,...
                 'StateChangeConditions', {'Tup', 'InterTrialInterval'},...
-                'OutputActions', {'Valve3', 1}); 
+                'OutputActions', rewardAction); 
             sma = AddState(sma, 'Name', 'Punishment', ...
                 'Timer', S.GUI.NoiseTime,...
                 'StateChangeConditions', {'Tup', 'TimeOut'},...
@@ -625,7 +626,7 @@ function [sma, S] = PrepareStateMachine(S, currentTrialType, currentTrial, ITI, 
             sma = AddState(sma, 'Name', 'Reward', ...
                 'Timer', valveTime,...
                 'StateChangeConditions', {'Tup', 'InterTrialInterval'},...
-                'OutputActions', {'Valve3', 1, 'BNC1', 1}); 
+                'OutputActions', rewardAction); 
             sma = AddState(sma, 'Name', 'Punishment', ...
                 'Timer', noiseTime,...
                 'StateChangeConditions', {'Tup', 'TimeOut'},...

@@ -1,8 +1,7 @@
 luminose = LuminoseConstants();
-% unique_valves = [3:8, 11:16];
-unique_valves = 3;
+unique_valves = [3:8, 11:16];
 valves = reshape(repmat(unique_valves, 1, 1), 1, []);
-triggered = true;
+triggered = false;
 for i = 1:length(valves)
     valve = valves(i);
     tic
