@@ -11,7 +11,7 @@ Make sure you have installed [git](https://git-scm.com/downloads). Requires [MAT
 ### Dependencies:
 1. [Bpod_gen2](https://github.com/sanworks/Bpod_Gen2)
 2. [DMDController](https://github.com/SainsburyWellcomeCentre/DMDController) for DMD control
-5. [Bonsai](https://bonsai-rx.org/docs/articles/installation.html) for synchronized camera acquisition with [PointGrey](https://bonsai-rx.org/pointgrey/index.html), [Scripting.Expressions](https://bonsai-rx.org/docs/api/Bonsai.Scripting.Expressions.html), [Reactive](https://bonsai-rx.org/docs/api/Bonsai.Reactive.html), [Dsp](https://bonsai-rx.org/docs/api/Bonsai.Dsp.html), [Vision](https://bonsai-rx.org/docs/api/Bonsai.Vision.html) packages installed.  
+5. [Bonsai](https://bonsai-rx.org/docs/articles/installation.html) with [PointGrey](https://bonsai-rx.org/pointgrey/index.html), [Scripting.Expressions](https://bonsai-rx.org/docs/api/Bonsai.Scripting.Expressions.html), [Reactive](https://bonsai-rx.org/docs/api/Bonsai.Reactive.html), [Dsp](https://bonsai-rx.org/docs/api/Bonsai.Dsp.html), [Vision](https://bonsai-rx.org/docs/api/Bonsai.Vision.html) packages for synchronized camera acquisition.
 
 ### Instructions:
 1. Install all dependencies to a parent directory in your local system.
