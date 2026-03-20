@@ -127,7 +127,7 @@ function luminose_hf_2AFC
         channelTypes(chanSniff) = 2; % Analog Input
         channelTypes(chanPhotodetector) = 2; % Analog Input
         channelTypes(chanFlowmeter) = 2; % Analog Input
-        channelTypes(chanNIDAQ) = 0; % Digital Input
+        channelTypes(chanNIDAQ) = 2; 
         BpodSystem.FlexIOConfig.channelTypes = channelTypes;
         
         % Set sniff threshold for inhalation triggered stimulus
@@ -136,7 +136,7 @@ function luminose_hf_2AFC
         BpodSystem.FlexIOConfig.thresholdMode(chanSniff) = 0;
 
         % Set sampling rate 
-        BpodSystem.FlexIOConfig.analogSamplingRate = 500; % Sampling rate
+        BpodSystem.FlexIOConfig.analogSamplingRate = 100; % Sampling rate
         
         % Initialize analog viewer GUI (online monitor of FlexIO analog inputs, not necessary for data logging)
         BpodSystem.startAnalogViewer; 
@@ -146,7 +146,7 @@ function luminose_hf_2AFC
 
         %% Assert modules are USB-paired
         % BpodSystem.assertModule({'HiFi','RotaryEncoder', 'AnalogIn'}, [1 1 1]); 
-        BpodSystem.assertModule({'HiFi','RotaryEncoder'}, [1 1]); 
+        % BpodSystem.assertModule({'HiFi','RotaryEncoder'}, [1 1]); 
     
         H = BpodHiFi(BpodSystem.ModuleUSB.HiFi1);
         R = RotaryEncoderModule(BpodSystem.ModuleUSB.RotaryEncoder1); 
@@ -171,11 +171,11 @@ function luminose_hf_2AFC
         RightSound = chirp(TimeSoundRight, S.GUI.LowFreq_Right, S.GUI.CueTime, S.GUI.HighFreq_Right);
         H.load(4, RightSound);
 
-        H.HeadphoneAmpEnabled = true; H.HeadphoneAmpGain = 10; % Ignored if using HD version of the HiFi module
-        % H.DigitalAttenuation_dB = -60; % Set a negative value here if necessary for digital volume control.
-        
+        H.HeadphoneAmpEnabled = true; H.HeadphoneAmpGain = 63; % Ignored if using HD version of the HiFi module
+        H.DigitalAttenuation_dB = -60; % Set a negative value here if necessary for digital volume control.
+
         H.push; % Add any recently loaded sounds to the current sound set
-    
+
         % Define 1ms linear ramp envelope of amplitude coefficients, to apply at sound onset + in reverse at sound offset
         Envelope = 1/(sf*0.001):1/(sf*0.001):1; 
         H.AMenvelope = Envelope;
@@ -196,7 +196,7 @@ function luminose_hf_2AFC
         BpodSystem.GUIHandles.EncoderAxes = axes('Position', [.15 .15 .8 .8]);
         liveEncoderPlot_hf_2AFC(BpodSystem.GUIHandles.EncoderAxes, 'init', 0);
 
-        %% Setup analog input module
+        %% Setup analog input modulegetNext
         % A.InputRange(1:3) = {'-5V:5V', '-5V:5V', '-2.5V:2.5V'}; % set range to -5V:5V
         % A.SamplingRate = 1000; % Hz
         % A.nActiveChannels = 0; 
@@ -221,31 +221,40 @@ function luminose_hf_2AFC
         end
         trialManager = BpodTrialManager;
         sma = PrepareStateMachine(S, currentTrialType, 1, ITI, emulator); % Prepare state machine for trial 1 with empty "current events" variable
+        sessionStart = datestr(datetime('now'), 'yyyy-mm-dd HH:MM:SS'); disp(['Session: ', sessionStart, ' | Trial: ', num2str(1)]);
         trialManager.startTrial(sma); % Sends & starts running first trial's state machine. A MATLAB timer object updates the 
                                   % console UI, while code below proceeds in parallel.
         %% Main trial loop
         for currentTrial = 1:S.GUI.maxTrials
             try
+                t1 = tic;
                 S = LuminoseParameterGUI_hf_2AFC('sync', S); % Sync parameters with LuminoseParameterGUI_hf_2AFC plugin
-                
                 currentTrialType = nextTrialType;
-                nextTrialType = getNextTrialType_hf_2AFC(BpodSystem.Data, 50, S.GUI.BiasCorrection, 0.2, S.GUI.Leftprob);
-                
+                if currentTrial >= 20
+                    nextTrialType = getNextTrialType_hf_2AFC(BpodSystem.Data, 50, S.GUI.BiasCorrection, 0.2, S.GUI.Leftprob);
+                else
+                    nextTrialType = (rand < S.GUI.Leftprob) + 1;
+                end
+                disp(['calculated next trial: ', num2str(toc(t1))]);
+
                 handle_pause_condition(H, R); % Handle pause/stop by user
                 
                 if currentTrial < S.GUI.maxTrials
                     [sma, S] = PrepareStateMachine(S, nextTrialType, currentTrial+1, ITI, emulator);
+                    disp(['Session: ', sessionStart, ' | Trial: ', num2str(currentTrial+1)]);
                     SendStateMachine(sma, 'RunASAP');
                 end
                 
                 RawEvents = trialManager.getTrialData; % Hangs here until trial is over, then retrieves full trial's raw data
                 handle_pause_condition(H, R); % Handle pause/stop by user
                 
+                t2 = tic;
                 if strcmp(S.GUIMeta.ResponseType.String(S.GUI.ResponseType), 'Rotary Encoder')
                     R.setAdvancedThresholds([-35 35 10], [0 0 1],... 
                         [0 0 0.2]);
                 end
-    
+                disp(['set RE: ', num2str(toc(t2))]);
+
                 if currentTrial < S.GUI.maxTrials
                     trialManager.startTrial(); % Start processing the next trial's events (call with no argument since SM was already sent)
                 end
@@ -268,17 +277,25 @@ function luminose_hf_2AFC
                         BpodSystem.Data.EncoderData{currentTrial}.EventTimestamps - BpodSystem.Data.TrialStartTimestamp(currentTrial) ;
         
                     %% Update plots  
+                    t3 = tic;
                     liveOutcomePlot_hf_2AFC(BpodSystem.GUIHandles.OutcomeAxes, 'update', BpodSystem.Data, nextTrialType);
+                    disp(['Updated outcome plot: ', num2str(toc(t3))]);
 
+                    t4 = tic;
                     liveBarPlot_hf_2AFC(BpodSystem.GUIHandles.AccuracyAxes, 'update', BpodSystem.Data);
+                    disp(['Updated bar plot: ', num2str(toc(t4))]);
 
                     % livePsychometricPlot_hf_2AFC(BpodSystem.GUIHandles.PsychometricAxes, 'update', ...
                     %     BpodSystem.Data, [1]);
-
+                    t5 = tic;
                     liveRewardPlot_hf_2AFC(BpodSystem.GUIHandles.RewardAxes, 'update', BpodSystem.Data);
+                    disp(['Updated reward plot: ', num2str(toc(t5))]);
 
+                    t6 = tic;
                     liveResponseTimePlot_hf_2AFC(BpodSystem.GUIHandles.ResponseAxes, 'update', BpodSystem.Data);
-                    
+                    disp(['Updated response time plot: ', num2str(toc(t6))]);
+
+                    t7 = tic;
                     % Update rotary encoder plot
                     if currentTrial == 1 % Only on the first trial, the first and second trial's trial-start timestamps will be retrieved in the rotary encoder data
                                          % On all subsequent trials, only the next trial's start timestamp will be returned (because data is retrieved mid-trial)
@@ -295,9 +312,12 @@ function luminose_hf_2AFC
                     TrialDuration = BpodSystem.Data.TrialEndTimestamp(currentTrial)-BpodSystem.Data.TrialStartTimestamp(currentTrial);
                     
                     liveEncoderPlot_hf_2AFC(BpodSystem.GUIHandles.EncoderAxes, 'update', 0, BpodSystem.Data.EncoderData{currentTrial},TrialDuration);
+                    disp(['Updated rotary encoder plot: ', num2str(toc(t7))]);
                     
-                    SaveBpodSessionData; 
+                    t8 = tic;
+                    SaveBpodSessionData;
                     SaveOnlinePlots;
+                    disp(['Saved data: ', num2str(toc(t8))]);
                 end
             catch
                 cleanup; % Save FlexI/O analog input data
@@ -361,10 +381,10 @@ function [sma, S] = PrepareStateMachine(S, currentTrialType, currentTrial, ITI, 
     % analog input module: 'Serial3', ['=' 1 'High'], 'Serial3', ['=' 0 'High']
     startAction = {'BNC1', 1}; % sync
     if ~emulator
-        startAction{end+1} = 'HiFi1'; startAction{end+1} = '*';
+        % startAction{end+1} = 'HiFi1'; startAction{end+1} = '*';
         startAction{end+1} = 'RotaryEncoder1'; startAction{end+1} = ['#' 0];
         startAction{end+1} = 'AnalogThreshEnable'; startAction{end+1} = 1;
-        startAction{end+1} = 'Serial3'; startAction{end+1} = ['#' 1]; % analog input module sync
+        % startAction{end+1} = 'Serial3'; startAction{end+1} = ['#' 1]; % analog input module sync
     end
     cueAction = {'RotaryEncoder1', '*Z'};
     prepareOdourAction = {}; % send odour info to olfactometer and wait for BNC2 trigger
@@ -430,7 +450,7 @@ function [sma, S] = PrepareStateMachine(S, currentTrialType, currentTrial, ITI, 
             end
             switch S.GUI.TrainingLevel
                 case 1
-                    leftAction = 'Reward'; rightAction = 'Reward'; noAction = 'Punishment';
+                    leftAction = 'Reward'; rightAction = 'Reward'; noAction = 'GetResponse';
                 case 2
                     leftAction = 'Reward'; rightAction = 'Punishment'; noAction = 'Punishment';
             end
@@ -478,7 +498,7 @@ function [sma, S] = PrepareStateMachine(S, currentTrialType, currentTrial, ITI, 
             end
             switch S.GUI.TrainingLevel
                 case 1
-                    leftAction = 'Reward'; rightAction = 'Reward'; noAction = 'Punishment';
+                    leftAction = 'Reward'; rightAction = 'Reward'; noAction = 'GetResponse';
                 case 2
                     leftAction = 'Punishment'; rightAction = 'Reward'; noAction = 'Punishment';
             end

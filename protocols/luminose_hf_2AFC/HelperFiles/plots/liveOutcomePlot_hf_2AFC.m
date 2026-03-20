@@ -27,6 +27,7 @@ switch action
         i = nDone;
         side    = getTrialSide_hf_2AFC(data, i);
         outcome = getTrialOutcome_hf_2AFC(data, i);
+        
         if outcome == 1
             xC(end+1) = i; yC(end+1) = side;
         elseif outcome == 0

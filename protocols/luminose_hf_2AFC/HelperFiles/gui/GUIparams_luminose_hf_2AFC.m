@@ -54,7 +54,7 @@ function GUIparams_luminose_hf_2AFC()
     S.GUI.ResponseType = 1;
     S.GUIMeta.ResponseType.Style = 'popupmenu';
     S.GUIMeta.ResponseType.String = {'Lick', 'Rotary Encoder'};
-    S.GUI.ResponseTime = 1;
+    S.GUI.ResponseTime = 5;
     S.GUI.RewardAmount = 4;
     S.GUI.Punishment = true;
     S.GUIMeta.Punishment.Style = 'checkbox';
@@ -63,9 +63,9 @@ function GUIparams_luminose_hf_2AFC()
 
     % == ITI ==
     S.GUI.VariableITI = true;
-    S.GUI.InterTrialInterval = 5;
+    S.GUI.InterTrialInterval = 2;
     S.GUIMeta.VariableITI.Style = 'checkbox';
-    S.GUI.MaxITI = 6;
+    S.GUI.MaxITI = 3;
 
     %% ===== Cue =====
     S.GUITabs.Cue = {'Pattern_cue', 'Odour_cue', 'Light_cue', 'Sound_cue'};
@@ -95,7 +95,7 @@ function GUIparams_luminose_hf_2AFC()
     S.GUIPanels.Light_Left = {'Intensity_Left'};
     S.GUIPanels.Pattern_Left = {'Nimages_Left', 'imgIdx_Left', 'exposure_Left', 'dark_Left', 'repeat_Left'};
     % == Odour ==
-    S.GUI.valves_Left = [12];
+    S.GUI.valves_Left = [11];
     S.GUI.dutyCycles_Left = repelem(1, 1); % specify scalar 0 to use default duty cycles
     % == Sound ==
     S.GUI.Amplitude_Left = [0.1, 0.1];

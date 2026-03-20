@@ -157,20 +157,21 @@ function luminose_hf_goNogo
 
         %% Setup sound
         % Configure HiFi module
-        H.SamplingRate = 192000;
-        errorSound = GenerateWhiteNoise(H.SamplingRate, S.GUI.NoiseTime, S.GUI.Amplitude_error, 2);
+        sf = 192000;
+        H.SamplingRate = sf;
+        errorSound = GenerateWhiteNoise(sf, S.GUI.NoiseTime, 1, 2);
         H.load(1, errorSound);
-        cueSound = GenerateSineWave(H.SamplingRate, S.GUI.Freq_cue, S.GUI.CueTime);
+        cueSound = GenerateSineWave(sf, S.GUI.Freq_cue, S.GUI.CueTime);
         H.load(2, cueSound);
-        TimeSoundCSplus = 0:1/H.SamplingRate:S.GUI.StimTime;
+        TimeSoundCSplus = 0:1/sf:S.GUI.StimTime;
         CSplusSound = chirp(TimeSoundCSplus, S.GUI.LowFreq_CSplus, S.GUI.CueTime, S.GUI.HighFreq_CSplus);
         H.load(3, CSplusSound);
-        TimeSoundCSminus = 0:1/H.SamplingRate:S.GUI.StimTime;
+        TimeSoundCSminus = 0:1/sf:S.GUI.StimTime;
         CSminusSound = chirp(TimeSoundCSminus, S.GUI.LowFreq_CSminus, S.GUI.CueTime, S.GUI.HighFreq_CSminus);
         H.load(4, CSminusSound);
 
-        H.HeadphoneAmpEnabled = true; H.HeadphoneAmpGain = 10; % Ignored if using HD version of the HiFi module
-        % H.DigitalAttenuation_dB = -60; % Set a negative value here if necessary for digital volume control.
+        H.HeadphoneAmpEnabled = true; H.HeadphoneAmpGain = 63; % Ignored if using HD version of the HiFi module
+        H.DigitalAttenuation_dB = -60; % Set a negative value here if necessary for digital volume control.
         
         H.push; % Add any recently loaded sounds to the current sound set
     
@@ -210,7 +211,8 @@ function luminose_hf_goNogo
         % A.scope_StartStop; % Start USB streaming + data logging
         
         
-        %% Prepare and start first trial      
+        %% Prepare and start first trial 
+        ManualOverride('OP', 5);
         if strcmp(cue, 'Odour') % currently coded such that cue and stim cannot both be odours at the same trial 
             SoftCodeHandler_luminose_hf_goNogo(1);
         elseif any([strcmp(CSplus, 'Odour'), strcmp(CSminus, 'Odour')])
@@ -218,31 +220,41 @@ function luminose_hf_goNogo
         end
         trialManager = BpodTrialManager;
         sma = PrepareStateMachine(S, currentTrialType, 1, ITI, emulator); % Prepare state machine for trial 1 with empty "current events" variable
+        sessionStart = datestr(datetime('now'), 'yyyy-mm-dd HH:MM:SS');
         trialManager.startTrial(sma); % Sends & starts running first trial's state machine. A MATLAB timer object updates the 
                                   % console UI, while code below proceeds in parallel.
         %% Main trial loop
         for currentTrial = 1:S.GUI.maxTrials
             try
+                t1 = tic;
                 S = LuminoseParameterGUI_hf_goNogo('sync', S); % Sync parameters with LuminoseParameterGUI_hf_goNogo plugin
     
                 currentTrialType = nextTrialType;
-                nextTrialType = getNextTrialType_hf_goNogo(BpodSystem.Data, 50, S.GUI.BiasCorrection, 0.2, S.GUI.CSplus_prob);
-                
+                if currentTrial >= 20
+                    nextTrialType = getNextTrialType_hf_goNogo(BpodSystem.Data, 50, S.GUI.BiasCorrection, 0.2, S.GUI.CSplus_prob);
+                else
+                    nextTrialType = (rand > S.GUI.CSplus_prob) + 1;
+                end
+                disp(['calculated next trial: ', num2str(toc(t1))]);
+
                 handle_pause_condition(H, R); % Handle pause/stop by user
                 
                 if currentTrial < S.GUI.maxTrials
                     [sma, S] = PrepareStateMachine(S, nextTrialType, currentTrial+1, ITI, emulator);
+                    disp(['Session: ', sessionStart, ' | Trial: ', num2str(currentTrial+1)]);
                     SendStateMachine(sma, 'RunASAP');
                 end
+                                   
+                RawEvents = trialManager.getTrialData; % Hangs here until trial is over, then retrieves full trial's raw data
+                handle_pause_condition(H, R); % Handle pause/stop by user
                 
+                t2 = tic;
                 if strcmp(S.GUIMeta.ResponseType.String(S.GUI.ResponseType), 'Rotary Encoder')
                     R.setAdvancedThresholds([-35 10 10],... 
                         [0 1 1], [0 S.GUI.ResponseTime 0.2]);
                 end
-    
-                RawEvents = trialManager.getTrialData; % Hangs here until trial is over, then retrieves full trial's raw data
-                handle_pause_condition(H, R); % Handle pause/stop by user
-    
+                disp(['set RE: ', num2str(toc(t2))]);
+
                 if currentTrial < S.GUI.maxTrials
                     trialManager.startTrial(); % Start processing the next trial's events (call with no argument since SM was already sent)
                 end
@@ -266,17 +278,25 @@ function luminose_hf_goNogo
                         BpodSystem.Data.EncoderData{currentTrial}.EventTimestamps - BpodSystem.Data.TrialStartTimestamp(currentTrial) ;
     
                     %% Update plots
+                    t3 = tic;
                     liveOutcomePlot_hf_goNogo(BpodSystem.GUIHandles.OutcomeAxes, 'update', BpodSystem.Data, nextTrialType);
-                    
+                    disp(['Updated outcome plot: ', num2str(toc(t3))]);
+
+                    t4 = tic;
                     liveBarPlot_hf_goNogo(BpodSystem.GUIHandles.AccuracyAxes, 'update', BpodSystem.Data);
+                    disp(['Updated bar plot: ', num2str(toc(t4))]);
                     
                     % livePsychometricPlot_hf_goNogo(BpodSystem.GUIHandles.PsychometricAxes, 'update', ...
                         % BpodSystem.Data, [1]);
-                    
+                    t5 = tic;
                     liveRewardPlot_hf_goNogo(BpodSystem.GUIHandles.RewardAxes, 'update', BpodSystem.Data);
-    
+                    disp(['Updated reward plot: ', num2str(toc(t5))]);
+
+                    t6 = tic;
                     liveResponseTimePlot_hf_goNogo(BpodSystem.GUIHandles.ResponseAxes, 'update', BpodSystem.Data);
-                    
+                    disp(['Updated response time plot: ', num2str(toc(t6))]);
+
+                    t7 = tic;
                     % Update rotary encoder plot
                     if currentTrial == 1 % Only on the first trial, the first and second trial's trial-start timestamps will be retrieved in the rotary encoder data
                                          % On all subsequent trials, only the next trial's start timestamp will be returned (because data is retrieved mid-trial)
@@ -292,9 +312,13 @@ function luminose_hf_goNogo
                     
                     TrialDuration = BpodSystem.Data.TrialEndTimestamp(currentTrial)-BpodSystem.Data.TrialStartTimestamp(currentTrial);
                     liveEncoderPlot_hf_goNogo(BpodSystem.GUIHandles.EncoderAxes, 'update', 0, BpodSystem.Data.EncoderData{currentTrial},TrialDuration);
-    
+                    
+                    disp(['Updated rotary encoder plot: ', num2str(toc(t7))]);
+
+                    t8 = tic;
                     SaveBpodSessionData; 
                     SaveOnlinePlots;
+                    disp(['Saved data: ', num2str(toc(t8))]);
                 end
             catch
                 cleanup; % Save FlexI/O analog input data
@@ -361,7 +385,7 @@ function [sma, S] = PrepareStateMachine(S, currentTrialType, currentTrial, ITI, 
         startAction{end+1} = 'HiFi1'; startAction{end+1} = '*';
         startAction{end+1} = 'RotaryEncoder1'; startAction{end+1} = ['#' 0];
         startAction{end+1} = 'AnalogThreshEnable'; startAction{end+1} = 1;
-        startAction{end+1} = 'Serial3'; startAction{end+1} = ['#' 1]; % analog input module sync
+        % startAction{end+1} = 'Serial3'; startAction{end+1} = ['#' 1]; % analog input module sync
     end
     cueAction = {'RotaryEncoder1', '*Z'};
     prepareOdourAction = {}; % send odour info to olfactometer and wait for BNC2 trigger
@@ -431,7 +455,7 @@ function [sma, S] = PrepareStateMachine(S, currentTrialType, currentTrial, ITI, 
     else
         punishAction = {'BNC1', 1};
     end
-
+    
     switch emulator
         %%
         case true

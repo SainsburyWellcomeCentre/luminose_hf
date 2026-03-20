@@ -50,7 +50,7 @@ function GUIparams_luminose_hf_goNogo()
     S.GUI.StimTime = 1*(0.001+1+0.001); % olfactometer: preSequence_delay + pulseTime + postSequence_delay
     
     % == Response ==
-    S.GUI.Amplitude_error = [10000, 10000];
+    S.GUI.Amplitude_error = [1, 1];
     S.GUI.ResponseType = 1;
     S.GUIMeta.ResponseType.Style = 'popupmenu';
     S.GUIMeta.ResponseType.String = {'Lick', 'Rotary Encoder'};

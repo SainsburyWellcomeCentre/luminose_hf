@@ -1,42 +1,50 @@
 function RBias = computeBias_hf_2AFC(data, N)
 % computeBias calculates the response bias over the last N trials
-% BpodData: BpodSystem.Data
+% data: BpodSystem.Data
 % N: number of previous trials to consider
 %
 % Returns:
 %   RBias: bias measure (Right proportion - Left proportion), from -1 to 1
 
 if nargin < 2
-    N = 50; % default window
+    N = 50;
 end
 
 if ~isfield(data,'RawEvents') || isempty(data.RawEvents)
     RBias = 0;
     return
 end
+
 nTrials = length(data.RawEvents.Trial);
 startIdx = max(1, nTrials - N + 1);
 
-% Extract first lick choice from each trial
 choices = nan(1, nTrials);
 for i = startIdx:nTrials
     events = data.RawEvents.Trial{i}.Events;
-    hasLeft  = isfield(events,'BNC1High');
-    hasRight = isfield(events,'BNC2High');
-    
+    hasLeft  = isfield(events, 'BNC1High');
+    hasRight = isfield(events, 'BNC2High');
+
     if hasLeft && ~hasRight
-        choices(i) = 1; % left
+        choices(i) = 1;
     elseif hasRight && ~hasLeft
-        choices(i) = 2; % right
-    else
-        choices(i) = NaN;
+        choices(i) = 2;
+    elseif hasLeft && hasRight
+        % Both occurred — use whichever came first
+        tLeft  = events.BNC1High(1);
+        tRight = events.BNC2High(1);
+        if tLeft < tRight
+            choices(i) = 1;
+        else
+            choices(i) = 2;
+        end
+    % else: neither occurred, stays NaN
     end
 end
 
-% Only keep non-NaN trials (filter both arrays using the same mask)
-window = choices(startIdx:nTrials);
+% Trim to window and align with TrialTypes
+window       = choices(startIdx:nTrials);
 correctSides = data.TrialTypes(startIdx:nTrials);
-validMask = ~isnan(window);
+validMask    = ~isnan(window);
 validChoices = window(validMask);
 correctSides = correctSides(validMask);
 
@@ -45,11 +53,10 @@ if isempty(validChoices)
     return
 end
 
-WrongSides = validChoices ~= correctSides;
-nWrong = sum(WrongSides);
-WrongSideProportion = nWrong / length(WrongSides);
+WrongSides           = validChoices ~= correctSides;
+nWrong               = sum(WrongSides);
+WrongSideProportion  = nWrong / length(WrongSides);
 
-% Fraction of wrong responses to each side (guard against zero wrong trials)
 if nWrong == 0
     WrongRightsProportion = 0;
     WrongLeftsProportion  = 0;
@@ -58,7 +65,5 @@ else
     WrongLeftsProportion  = WrongSideProportion * sum(WrongSides & validChoices==1) / nWrong;
 end
 
-% Bias (positive = right bias, negative = left bias)
 RBias = WrongRightsProportion - WrongLeftsProportion;
-
 end

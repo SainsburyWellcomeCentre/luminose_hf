@@ -47,9 +47,6 @@ switch action
         if nargin >= 4 && ~isempty(nextTrialType)
             nextSide = nextTrialType == 1;
         end
-
-        % Extend x-axis if needed
-        xlim(ax, [0 max(10, nextTrial + 5)])
         set(ax,'XLim',[max(nDone-100, 0) max(nDone, 100)])
         set(h.current, 'XData', nextTrial, 'YData', nextSide)
         drawnow nocallbacks
