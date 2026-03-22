@@ -388,11 +388,10 @@ function [sma, S] = PrepareStateMachine(S, currentTrialType, currentTrial, ITI, 
         % startAction{end+1} = 'Serial3'; startAction{end+1} = ['#' 1]; % analog input module sync
     end
     cueAction = {'RotaryEncoder1', '*Z'};
-    prepareOdourAction = {}; % send odour info to olfactometer and wait for BNC2 trigger
     switch cue
         case 'Odour'
             cueAction{end+1} = 'BNC2'; cueAction{end+1} = 1;
-            prepareOdourAction{end+1} = 'SoftCode'; prepareOdourAction{end+1} = 1;
+            startAction{end+1} = 'SoftCode'; startAction{end+1} = 1;
         case 'Pattern'
             cueAction{end+1} = 'SoftCode'; cueAction{end+1} = 8;
         case 'Light'
@@ -406,7 +405,7 @@ function [sma, S] = PrepareStateMachine(S, currentTrialType, currentTrial, ITI, 
             switch CSplus
                 case 'Odour'
                     stimAction{end+1} = 'BNC2'; stimAction{end+1} = 1;
-                    prepareOdourAction{end+1} = 'SoftCode'; prepareOdourAction{end+1} = 2;
+                    startAction{end+1} = 'SoftCode'; startAction{end+1} = 2;
                     chooseState2 = 'DeliverStim';
                 case 'Pattern'
                     stimAction{end+1} = 'SoftCode'; stimAction{end+1} = 9;
@@ -423,7 +422,7 @@ function [sma, S] = PrepareStateMachine(S, currentTrialType, currentTrial, ITI, 
             switch CSminus
                 case 'Odour'
                     stimAction{end+1} = 'BNC2'; stimAction{end+1} = 1;
-                    prepareOdourAction{end+1} = 'SoftCode'; prepareOdourAction{end+1} = 3;
+                    startAction{end+1} = 'SoftCode'; startAction{end+1} = 3;
                     chooseState2 = 'DeliverStim';
                 case 'Pattern'
                     stimAction{end+1} = 'SoftCode'; stimAction{end+1} = 10;
@@ -513,7 +512,7 @@ function [sma, S] = PrepareStateMachine(S, currentTrialType, currentTrial, ITI, 
             sma = AddState(sma, 'Name', 'InterTrialInterval', ...
                 'Timer', ITI(currentTrial),...
                 'StateChangeConditions', {'Tup', 'exit'},...
-                'OutputActions', prepareOdourAction);
+                'OutputActions', {});
     
         case false
             %%
@@ -578,11 +577,11 @@ function [sma, S] = PrepareStateMachine(S, currentTrialType, currentTrial, ITI, 
             sma = AddState(sma, 'Name', 'TimeOut', ...
                 'Timer', S.GUI.ErrorDelay - S.GUI.NoiseTime,...
                 'StateChangeConditions', {'Tup', 'InterTrialInterval'},...
-                'OutputActions', prepareOdourAction);
+                'OutputActions');
             sma = AddState(sma, 'Name', 'InterTrialInterval', ...
                 'Timer', ITI(currentTrial),...
                 'StateChangeConditions', {'Tup', 'exit'},...
-                'OutputActions', prepareOdourAction);
+                'OutputActions', {});
     end
 end
 %% Handle pause condition

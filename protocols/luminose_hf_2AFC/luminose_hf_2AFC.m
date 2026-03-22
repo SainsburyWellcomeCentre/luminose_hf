@@ -381,21 +381,21 @@ function [sma, S] = PrepareStateMachine(S, currentTrialType, currentTrial, ITI, 
     % analog input module: 'Serial3', ['=' 1 'High'], 'Serial3', ['=' 0 'High']
     startAction = {'BNC1', 1}; % sync
     if ~emulator
-        % startAction{end+1} = 'HiFi1'; startAction{end+1} = '*';
+        startAction{end+1} = 'HiFi1'; startAction{end+1} = '*';
         startAction{end+1} = 'RotaryEncoder1'; startAction{end+1} = ['#' 0];
         startAction{end+1} = 'AnalogThreshEnable'; startAction{end+1} = 1;
         % startAction{end+1} = 'Serial3'; startAction{end+1} = ['#' 1]; % analog input module sync
     end
     cueAction = {'RotaryEncoder1', '*Z'};
-    prepareOdourAction = {}; % send odour info to olfactometer and wait for BNC2 trigger
+    startAction = {}; % send odour info to olfactometer and wait for BNC2 trigger
     switch cue
         case 'Odour'
             cueAction{end+1} = 'BNC2'; cueAction{end+1} = 1;
             switch S.GUI.TrainingLevel
                 case 1 % Habituation
-                    prepareOdourAction = {}; 
+                    startAction = {}; 
                 case 2 % Training
-                    prepareOdourAction{end+1} = 'SoftCode'; prepareOdourAction{end+1} = 1;
+                    startAction{end+1} = 'SoftCode'; startAction{end+1} = 1;
             end
         case 'Pattern'
             cueAction{end+1} = 'SoftCode'; cueAction{end+1} = 8;
@@ -413,9 +413,9 @@ function [sma, S] = PrepareStateMachine(S, currentTrialType, currentTrial, ITI, 
                     stimAction{end+1} = 'BNC2'; stimAction{end+1} = 1;
                     switch S.GUI.TrainingLevel
                         case 1 % Habituation
-                            prepareOdourAction = {}; 
+                            startAction = {}; 
                         case 2 % Training
-                            prepareOdourAction{end+1} = 'SoftCode'; prepareOdourAction{end+1} = 2;
+                            startAction{end+1} = 'SoftCode'; startAction{end+1} = 2;
                     end
                     switch S.GUI.TrainingLevel
                         case 1 % Habituation
@@ -461,9 +461,9 @@ function [sma, S] = PrepareStateMachine(S, currentTrialType, currentTrial, ITI, 
                     stimAction{end+1} = 'BNC2'; stimAction{end+1} = 1;
                     switch S.GUI.TrainingLevel
                         case 1 % Habituation
-                            prepareOdourAction = {}; 
+                            startAction = {}; 
                         case 2 % Training
-                            prepareOdourAction{end+1} = 'SoftCode'; prepareOdourAction{end+1} = 3;
+                            startAction{end+1} = 'SoftCode'; startAction{end+1} = 3;
                     end
                     switch S.GUI.TrainingLevel
                         case 1 % Habituation
@@ -658,7 +658,7 @@ function [sma, S] = PrepareStateMachine(S, currentTrialType, currentTrial, ITI, 
             sma = AddState(sma, 'Name', 'InterTrialInterval', ...
                 'Timer', ITI(currentTrial),...
                 'StateChangeConditions', {'Tup', 'exit'},...
-                'OutputActions', prepareOdourAction);
+                'OutputActions', {});
     end
 end
 

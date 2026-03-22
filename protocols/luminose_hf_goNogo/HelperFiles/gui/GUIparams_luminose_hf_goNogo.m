@@ -93,7 +93,7 @@ function GUIparams_luminose_hf_goNogo()
     S.GUIPanels.Light_CSplus = {'Intensity_CSplus'};
     S.GUIPanels.Pattern_CSplus = {'Nimages_CSplus', 'imgIdx_CSplus', 'exposure_CSplus', 'dark_CSplus', 'repeat_CSplus'};
     % == Odour ==
-    S.GUI.valves_CSplus = [7];
+    S.GUI.valves_CSplus = [11];
     S.GUI.dutyCycles_CSplus = repelem(1, 1); % specify scalar 0 to use default duty cycles
     % == Sound ==
     S.GUI.Amplitude_CSplus = [0.1, 0.1];
@@ -115,8 +115,8 @@ function GUIparams_luminose_hf_goNogo()
     S.GUIPanels.Light_CSminus = {'Intensity_CSminus'};
     S.GUIPanels.Pattern_CSminus = {'Nimages_CSminus', 'imgIdx_CSminus', 'exposure_CSminus', 'dark_CSminus', 'repeat_CSminus'};
     % == Odour ==
-    S.GUI.valves_CSminus = [11, 12];
-    S.GUI.dutyCycles_CSminus = repelem(1, 2); % specify scalar 0 to use default duty cycles
+    S.GUI.valves_CSminus = [16];
+    S.GUI.dutyCycles_CSminus = repelem(1, 1); % specify scalar 0 to use default duty cycles
     % == Sound ==
     S.GUI.Amplitude_CSminus = [0.1, 0.1];
     S.GUI.HighFreq_CSminus = 16;   
