@@ -38,7 +38,7 @@ function GUIparams_luminose_hf_goNogo()
     S.GUI.CueType = 3;
     S.GUIMeta.CueType.Style = 'popupmenu';
     S.GUIMeta.CueType.String = {'Odour', 'Pattern', 'Light', 'Sound'};
-    S.GUI.CueTime = 1;
+    S.GUI.CueTime = 1*(0.001+1+0.001);
     
     % == Stimulus ==
     S.GUI.CSplusType = 1;
