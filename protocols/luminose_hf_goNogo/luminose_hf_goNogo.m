@@ -95,7 +95,7 @@ function luminose_hf_goNogo
     BpodSystem.ProtocolFigures.AccuracyPlot = figure('Position', [1040 1035 350 350], ...
         'name', 'Accuracy Plot', 'numbertitle', 'off', 'MenuBar', 'none', 'Resize', 'on');
     BpodSystem.GUIHandles.AccuracyAxes = axes('Position', [.15 .12 .8 .8]);
-    liveBarPlot_hf_goNogo(BpodSystem.GUIHandles.AccuracyAxes, 'init', []);
+    liveAccuracyPlot_hf_goNogo(BpodSystem.GUIHandles.AccuracyAxes, 'init', []);
     
     % % Live psychometric curve
     % BpodSystem.ProtocolFigures.PsychometricPlot = figure('Position', [500 600 450 350], ...
@@ -193,7 +193,7 @@ function luminose_hf_goNogo
         BpodSystem.ProtocolFigures.EncoderPlotFig = figure('Position', [1400 1035 350 350],'name','Encoder plot',...
                                                    'numbertitle','off', 'MenuBar', 'none', 'Resize', 'off');
         BpodSystem.GUIHandles.EncoderAxes = axes('Position', [.15 .15 .8 .8]);
-        % liveEncoderPlot_hf_goNogo(BpodSystem.GUIHandles.EncoderAxes, 'init', 0);
+        liveEncoderPlot_hf_goNogo(BpodSystem.GUIHandles.EncoderAxes, 'init', 0);
 
         %% Setup analog input module
         % A.InputRange(1:3) = {'-5V:5V', '-5V:5V', '-2.5V:2.5V'}; % set range to -5V:5V
@@ -213,11 +213,6 @@ function luminose_hf_goNogo
         
         %% Prepare and start first trial 
         ManualOverride('OP', 5);
-        if strcmp(cue, 'Odour') % currently coded such that cue and stim cannot both be odours at the same trial 
-            SoftCodeHandler_luminose_hf_goNogo(1);
-        elseif any([strcmp(CSplus, 'Odour'), strcmp(CSminus, 'Odour')])
-            SoftCodeHandler_luminose_hf_goNogo(currentTrialType + 1);
-        end
         trialManager = BpodTrialManager;
         sma = PrepareStateMachine(S, currentTrialType, 1, ITI, emulator); % Prepare state machine for trial 1 with empty "current events" variable
         sessionStart = datestr(datetime('now'), 'yyyy-mm-dd HH:MM:SS');
@@ -241,7 +236,7 @@ function luminose_hf_goNogo
                 
                 if currentTrial < S.GUI.maxTrials
                     [sma, S] = PrepareStateMachine(S, nextTrialType, currentTrial+1, ITI, emulator);
-                    disp(['Session: ', sessionStart, ' | Trial: ', num2str(currentTrial+1)]);
+                    disp(['Session: ', sessionStart, ' | Trial: ', num2str(currentTrial)]);
                     SendStateMachine(sma, 'RunASAP');
                 end
                                    
@@ -271,19 +266,16 @@ function luminose_hf_goNogo
                         TrialStartTime = eventData.EventTimestamps(1); % First trial start time on REM clock is taken from this initial read
                     end
                     
-                    % BpodSystem.Data.EncoderData{currentTrial} = R.readUSBStream(0); % Returns REM data up to event '0'
-                    %                                                                 % see {'RotaryEncoder1', ['#' 0]} in output actions of first state 
-                    % BpodSystem.Data.EncoderData{currentTrial}.Times = BpodSystem.Data.EncoderData{currentTrial}.Times - BpodSystem.Data.TrialStartTimestamp(currentTrial);
-                    % BpodSystem.Data.EncoderData{currentTrial}.EventTimestamps = ...
-                    %     BpodSystem.Data.EncoderData{currentTrial}.EventTimestamps - BpodSystem.Data.TrialStartTimestamp(currentTrial) ;
-                    % 
+                    BpodSystem.Data.EncoderData{currentTrial} = R.readUSBStream(0); % Returns REM data up to event '0'
+                                                                                    % see {'RotaryEncoder1', ['#' 0]} in output actions of first state 
+                    
                     %% Update plots
                     t3 = tic;
                     liveOutcomePlot_hf_goNogo(BpodSystem.GUIHandles.OutcomeAxes, 'update', BpodSystem.Data, nextTrialType);
                     disp(['Updated outcome plot: ', num2str(toc(t3))]);
 
                     t4 = tic;
-                    liveBarPlot_hf_goNogo(BpodSystem.GUIHandles.AccuracyAxes, 'update', BpodSystem.Data);
+                    liveAccuracyPlot_hf_goNogo(BpodSystem.GUIHandles.AccuracyAxes, 'update', BpodSystem.Data);
                     disp(['Updated bar plot: ', num2str(toc(t4))]);
                     
                     % livePsychometricPlot_hf_goNogo(BpodSystem.GUIHandles.PsychometricAxes, 'update', ...
@@ -297,21 +289,21 @@ function luminose_hf_goNogo
                     disp(['Updated response time plot: ', num2str(toc(t6))]);
 
                     t7 = tic;
-                    % % Update rotary encoder plot
-                    % if currentTrial == 1 % Only on the first trial, the first and second trial's trial-start timestamps will be retrieved in the rotary encoder data
-                    %                      % On all subsequent trials, only the next trial's start timestamp will be returned (because data is retrieved mid-trial)
-                    %     % For first trial, TrialStartTime is computed above
-                    %     NextTrialStartTime = BpodSystem.Data.EncoderData{currentTrial}.EventTimestamps(1);
-                    % else
-                    %     TrialStartTime = NextTrialStartTime;
-                    %     NextTrialStartTime = BpodSystem.Data.EncoderData{currentTrial}.EventTimestamps(1);
-                    % end
-                    % BpodSystem.Data.EncoderData{currentTrial}.Times = BpodSystem.Data.EncoderData{currentTrial}.Times - TrialStartTime; % Align timestamps to state machine's trial time 0
-                    % BpodSystem.Data.EncoderData{currentTrial}.EventTimestamps = ...
-                    %     BpodSystem.Data.EncoderData{currentTrial}.EventTimestamps - TrialStartTime; % Align event timestamps to state machine's trial time 0
-                    % 
+                    % Update rotary encoder plot
+                    if currentTrial == 1 % Only on the first trial, the first and second trial's trial-start timestamps will be retrieved in the rotary encoder data
+                                         % On all subsequent trials, only the next trial's start timestamp will be returned (because data is retrieved mid-trial)
+                        % For first trial, TrialStartTime is computed above
+                        NextTrialStartTime = BpodSystem.Data.EncoderData{currentTrial}.EventTimestamps(1);
+                    else
+                        TrialStartTime = NextTrialStartTime;
+                        NextTrialStartTime = BpodSystem.Data.EncoderData{currentTrial}.EventTimestamps(1);
+                    end
+                    BpodSystem.Data.EncoderData{currentTrial}.Times = BpodSystem.Data.EncoderData{currentTrial}.Times - TrialStartTime; % Align timestamps to state machine's trial time 0
+                    BpodSystem.Data.EncoderData{currentTrial}.EventTimestamps = ...
+                        BpodSystem.Data.EncoderData{currentTrial}.EventTimestamps - TrialStartTime; % Align event timestamps to state machine's trial time 0
+
                     TrialDuration = BpodSystem.Data.TrialEndTimestamp(currentTrial)-BpodSystem.Data.TrialStartTimestamp(currentTrial);
-                    % liveEncoderPlot_hf_goNogo(BpodSystem.GUIHandles.EncoderAxes, 'update', 0, BpodSystem.Data.EncoderData{currentTrial},TrialDuration);
+                    liveEncoderPlot_hf_goNogo(BpodSystem.GUIHandles.EncoderAxes, 'update', 0, BpodSystem.Data.EncoderData{currentTrial},TrialDuration);
                     
                     disp(['Updated rotary encoder plot: ', num2str(toc(t7))]);
 
@@ -543,7 +535,7 @@ function [sma, S] = PrepareStateMachine(S, currentTrialType, currentTrial, ITI, 
             end
             %%
             sma = AddState(sma, 'Name', 'TrialStart', ...
-                'Timer', ITI(currentTrial),...
+                'Timer', ITI(currentTrial)/2,...
                 'StateChangeConditions', {'Tup', 'ShowCue'},...
                 'OutputActions', startAction); % light on
             sma = AddState(sma, 'Name', 'ShowCue', ... % Turn on LED of port1. Wait for InitDelay seconds. Ensure that wheel does not move.
@@ -579,7 +571,7 @@ function [sma, S] = PrepareStateMachine(S, currentTrialType, currentTrial, ITI, 
                 'StateChangeConditions', {'Tup', 'InterTrialInterval'},...
                 'OutputActions', {});
             sma = AddState(sma, 'Name', 'InterTrialInterval', ...
-                'Timer', ITI(currentTrial),...
+                'Timer', ITI(currentTrial)/2,...
                 'StateChangeConditions', {'Tup', 'exit'},...
                 'OutputActions', {});
     end

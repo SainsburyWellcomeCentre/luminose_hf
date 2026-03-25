@@ -67,13 +67,14 @@ function GUIparams_luminose_hf_goNogo()
 
     %% ===== Cue =====
     S.GUITabs.Cue = {'Pattern_cue', 'Odour_cue', 'Light_cue', 'Sound_cue'};
-    S.GUIPanels.Odour_cue = {'valves_cue', 'dutyCycles_cue'};
+    S.GUIPanels.Odour_cue = {'valves_cue', 'dutyCycles_cue', 'probs_cue'};
     S.GUIPanels.Sound_cue = {'Amplitude_cue', 'Freq_cue'};
     S.GUIPanels.Light_cue = {'Intensity_cue'};
     S.GUIPanels.Pattern_cue = {'Nimages_cue', 'imgIdx_cue', 'exposure_cue', 'dark_cue', 'repeat_cue'};
     % == Odour ==
     S.GUI.valves_cue = [7];
-    S.GUI.dutyCycles_cue = repelem(1, 1); % specify scalar 0 to use default duty cycles
+    S.GUI.dutyCycles_cue = [1]; % specify scalar 0 to use default duty cycles
+    S.GUI.probs_cue = [1];
     % == Sound ==
     S.GUI.Amplitude_cue = [0.001, 0.001];
     S.GUI.Freq_cue = 5000;   
@@ -88,13 +89,14 @@ function GUIparams_luminose_hf_goNogo()
 
     %% ===== CS+ =====
     S.GUITabs.CSplus = {'Light_CSplus', 'Sound_CSplus', 'Pattern_CSplus', 'Odour_CSplus'};
-    S.GUIPanels.Odour_CSplus = {'valves_CSplus', 'dutyCycles_CSplus'};
+    S.GUIPanels.Odour_CSplus = {'valves_CSplus', 'dutyCycles_CSplus', 'probs_CSplus'};
     S.GUIPanels.Sound_CSplus = {'Amplitude_CSplus', 'HighFreq_CSplus', 'LowFreq_CSplus'};
     S.GUIPanels.Light_CSplus = {'Intensity_CSplus'};
     S.GUIPanels.Pattern_CSplus = {'Nimages_CSplus', 'imgIdx_CSplus', 'exposure_CSplus', 'dark_CSplus', 'repeat_CSplus'};
     % == Odour ==
-    S.GUI.valves_CSplus = [11];
-    S.GUI.dutyCycles_CSplus = repelem(1, 1); % specify scalar 0 to use default duty cycles
+    S.GUI.valves_CSplus = [7];
+    S.GUI.dutyCycles_CSplus = [1]; % specify scalar 0 to use default duty cycles
+    S.GUI.probs_CSplus = [1];
     % == Sound ==
     S.GUI.Amplitude_CSplus = [0.1, 0.1];
     S.GUI.HighFreq_CSplus = 8;   
@@ -110,13 +112,14 @@ function GUIparams_luminose_hf_goNogo()
 
     %% ===== CS- =====
     S.GUITabs.CSminus = {'Light_CSminus', 'Sound_CSminus', 'Pattern_CSminus', 'Odour_CSminus'};
-    S.GUIPanels.Odour_CSminus = {'valves_CSminus', 'dutyCycles_CSminus'};
+    S.GUIPanels.Odour_CSminus = {'valves_CSminus', 'dutyCycles_CSminus', 'probs_CSminus'};
     S.GUIPanels.Sound_CSminus = {'Amplitude_CSminus', 'HighFreq_CSminus', 'LowFreq_CSminus'};
     S.GUIPanels.Light_CSminus = {'Intensity_CSminus'};
     S.GUIPanels.Pattern_CSminus = {'Nimages_CSminus', 'imgIdx_CSminus', 'exposure_CSminus', 'dark_CSminus', 'repeat_CSminus'};
     % == Odour ==
-    S.GUI.valves_CSminus = [16];
-    S.GUI.dutyCycles_CSminus = repelem(1, 1); % specify scalar 0 to use default duty cycles
+    S.GUI.valves_CSminus = [11, 16];
+    S.GUI.dutyCycles_CSminus = [1, 1]; % specify scalar 0 to use default duty cycles
+    S.GUI.probs_CSminus = [0.5, 0.5];
     % == Sound ==
     S.GUI.Amplitude_CSminus = [0.1, 0.1];
     S.GUI.HighFreq_CSminus = 16;   
