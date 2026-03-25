@@ -46,32 +46,36 @@ function luminose_hf_sleep
         GUIparams_luminose_hf_sleep();
     end
     
-    BpodSystem.Data.TrialTypes = []; % The trial type of each trial completed will be added here.
-
+    % BpodSystem.Data.TrialTypes = []; % The trial type of each trial completed will be added here.
+    % 
     trialTypes = 1 + (rand(1, S.GUI.maxTrials) >= S.GUI.Typeprob); % distribution of values 1 and 2 with given probability p and 1-p respectively.
-    BpodSystem.Data.TrialTypes = []; % The trial type of each trial completed will be added here.
-
-    if S.GUI.TestPulsesType == 1
-        stimTime = S.GUI.SPduration;
-        if S.GUI.SPvariable
-            ITI = (1 / S.GUI.SPfrequency) * (1.01 .^ (0:S.GUI.maxTrials-1)); % Generate incremental ITI values using a geometric progression
-            ITI(ITI > (1 / S.GUI.MaxSPfrequency)) = 1 / S.GUI.MaxSPfrequency; % Enforce maximum ITI duration for all trials
-            ITI = ITI(randperm(length(ITI)))';
-            ITI = round(ITI * 1000) / 1000;
-        else
-            ITI = (1 / S.GUI.SPfrequency) * ones(1, S.GUI.maxTrials);
-        end
-    elseif S.GUI.TestPulsesType == 2
-        stimTime = S.GUI.PPduration;
-        if S.GUI.PPvariable
-            ITI = (1 / S.GUI.PPfrequency) * (1.01 .^ (0:S.GUI.maxTrials-1)); % Generate incremental ITI values using a geometric progression
-            ITI(ITI > (1 / S.GUI.MaxPPfrequency)) = 1 / S.GUI.MaxPPfrequency; % Enforce maximum ITI duration for all trials
-            ITI = ITI(randperm(length(ITI)))';
-            ITI = round(ITI * 1000) / 1000;
-        else
-            ITI = (1 / S.GUI.PPfrequency) * ones(1, S.GUI.maxTrials);
-        end
-    end
+    % BpodSystem.Data.TrialTypes = []; % The trial type of each trial completed will be added here.
+    % if S.GUI.TestPulses
+    %     if S.GUI.TestPulsesType == 1
+    %         stimTime = S.GUI.SPduration;
+    %         if S.GUI.SPvariable
+    %             ITI = (1 / S.GUI.SPfrequency) * (1.01 .^ (0:S.GUI.maxTrials-1)); % Generate incremental ITI values using a geometric progression
+    %             ITI(ITI > (1 / S.GUI.MaxSPfrequency)) = 1 / S.GUI.MaxSPfrequency; % Enforce maximum ITI duration for all trials
+    %             ITI = ITI(randperm(length(ITI)))';
+    %             ITI = round(ITI * 1000) / 1000;
+    %         else
+    %             ITI = (1 / S.GUI.SPfrequency) * ones(1, S.GUI.maxTrials);
+    %         end
+    %     elseif S.GUI.TestPulsesType == 2
+    %         stimTime = S.GUI.PPduration;
+    %         if S.GUI.PPvariable
+    %             ITI = (1 / S.GUI.PPfrequency) * (1.01 .^ (0:S.GUI.maxTrials-1)); % Generate incremental ITI values using a geometric progression
+    %             ITI(ITI > (1 / S.GUI.MaxPPfrequency)) = 1 / S.GUI.MaxPPfrequency; % Enforce maximum ITI duration for all trials
+    %             ITI = ITI(randperm(length(ITI)))';
+    %             ITI = round(ITI * 1000) / 1000;
+    %         else
+    %             ITI = (1 / S.GUI.PPfrequency) * ones(1, S.GUI.maxTrials);
+    %         end
+    %     end
+    % else
+    stimTime = 0;
+    ITI = 2 * ones(1, S.GUI.maxTrials);
+    % end
 
     %% Begin plotting
     % Initialize parameter GUI plugin
@@ -87,12 +91,6 @@ function luminose_hf_sleep
     end
     disp('START pressed — beginning experiment.');
 
-    % Live tracking plot
-    BpodSystem.ProtocolFigures.TrackingPlot = figure('Position', [30 1035 1000 350], ...
-        'name', 'Outcome Plot', 'numbertitle', 'off', 'MenuBar', 'none', 'Resize', 'on');
-    BpodSystem.GUIHandles.TrackingAxes = axes('Position', [.15 .12 .8 .8]);
-    liveTrackingPlot_hf_sleep(BpodSystem.GUIHandles.TrackingAxes, 'init', BpodSystem.Data);
-
     % Initialize Bpod notebook (for manual data annotation)                                                          
     BpodNotebook('init'); 
 
@@ -105,7 +103,7 @@ function luminose_hf_sleep
         channelTypes(chanSniff) = 2; % Analog Input
         channelTypes(chanPhotodetector) = 2; % Analog Input
         channelTypes(chanFlowmeter) = 2; % Analog Input
-        channelTypes(chanNIDAQ) = 0; % Digital Input
+        channelTypes(chanNIDAQ) = 2; % Digital Input
         BpodSystem.FlexIOConfig.channelTypes = channelTypes;
         
         % Set sniff threshold for inhalation triggered stimulus
@@ -134,10 +132,10 @@ function luminose_hf_sleep
         %% Setup Rotary Encoder module
         R.useAdvancedThresholds = 'off';
         R.startUSBStream; % Begin streaming position data to PC via USB
-        BpodSystem.ProtocolFigures.EncoderPlotFig = figure('Position', [1400 1035 350 350],'name','Encoder plot',...
-                                                   'numbertitle','off', 'MenuBar', 'none', 'Resize', 'off');
-        BpodSystem.GUIHandles.EncoderAxes = axes('Position', [.15 .15 .8 .8]);
-        liveEncoderPlot_hf_sleep(BpodSystem.GUIHandles.EncoderAxes, 'init', 0);
+        % BpodSystem.ProtocolFigures.EncoderPlotFig = figure('Position', [1400 1035 350 350],'name','Encoder plot',...
+        %                                            'numbertitle','off', 'MenuBar', 'none', 'Resize', 'off');
+        % BpodSystem.GUIHandles.EncoderAxes = axes('Position', [.15 .15 .8 .8]);
+        % liveEncoderPlot_hf_sleep(BpodSystem.GUIHandles.EncoderAxes, 'init', 0);
 
         %% Setup analog input module
         % A.InputRange(1:3) = {'-5V:5V', '-5V:5V', '-2.5V:2.5V'}; % set range to -5V:5V
@@ -184,38 +182,37 @@ function luminose_hf_sleep
                 if ~isempty(fieldnames(RawEvents))
                     BpodSystem.Data = AddTrialEvents(BpodSystem.Data,RawEvents);
                     BpodSystem.Data.TrialSettings(currentTrial) = S;
-                    BpodSystem.Data.TrialTypes(currentTrial) = currentTrialType;
+                    % BpodSystem.Data.TrialTypes(currentTrial) = currentTrialType;
                     BpodSystem.Data = BpodNotebook('sync', BpodSystem.Data); % Sync with Bpod notebook plugin
         
-                    % Save rotary encoder data
-                    if currentTrial == 1
-                        eventData = R.readUSBStream(0); % Read and dump any REM data captured before first trial start. Subsequent REM data will be saved. 
-                        TrialStartTime = eventData.EventTimestamps(1); % First trial start time on REM clock is taken from this initial read
-                    end
-                    BpodSystem.Data.EncoderData{currentTrial} = R.readUSBStream(0); % Returns REM data up to event '0'
-                                                                                    % see {'RotaryEncoder1', ['#' 0]} in output actions of first state 
-                    BpodSystem.Data.EncoderData{currentTrial}.Times = BpodSystem.Data.EncoderData{currentTrial}.Times - BpodSystem.Data.TrialStartTimestamp(currentTrial);
-                    BpodSystem.Data.EncoderData{currentTrial}.EventTimestamps = ...
-                        BpodSystem.Data.EncoderData{currentTrial}.EventTimestamps - BpodSystem.Data.TrialStartTimestamp(currentTrial) ;
+                    % % Save rotary encoder data
+                    % % if currentTrial == 1
+                    % %     eventData = R.readUSBStream(0); % Read and dump any REM data captured before first trial start. Subsequent REM data will be saved. 
+                    % %     TrialStartTime = eventData.EventTimestamps(1); % First trial start time on REM clock is taken from this initial read
+                    % % end
+                    % BpodSystem.Data.EncoderData{currentTrial} = R.readUSBStream(0); % Returns REM data up to event '0'
+                    %                                                                 % see {'RotaryEncoder1', ['#' 0]} in output actions of first state 
+                    % BpodSystem.Data.EncoderData{currentTrial}.Times = BpodSystem.Data.EncoderData{currentTrial}.Times - BpodSystem.Data.TrialStartTimestamp(currentTrial);
+                    % BpodSystem.Data.EncoderData{currentTrial}.EventTimestamps = ...
+                    %     BpodSystem.Data.EncoderData{currentTrial}.EventTimestamps - BpodSystem.Data.TrialStartTimestamp(currentTrial) ;
         
                     %% Update plots   
-                    liveTrackingPlot_hf_sleep(BpodSystem.GUIHandles.OutcomeAxes, 'update', BpodSystem.Data);
                     
-                    % Update rotary encoder plot
-                    if currentTrial == 1 % Only on the first trial, the first and second trial's trial-start timestamps will be retrieved in the rotary encoder data
-                                         % On all subsequent trials, only the next trial's start timestamp will be returned (because data is retrieved mid-trial)
-                        % For first trial, TrialStartTime is computed above
-                        NextTrialStartTime = BpodSystem.Data.EncoderData{currentTrial}.EventTimestamps(1);
-                    else
-                        TrialStartTime = NextTrialStartTime;
-                        NextTrialStartTime = BpodSystem.Data.EncoderData{currentTrial}.EventTimestamps(1);
-                    end
-                    BpodSystem.Data.EncoderData{currentTrial}.Times = BpodSystem.Data.EncoderData{currentTrial}.Times - TrialStartTime; % Align timestamps to state machine's trial time 0
-                    BpodSystem.Data.EncoderData{currentTrial}.EventTimestamps = ...
-                        BpodSystem.Data.EncoderData{currentTrial}.EventTimestamps - TrialStartTime; % Align event timestamps to state machine's trial time 0
-                    
-                    TrialDuration = BpodSystem.Data.TrialEndTimestamp(currentTrial)-BpodSystem.Data.TrialStartTimestamp(currentTrial);
-                    liveEncoderPlot_hf_sleep(BpodSystem.GUIHandles.EncoderAxes, 'update', 0, BpodSystem.Data.EncoderData{currentTrial},TrialDuration);
+                    % % Update rotary encoder plot
+                    % if currentTrial == 1 % Only on the first trial, the first and second trial's trial-start timestamps will be retrieved in the rotary encoder data
+                    %                      % On all subsequent trials, only the next trial's start timestamp will be returned (because data is retrieved mid-trial)
+                    %     % For first trial, TrialStartTime is computed above
+                    %     NextTrialStartTime = BpodSystem.Data.EncoderData{currentTrial}.EventTimestamps(1);
+                    % else
+                    %     TrialStartTime = NextTrialStartTime;
+                    %     NextTrialStartTime = BpodSystem.Data.EncoderData{currentTrial}.EventTimestamps(1);
+                    % end
+                    % BpodSystem.Data.EncoderData{currentTrial}.Times = BpodSystem.Data.EncoderData{currentTrial}.Times - TrialStartTime; % Align timestamps to state machine's trial time 0
+                    % BpodSystem.Data.EncoderData{currentTrial}.EventTimestamps = ...
+                    %     BpodSystem.Data.EncoderData{currentTrial}.EventTimestamps - TrialStartTime; % Align event timestamps to state machine's trial time 0
+                    % 
+                    % TrialDuration = BpodSystem.Data.TrialEndTimestamp(currentTrial)-BpodSystem.Data.TrialStartTimestamp(currentTrial);
+                    % liveEncoderPlot_hf_sleep(BpodSystem.GUIHandles.EncoderAxes, 'update', 0, BpodSystem.Data.EncoderData{currentTrial},TrialDuration);
                                                     
                     SaveBpodSessionData; 
                 end
@@ -246,7 +243,6 @@ function luminose_hf_sleep
                     % Update plots
                     TrialDuration = BpodSystem.Data.TrialEndTimestamp(currentTrial)-BpodSystem.Data.TrialStartTimestamp(currentTrial);
                     
-                    liveTrackingPlot_hf_sleep(BpodSystem.GUIHandles.OutcomeAxes, 'update', BpodSystem.Data, nextTrialType);
                 end
                 HandlePauseCondition; % Checks to see if the protocol is paused. If so, waits until user resumes.
                 if BpodSystem.Status.BeingUsed == 0 % If protocol was stopped, exit the loop
@@ -265,21 +261,26 @@ end
 function [sma, S] = PrepareStateMachine(S, trialTypes, currentTrial, stimTime, ITI, emulator)
        
     % analog input module: 'Serial3', ['=' 1 'High'], 'Serial3', ['=' 0 'High']
-    startAction = {'BNC1', 1, 'PWM5', 255}; % sync
+    startAction = {'PWM5', 255}; 
     if ~emulator
         startAction{end+1} = 'RotaryEncoder1'; startAction{end+1} = ['#' 0];
         startAction{end+1} = 'AnalogThreshEnable'; startAction{end+1} = 1;
-        startAction{end+1} = 'Serial3'; startAction{end+1} = ['#' 1]; % analog input module sync
+        % startAction{end+1} = 'Serial3'; startAction{end+1} = ['#' 1]; % analog input module sync
     end
     sniffAction = {'RotaryEncoder1', '*Z', 'PWM5', 255};
     stimAction = {'BNC1', 1, 'PWM5', 255}; % sync
-    switch trialTypes(currentTrial)
-        case 1 
-            stimAction{end+1} = 'SoftCode'; stimAction{end+1} = 9;
-        case 2 
-            stimAction{end+1} = 'SoftCode'; stimAction{end+1} = 10;
+    if S.GUI.TestPulses
+        % switch trialTypes(currentTrial)
+        %     case 1 
+        %         stimAction{end+1} = 'SoftCode'; stimAction{end+1} = 9;
+        %     case 2 
+        %         stimAction{end+1} = 'SoftCode'; stimAction{end+1} = 10;
+        % end
+        chooseState1 = 'GetSniff';
+    else
+        chooseState1 = 'InterTrialInterval';
     end
-    
+
     switch emulator
         case true
             %%
@@ -316,7 +317,7 @@ function [sma, S] = PrepareStateMachine(S, trialTypes, currentTrial, stimTime, I
             %%
             sma = AddState(sma, 'Name', 'TrialStart', ...
                 'Timer', 0,...
-                'StateChangeConditions', {'Tup', 'GetSniff'},...
+                'StateChangeConditions', {'Tup', chooseState1},...
                 'OutputActions', {'PWM3', S.GUI.Intensity_cue, 'PWM5', 255}); 
             sma = AddState(sma, 'Name', 'GetSniff', ... 
                 'Timer', 0,...
@@ -364,8 +365,8 @@ function [sma, S] = PrepareStateMachine(S, trialTypes, currentTrial, stimTime, I
             end
             %%
             sma = AddState(sma, 'Name', 'TrialStart', ...
-                'Timer', 0,...
-                'StateChangeConditions', {'Tup', 'GetSniff'},...
+                'Timer', ITI(currentTrial),...
+                'StateChangeConditions', {'Tup', chooseState1},...
                 'OutputActions', startAction); 
             sma = AddState(sma, 'Name', 'GetSniff', ... 
                 'Timer', 0,...
@@ -373,12 +374,12 @@ function [sma, S] = PrepareStateMachine(S, trialTypes, currentTrial, stimTime, I
                 'OutputActions', sniffAction);
             sma = AddState(sma, 'Name', 'DeliverStim', ... 
                 'Timer', stimTime,...
-                'StateChangeConditions', {'Tup', 'InterTrialInterval'},...
+                'StateChangeConditions', {'Tup', 'exit'},...
                 'OutputActions', stimAction); 
             sma = AddState(sma, 'Name', 'InterTrialInterval', ...
                 'Timer', ITI(currentTrial),...
                 'StateChangeConditions', {'Tup', 'exit'},...
-                'OutputActions', {'PWM5', 255});
+                'OutputActions', {'BNC1', 1, 'PWM5', 255});
                 
     end
 end

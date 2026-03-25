@@ -8,11 +8,11 @@ function GUIparams_luminose_hf_sleep()
     S.GUIPanels.ProtocolSettings = {'muBarcodeDur', 'sigmaBarcodeDur'};
 
     % == Trial Params ==
-    S.GUI.maxTrials = 100000;  
+    S.GUI.maxTrials = 10000;  
     S.GUI.Typeprob = 0.5;
     
     % == Test Pulses ==
-    S.GUI.TestPulses = true;
+    S.GUI.TestPulses = false;
     S.GUIMeta.TestPulses.Style = 'checkbox';
     S.GUI.TestPulsesType = 2;
     S.GUIMeta.TestPulsesType.Style = 'popupmenu';

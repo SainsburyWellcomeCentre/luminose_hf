@@ -127,7 +127,7 @@ function luminose_hf_goNogo
         channelTypes(chanSniff) = 2; % Analog Input
         channelTypes(chanPhotodetector) = 2; % Analog Input
         channelTypes(chanFlowmeter) = 2; % Analog Input
-        channelTypes(chanNIDAQ) = 0; % Digital Input
+        channelTypes(chanNIDAQ) = 2; % Digital Input
         BpodSystem.FlexIOConfig.channelTypes = channelTypes;
         
         % Set sniff threshold for inhalation triggered stimulus
@@ -193,7 +193,7 @@ function luminose_hf_goNogo
         BpodSystem.ProtocolFigures.EncoderPlotFig = figure('Position', [1400 1035 350 350],'name','Encoder plot',...
                                                    'numbertitle','off', 'MenuBar', 'none', 'Resize', 'off');
         BpodSystem.GUIHandles.EncoderAxes = axes('Position', [.15 .15 .8 .8]);
-        liveEncoderPlot_hf_goNogo(BpodSystem.GUIHandles.EncoderAxes, 'init', 0);
+        % liveEncoderPlot_hf_goNogo(BpodSystem.GUIHandles.EncoderAxes, 'init', 0);
 
         %% Setup analog input module
         % A.InputRange(1:3) = {'-5V:5V', '-5V:5V', '-2.5V:2.5V'}; % set range to -5V:5V
@@ -271,12 +271,12 @@ function luminose_hf_goNogo
                         TrialStartTime = eventData.EventTimestamps(1); % First trial start time on REM clock is taken from this initial read
                     end
                     
-                    BpodSystem.Data.EncoderData{currentTrial} = R.readUSBStream(0); % Returns REM data up to event '0'
-                                                                                    % see {'RotaryEncoder1', ['#' 0]} in output actions of first state 
-                    BpodSystem.Data.EncoderData{currentTrial}.Times = BpodSystem.Data.EncoderData{currentTrial}.Times - BpodSystem.Data.TrialStartTimestamp(currentTrial);
-                    BpodSystem.Data.EncoderData{currentTrial}.EventTimestamps = ...
-                        BpodSystem.Data.EncoderData{currentTrial}.EventTimestamps - BpodSystem.Data.TrialStartTimestamp(currentTrial) ;
-    
+                    % BpodSystem.Data.EncoderData{currentTrial} = R.readUSBStream(0); % Returns REM data up to event '0'
+                    %                                                                 % see {'RotaryEncoder1', ['#' 0]} in output actions of first state 
+                    % BpodSystem.Data.EncoderData{currentTrial}.Times = BpodSystem.Data.EncoderData{currentTrial}.Times - BpodSystem.Data.TrialStartTimestamp(currentTrial);
+                    % BpodSystem.Data.EncoderData{currentTrial}.EventTimestamps = ...
+                    %     BpodSystem.Data.EncoderData{currentTrial}.EventTimestamps - BpodSystem.Data.TrialStartTimestamp(currentTrial) ;
+                    % 
                     %% Update plots
                     t3 = tic;
                     liveOutcomePlot_hf_goNogo(BpodSystem.GUIHandles.OutcomeAxes, 'update', BpodSystem.Data, nextTrialType);
@@ -297,21 +297,21 @@ function luminose_hf_goNogo
                     disp(['Updated response time plot: ', num2str(toc(t6))]);
 
                     t7 = tic;
-                    % Update rotary encoder plot
-                    if currentTrial == 1 % Only on the first trial, the first and second trial's trial-start timestamps will be retrieved in the rotary encoder data
-                                         % On all subsequent trials, only the next trial's start timestamp will be returned (because data is retrieved mid-trial)
-                        % For first trial, TrialStartTime is computed above
-                        NextTrialStartTime = BpodSystem.Data.EncoderData{currentTrial}.EventTimestamps(1);
-                    else
-                        TrialStartTime = NextTrialStartTime;
-                        NextTrialStartTime = BpodSystem.Data.EncoderData{currentTrial}.EventTimestamps(1);
-                    end
-                    BpodSystem.Data.EncoderData{currentTrial}.Times = BpodSystem.Data.EncoderData{currentTrial}.Times - TrialStartTime; % Align timestamps to state machine's trial time 0
-                    BpodSystem.Data.EncoderData{currentTrial}.EventTimestamps = ...
-                        BpodSystem.Data.EncoderData{currentTrial}.EventTimestamps - TrialStartTime; % Align event timestamps to state machine's trial time 0
-                    
+                    % % Update rotary encoder plot
+                    % if currentTrial == 1 % Only on the first trial, the first and second trial's trial-start timestamps will be retrieved in the rotary encoder data
+                    %                      % On all subsequent trials, only the next trial's start timestamp will be returned (because data is retrieved mid-trial)
+                    %     % For first trial, TrialStartTime is computed above
+                    %     NextTrialStartTime = BpodSystem.Data.EncoderData{currentTrial}.EventTimestamps(1);
+                    % else
+                    %     TrialStartTime = NextTrialStartTime;
+                    %     NextTrialStartTime = BpodSystem.Data.EncoderData{currentTrial}.EventTimestamps(1);
+                    % end
+                    % BpodSystem.Data.EncoderData{currentTrial}.Times = BpodSystem.Data.EncoderData{currentTrial}.Times - TrialStartTime; % Align timestamps to state machine's trial time 0
+                    % BpodSystem.Data.EncoderData{currentTrial}.EventTimestamps = ...
+                    %     BpodSystem.Data.EncoderData{currentTrial}.EventTimestamps - TrialStartTime; % Align event timestamps to state machine's trial time 0
+                    % 
                     TrialDuration = BpodSystem.Data.TrialEndTimestamp(currentTrial)-BpodSystem.Data.TrialStartTimestamp(currentTrial);
-                    liveEncoderPlot_hf_goNogo(BpodSystem.GUIHandles.EncoderAxes, 'update', 0, BpodSystem.Data.EncoderData{currentTrial},TrialDuration);
+                    % liveEncoderPlot_hf_goNogo(BpodSystem.GUIHandles.EncoderAxes, 'update', 0, BpodSystem.Data.EncoderData{currentTrial},TrialDuration);
                     
                     disp(['Updated rotary encoder plot: ', num2str(toc(t7))]);
 
