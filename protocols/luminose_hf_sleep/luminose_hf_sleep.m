@@ -74,7 +74,8 @@ function luminose_hf_sleep
     %     end
     % else
     stimTime = 0;
-    ITI = 2 * ones(1, S.GUI.maxTrials);
+    ITI = round(2 + 3 * rand(1,S.GUI.maxTrials), 3);
+    
     % end
 
     %% Begin plotting
@@ -177,7 +178,7 @@ function luminose_hf_sleep
                 if currentTrial < S.GUI.maxTrials
                     trialManager.startTrial(); % Start processing the next trial's events (call with no argument since SM was already sent)
                 end
-                
+                disp(ITI(currentTrial))
                 %%
                 if ~isempty(fieldnames(RawEvents))
                     BpodSystem.Data = AddTrialEvents(BpodSystem.Data,RawEvents);
@@ -365,7 +366,7 @@ function [sma, S] = PrepareStateMachine(S, trialTypes, currentTrial, stimTime, I
             end
             %%
             sma = AddState(sma, 'Name', 'TrialStart', ...
-                'Timer', ITI(currentTrial),...
+                'Timer', 0,...
                 'StateChangeConditions', {'Tup', chooseState1},...
                 'OutputActions', startAction); 
             sma = AddState(sma, 'Name', 'GetSniff', ... 
