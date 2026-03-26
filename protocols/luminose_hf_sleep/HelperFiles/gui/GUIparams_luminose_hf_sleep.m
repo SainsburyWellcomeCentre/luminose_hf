@@ -2,10 +2,11 @@ function GUIparams_luminose_hf_sleep()
     global S
     
     %% ===== Trials =====
-    S.GUITabs.Trials = {'ProtocolSettings', 'TestPulses', 'TrialParams'};
+    S.GUITabs.Trials = {'TreatmentType', 'ProtocolSettings', 'TestPulses', 'TrialParams'};
     S.GUIPanels.TrialParams = {'maxTrials', 'Typeprob'};
     S.GUIPanels.TestPulses = {'TestPulses', 'TestPulsesType'};
-    S.GUIPanels.ProtocolSettings = {'muBarcodeDur', 'sigmaBarcodeDur'};
+    S.GUIPanels.TreatmentType = {'Ephys', 'EEG', 'Drug'};
+    S.GUIPanels.ProtocolSettings = {'Sleep', 'muBarcodeDur', 'sigmaBarcodeDur'};
 
     % == Trial Params ==
     S.GUI.maxTrials = 10000;  
@@ -18,10 +19,21 @@ function GUIparams_luminose_hf_sleep()
     S.GUIMeta.TestPulsesType.Style = 'popupmenu';
     S.GUIMeta.TestPulsesType.String = {'SinglePulse', 'PairedPulse'};
     
+    % == Treatment Type ==
+    S.GUI.Ephys = false;
+    S.GUIMeta.Ephys.Style = 'checkbox';
+    S.GUI.EEG = false;
+    S.GUIMeta.EEG.Style = 'checkbox';
+    S.GUI.Drug = false;
+    S.GUIMeta.Drug.Style = 'checkbox';
+
     % == Protocol Settings ==
     S.GUI.muBarcodeDur = 0.2;
     S.GUI.sigmaBarcodeDur = 0.05;
-    
+    S.GUI.Sleep = 1;
+    S.GUIMeta.Sleep.Style = 'popupmenu';
+    S.GUIMeta.Sleep.String = {'Pre-sleep', 'Post-sleep', 'During-sleep', 'None'};
+
     %% OptoStim
     S.GUITabs.OptoStim = {'MaskLED', 'SinglePulse', 'PairedPulse'};
 
@@ -47,15 +59,7 @@ function GUIparams_luminose_hf_sleep()
     S.GUI.Duration_mask = 0.01;
     
     %% Treatment
-    S.GUITabs.Ephys = {'DrugSpecs', 'EEGSpecs', 'EphysSpecs', 'TreatmentType'};
-    
-    S.GUIPanels.TreatmentType = {'Ephys', 'EEG', 'Drug'};
-    S.GUI.Ephys = false;
-    S.GUIMeta.Ephys.Style = 'checkbox';
-    S.GUI.EEG = false;
-    S.GUIMeta.EEG.Style = 'checkbox';
-    S.GUI.Drug = false;
-    S.GUIMeta.Drug.Style = 'checkbox';
+    S.GUITabs.Ephys = {'DrugSpecs', 'EEGSpecs', 'EphysSpecs'};
     
     S.GUIPanels.EphysSpecs = {'EphysType', 'EphysCoords'};
     S.GUI.EphysType = 1;

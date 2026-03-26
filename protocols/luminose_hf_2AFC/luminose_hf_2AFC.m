@@ -5,12 +5,15 @@ function luminose_hf_2AFC
     global BpodSystem S luminose dmdModel olfModel
     beep('off'); % native matlab error sounds OFF
     BpodSystem.SoftCodeHandlerFunction = 'SoftCodeHandler_luminose_hf_2AFC';
-    ManualOverride('OP', 5);
+    ManualOverride('OP', 5); ManualOverride('OP', 5); ManualOverride('OP', 5); disp('rig lights toggled');
 
     %% Define luminose constants
     % Add folders and save path
     luminose = LuminoseConstants();
-    
+    currentDataFile = split(BpodSystem.Path.CurrentDataFile, '\');
+    log_file = char(fullfile(join(currentDataFile(1:end-1), '\'), sprintf('output_log_%s.txt', datestr(now, 'yyyy-mm-dd_HH-MM-SS'))));
+    diary(log_file);
+
     % Display confirmation
     disp('Luminose experiment initialized:');
     disp("=====  Folders =====");
@@ -73,7 +76,7 @@ function luminose_hf_2AFC
     Left = S.GUIMeta.CueType.String{S.GUI.LeftType};
     Right = S.GUIMeta.CueType.String{S.GUI.RightType};
 
-    if S.GUI.VariableITI
+    if S.GUI.VariableITI % questionable method
         ITI = S.GUI.InterTrialInterval * (1.01 .^ (0:S.GUI.maxTrials-1)); % Generate incremental ITI values using a geometric progression
         ITI(ITI > S.GUI.MaxITI) = S.GUI.MaxITI; % Enforce maximum ITI duration for all trials
         ITI = ITI(randperm(length(ITI)))';
@@ -95,7 +98,7 @@ function luminose_hf_2AFC
     BpodSystem.ProtocolFigures.AccuracyPlot = figure('Position', [1040 1035 350 350], ...
         'name', 'Accuracy Plot', 'numbertitle', 'off', 'MenuBar', 'none', 'Resize', 'on');
     BpodSystem.GUIHandles.AccuracyAxes = axes('Position', [.15 .12 .8 .8]);
-    liveBarPlot_hf_2AFC(BpodSystem.GUIHandles.AccuracyAxes, 'init', []);
+    liveAccuracyPlot_hf_2AFC(BpodSystem.GUIHandles.AccuracyAxes, 'init', []);
     
     % % Live psychometric curve
     % BpodSystem.ProtocolFigures.PsychometricPlot = figure('Position', [1400 645 450 350], ...
@@ -213,15 +216,10 @@ function luminose_hf_2AFC
         
         
         %% Prepare and start first trial
-        ManualOverride('OP', 5);
-        if strcmp(cue, 'Odour') % currently coded such that cue and stim cannot both be odours at the same trial 
-            SoftCodeHandler_luminose_hf_2AFC(1);
-        elseif any([strcmp(Left, 'Odour'), strcmp(Right, 'Odour')])
-            SoftCodeHandler_luminose_hf_2AFC(currentTrialType + 1);
-        end
+        ManualOverride('OP', 5); ManualOverride('OP', 5); ManualOverride('OP', 5); disp('rig lights toggled');
         trialManager = BpodTrialManager;
         sma = PrepareStateMachine(S, currentTrialType, 1, ITI, emulator); % Prepare state machine for trial 1 with empty "current events" variable
-        sessionStart = datestr(datetime('now'), 'yyyy-mm-dd HH:MM:SS'); disp(['Session: ', sessionStart, ' | Trial: ', num2str(1)]);
+        sessionStart = datestr(datetime('now'), 'yyyy-mm-dd HH:MM:SS'); 
         trialManager.startTrial(sma); % Sends & starts running first trial's state machine. A MATLAB timer object updates the 
                                   % console UI, while code below proceeds in parallel.
         %% Main trial loop
@@ -241,7 +239,7 @@ function luminose_hf_2AFC
                 
                 if currentTrial < S.GUI.maxTrials
                     [sma, S] = PrepareStateMachine(S, nextTrialType, currentTrial+1, ITI, emulator);
-                    disp(['Session: ', sessionStart, ' | Trial: ', num2str(currentTrial+1)]);
+                    disp(['Session: ', sessionStart, ' | Trial: ', num2str(currentTrial)]);
                     SendStateMachine(sma, 'RunASAP');
                 end
                 
@@ -264,7 +262,7 @@ function luminose_hf_2AFC
                     BpodSystem.Data.TrialSettings(currentTrial) = S;
                     BpodSystem.Data.TrialTypes(currentTrial) = currentTrialType;
                     BpodSystem.Data = BpodNotebook('sync', BpodSystem.Data); % Sync with Bpod notebook plugin
-        
+                    
                     % Save rotary encoder data
                     if currentTrial == 1
                         eventData = R.readUSBStream(0); % Read and dump any REM data captured before first trial start. Subsequent REM data will be saved. 
@@ -272,17 +270,14 @@ function luminose_hf_2AFC
                     end
                     BpodSystem.Data.EncoderData{currentTrial} = R.readUSBStream(0); % Returns REM data up to event '0'
                                                                                     % see {'RotaryEncoder1', ['#' 0]} in output actions of first state 
-                    BpodSystem.Data.EncoderData{currentTrial}.Times = BpodSystem.Data.EncoderData{currentTrial}.Times - BpodSystem.Data.TrialStartTimestamp(currentTrial);
-                    BpodSystem.Data.EncoderData{currentTrial}.EventTimestamps = ...
-                        BpodSystem.Data.EncoderData{currentTrial}.EventTimestamps - BpodSystem.Data.TrialStartTimestamp(currentTrial) ;
-        
+
                     %% Update plots  
                     t3 = tic;
                     liveOutcomePlot_hf_2AFC(BpodSystem.GUIHandles.OutcomeAxes, 'update', BpodSystem.Data, nextTrialType);
                     disp(['Updated outcome plot: ', num2str(toc(t3))]);
 
                     t4 = tic;
-                    liveBarPlot_hf_2AFC(BpodSystem.GUIHandles.AccuracyAxes, 'update', BpodSystem.Data);
+                    liveAccuracyPlot_hf_2AFC(BpodSystem.GUIHandles.AccuracyAxes, 'update', BpodSystem.Data);
                     disp(['Updated bar plot: ', num2str(toc(t4))]);
 
                     % livePsychometricPlot_hf_2AFC(BpodSystem.GUIHandles.PsychometricAxes, 'update', ...
@@ -319,7 +314,10 @@ function luminose_hf_2AFC
                     SaveOnlinePlots;
                     disp(['Saved data: ', num2str(toc(t8))]);
                 end
-            catch
+            catch ME
+                disp('=== CRASH ===');
+                disp(ME.message);
+                disp(ME.stack(1));
                 cleanup; % Save FlexI/O analog input data
                 ManualOverride('OP', 5);
                 break
@@ -349,7 +347,7 @@ function luminose_hf_2AFC
                     
                     liveOutcomePlot_hf_2AFC(BpodSystem.GUIHandles.OutcomeAxes, 'update', BpodSystem.Data, nextTrialType);
     
-                    liveBarPlot_hf_2AFC(BpodSystem.GUIHandles.AccuracyAxes, 'update', BpodSystem.Data);
+                    liveAccuracyPlot_hf_2AFC(BpodSystem.GUIHandles.AccuracyAxes, 'update', BpodSystem.Data);
                     
                     % livePsychometricPlot_hf_2AFC(BpodSystem.GUIHandles.PsychometricAxes, 'update', ...
                     %     BpodSystem.Data, [1]);
@@ -364,7 +362,7 @@ function luminose_hf_2AFC
                 end
             catch
                 cleanup; % Save FlexI/O analog input data
-                ManualOverride('OP', 5);
+                ManualOverride('OP', 5); ManualOverride('OP', 5); ManualOverride('OP', 5); disp('rig lights toggled');
                 break
             end
         end
@@ -387,13 +385,12 @@ function [sma, S] = PrepareStateMachine(S, currentTrialType, currentTrial, ITI, 
         % startAction{end+1} = 'Serial3'; startAction{end+1} = ['#' 1]; % analog input module sync
     end
     cueAction = {'RotaryEncoder1', '*Z'};
-    startAction = {}; % send odour info to olfactometer and wait for BNC2 trigger
     switch cue
         case 'Odour'
             cueAction{end+1} = 'BNC2'; cueAction{end+1} = 1;
             switch S.GUI.TrainingLevel
                 case 1 % Habituation
-                    startAction = {}; 
+                    % do nothing
                 case 2 % Training
                     startAction{end+1} = 'SoftCode'; startAction{end+1} = 1;
             end
@@ -413,7 +410,7 @@ function [sma, S] = PrepareStateMachine(S, currentTrialType, currentTrial, ITI, 
                     stimAction{end+1} = 'BNC2'; stimAction{end+1} = 1;
                     switch S.GUI.TrainingLevel
                         case 1 % Habituation
-                            startAction = {}; 
+                            % do nothing
                         case 2 % Training
                             startAction{end+1} = 'SoftCode'; startAction{end+1} = 2;
                     end
@@ -461,7 +458,7 @@ function [sma, S] = PrepareStateMachine(S, currentTrialType, currentTrial, ITI, 
                     stimAction{end+1} = 'BNC2'; stimAction{end+1} = 1;
                     switch S.GUI.TrainingLevel
                         case 1 % Habituation
-                            startAction = {}; 
+                            % do nothing
                         case 2 % Training
                             startAction{end+1} = 'SoftCode'; startAction{end+1} = 3;
                     end
@@ -620,7 +617,7 @@ function [sma, S] = PrepareStateMachine(S, currentTrialType, currentTrial, ITI, 
             end
             %%
             sma = AddState(sma, 'Name', 'TrialStart', ...
-                'Timer', 0,...
+                'Timer', ITI(currentTrial)/2,...
                 'StateChangeConditions', {'Tup', 'ShowCue'},...
                 'OutputActions', startAction); % light on
             sma = AddState(sma, 'Name', 'ShowCue', ... % Turn on LED of port1. Wait for InitDelay seconds. Ensure that wheel does not move.
@@ -656,7 +653,7 @@ function [sma, S] = PrepareStateMachine(S, currentTrialType, currentTrial, ITI, 
                 'StateChangeConditions', {'Tup', 'InterTrialInterval'},...
                 'OutputActions', {});
             sma = AddState(sma, 'Name', 'InterTrialInterval', ...
-                'Timer', ITI(currentTrial),...
+                'Timer', ITI(currentTrial)/2,...
                 'StateChangeConditions', {'Tup', 'exit'},...
                 'OutputActions', {});
     end
@@ -686,6 +683,7 @@ function cleanup()
     % SaveBpodProtocolSettings;
     % A.endAcq; % Close Oscope GUI
     % A.stopReportingEvents; % Stop sending events to state machine
+    diary off;
 end
 
 %% Save online plots

@@ -180,7 +180,7 @@ function varargout = LuminoseParameterGUI_hf_2AFC(varargin)
                         switch lower(ThisParamStyle)
                             case 'edit'
                                 BpodSystem.GUIData.ParameterGUI.Styles(ParamNum) = 1;
-                                BpodSystem.GUIHandles.ParameterGUI.Params(ParamNum) = uicontrol(htab,'Style', 'edit', 'String', num2str(ThisParam), 'Position', [HPos+220 VPos+InPanelPos+2 200 25], 'FontWeight', 'normal', 'FontSize', 12, 'BackgroundColor','white', 'FontName', 'Arial','HorizontalAlignment','Center');
+                                BpodSystem.GUIHandles.ParameterGUI.Params(ParamNum) = uicontrol(htab,'Style', 'edit', 'String', mat2str(ThisParam), 'Position', [HPos+220 VPos+InPanelPos+2 200 25], 'FontWeight', 'normal', 'FontSize', 12, 'BackgroundColor','white', 'FontName', 'Arial','HorizontalAlignment','Center');
                             case 'edittext'
                                 BpodSystem.GUIData.ParameterGUI.Styles(ParamNum) = 8;
                                 BpodSystem.GUIHandles.ParameterGUI.Params(ParamNum) = uicontrol(htab,'Style', 'edit', 'String', ThisParam, 'Position', [HPos+220 VPos+InPanelPos+2 200 25], 'FontWeight', 'normal', 'FontSize', 12, 'BackgroundColor','white', 'FontName', 'Arial','HorizontalAlignment','Center');
@@ -271,7 +271,7 @@ function varargout = LuminoseParameterGUI_hf_2AFC(varargin)
                 % ---Logo Display Panel ---
                 if contains(lower(TabNames{t}),'trial')
                     panelName = 'logo';
-                    ThisPanelHeight = 250;  % Adjust height as needed
+                    ThisPanelHeight = 125;  % Adjust height as needed
                     
                     BpodSystem.GUIHandles.ParameterGUI.Panels.(panelName) = uipanel(htab,...
                         'title',sprintf(''),'FontSize',12,'FontWeight','Bold',...
@@ -407,10 +407,10 @@ function varargout = LuminoseParameterGUI_hf_2AFC(varargin)
                 ThisParamCurrentValue = Params.GUI.(ThisParamName);
                 switch ThisParamStyle
                     case 1 % Edit
-                        GUIParam = str2double(get(ThisParamHandle, 'String'));
-                        if single(GUIParam) ~= single(ThisParamLastValue)
+                        GUIParam = str2num(get(ThisParamHandle, 'String'));
+                        if ~isequal(single(GUIParam), single(ThisParamLastValue))
                             Params.GUI.(ThisParamName) = GUIParam;
-                        elseif single(ThisParamCurrentValue) ~= single(ThisParamLastValue)
+                        elseif ~isequal(single(ThisParamCurrentValue), single(ThisParamLastValue))
                             set(ThisParamHandle, 'String', num2str(ThisParamCurrentValue));
                         end
                     case 2 % Text
@@ -422,20 +422,20 @@ function varargout = LuminoseParameterGUI_hf_2AFC(varargin)
                         set(ThisParamHandle, 'String', Text);
                     case 3 % Checkbox
                         GUIParam = get(ThisParamHandle, 'Value');
-                        if GUIParam ~= ThisParamLastValue
+                        if ~isequal(GUIParam, ThisParamLastValue)
                             Params.GUI.(ThisParamName) = GUIParam;
-                        elseif ThisParamCurrentValue ~= ThisParamLastValue
+                        elseif ~isequal(ThisParamCurrentValue, ThisParamLastValue)
                             set(ThisParamHandle, 'Value', ThisParamCurrentValue);
                         end
                     case 4 % Popupmenu
                         GUIParam = get(ThisParamHandle, 'Value');
-                        if GUIParam ~= ThisParamLastValue
+                        if ~isequal(GUIParam, ThisParamLastValue)
                             Params.GUI.(ThisParamName) = GUIParam;
-                        elseif ThisParamCurrentValue ~= ThisParamLastValue
+                        elseif ~isequal(ThisParamCurrentValue, ThisParamLastValue)
                             set(ThisParamHandle, 'Value', ThisParamCurrentValue);
                         end
                 end
-                if ThisParamStyle ~= 5
+                if ~isequal(ThisParamStyle, 5)
                     BpodSystem.GUIData.ParameterGUI.LastParamValues{p} = Params.GUI.(ThisParamName);
                 end
             end

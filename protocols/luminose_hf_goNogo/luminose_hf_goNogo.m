@@ -75,7 +75,7 @@ function luminose_hf_goNogo
     CSplus = S.GUIMeta.CSplusType.String{S.GUI.CSplusType};
     CSminus = S.GUIMeta.CSminusType.String{S.GUI.CSminusType};
     
-    if S.GUI.VariableITI
+    if S.GUI.VariableITI % questionable method
         ITI = S.GUI.InterTrialInterval * (1.01 .^ (0:S.GUI.maxTrials-1)); % Generate incremental ITI values using a geometric progression
         ITI(ITI > S.GUI.MaxITI) = S.GUI.MaxITI; % Enforce maximum ITI duration for all trials
         ITI = ITI(randperm(length(ITI)))';
@@ -217,7 +217,7 @@ function luminose_hf_goNogo
         ManualOverride('OP', 5); ManualOverride('OP', 5); ManualOverride('OP', 5); disp('rig lights toggled');
         trialManager = BpodTrialManager;
         sma = PrepareStateMachine(S, currentTrialType, 1, ITI, emulator); % Prepare state machine for trial 1 with empty "current events" variable
-        sessionStart = datestr(datetime('now'), 'yyyy-mm-dd HH:MM:SS');
+        sessionStart = datestr(datetime('now'), 'yyyy-mm-dd HH:MM:SS'); 
         trialManager.startTrial(sma); % Sends & starts running first trial's state machine. A MATLAB timer object updates the 
                                   % console UI, while code below proceeds in parallel.
         %% Main trial loop
@@ -357,7 +357,10 @@ function luminose_hf_goNogo
                 if BpodSystem.Status.BeingUsed == 0 % If protocol was stopped, exit the loop
                     return
                 end
-            catch
+            catch ME
+                disp('=== CRASH ===');
+                disp(ME.message);
+                disp(ME.stack(1));
                 cleanup; % Save FlexI/O analog input data
                 ManualOverride('OP', 5); ManualOverride('OP', 5); ManualOverride('OP', 5); disp('rig lights toggled');
                 break
