@@ -5,12 +5,15 @@ function luminose_hf_goNogo
     global BpodSystem S luminose dmdModel olfModel
     beep('off'); % native matlab error sounds OFF
     BpodSystem.SoftCodeHandlerFunction = 'SoftCodeHandler_luminose_hf_goNogo';
-    ManualOverride('OP', 5);
+    ManualOverride('OP', 5); disp('rig lights toggled');
 
     %% Define luminose constants
-    % Add folders and save path
+    % Add folders and save output log
     luminose = LuminoseConstants();
-    
+    currentDataFile = split(BpodSystem.Path.CurrentDataFile, '\');
+    log_file = char(fullfile(join(currentDataFile(1:end-1), '\'), sprintf('output_log_%s.txt', datestr(now, 'yyyy-mm-dd_HH-MM-SS'))));
+    diary(log_file);
+
     % Display confirmation
     disp('Luminose experiment initialized:');
     disp("=====  Folders =====");
@@ -35,7 +38,6 @@ function luminose_hf_goNogo
     launchBonsai = strcmp(choice, 'Yes');
 
     if luminose.bonsai.launch_bonsai && launchBonsai
-        currentDataFile = split(BpodSystem.Path.CurrentDataFile, '\');
         currentFilePrefix = currentDataFile{end}; 
         luminose.bonsai.currentFilePrefix = currentFilePrefix(1:end-4);
         luminose.bonsai.dataPath = fullfile(join(currentDataFile(1:end-2), '\'), 'Session Videos');
@@ -212,7 +214,7 @@ function luminose_hf_goNogo
         
         
         %% Prepare and start first trial 
-        ManualOverride('OP', 5);
+        ManualOverride('OP', 5); disp('rig lights toggled');
         trialManager = BpodTrialManager;
         sma = PrepareStateMachine(S, currentTrialType, 1, ITI, emulator); % Prepare state machine for trial 1 with empty "current events" variable
         sessionStart = datestr(datetime('now'), 'yyyy-mm-dd HH:MM:SS');
@@ -314,7 +316,7 @@ function luminose_hf_goNogo
                 end
             catch
                 cleanup; % Save FlexI/O analog input data
-                ManualOverride('OP', 5);
+                ManualOverride('OP', 5); disp('rig lights toggled');
                 break
             end  
         end
@@ -357,7 +359,7 @@ function luminose_hf_goNogo
                 end
             catch
                 cleanup; % Save FlexI/O analog input data
-                ManualOverride('OP', 5);
+                ManualOverride('OP', 5); disp('rig lights toggled');
                 break
             end
         end
@@ -598,6 +600,7 @@ function cleanup()
     % SaveBpodProtocolSettings;
     % A.endAcq; % Close Oscope GUI
     % A.stopReportingEvents; % Stop sending events to state machine
+    diary off;
 end
 
 %% Save online plots

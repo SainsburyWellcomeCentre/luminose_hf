@@ -29,10 +29,14 @@ function olfactometer_hf_goNogo(code)
             end
            
         case 3  % CS-
-            v = [11, 16]; p = [0.5, 0.5]; dc = [1, 1];
-            idx = randsample(1:numel(v), 1, true, p);
-            odour_valves = v(idx);
-            duty_cycles = dc(idx);
+            if length(S.GUI.probs_CSminus) > 1
+                idx = randsample(size(S.GUI.valves_CSminus, 1), 1, true, S.GUI.probs_CSminus);
+                odour_valves = S.GUI.valves_CSminus(idx, :);
+                duty_cycles = S.GUI.dutyCycles_CSminus(idx, :);
+            else
+                odour_valves = S.GUI.valves_CSminus;
+                duty_cycles = S.GUI.dutyCycles_CSminus;
+            end
             
         otherwise
             disp(['Unknown SoftCode received: ' num2str(code)]);
@@ -42,10 +46,11 @@ function olfactometer_hf_goNogo(code)
     if duty_cycles == 0
         duty_cycles = olfModel.get_odour_dutycycles(odour_valves);
     end
-    disp(odour_valves);
+    disp(odour_valves); disp(duty_cycles);
     % Run olfactometer sequence
     olfModel.play_valve_sequence(odour_valves, duty_cycles);
 
-    S.GUI.delivered_odours = odour_valves;
-    S.GUI.delivered_dutyCycles = duty_cycles;
+    types = {'cue', 'CSplus', 'CSminus'};
+    S.GUI.delivered_odours.(types{code}) = odour_valves;
+    S.GUI.delivered_dutyCycles.(types{code}) = duty_cycles;
 end
