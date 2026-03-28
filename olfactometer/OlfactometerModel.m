@@ -148,58 +148,63 @@ classdef OlfactometerModel < handle
 
         function dutycycles = get_odour_dutycycles(self, valve_num)
 
-            chemTable = readtable('odour_chemicals.tsv', 'FileType', 'text', 'Delimiter', '\t');
+            % Load tables
+            bottleTable = readtable('odour_bottles.tsv', 'FileType', 'text', 'Delimiter', '\t');
+            chemTable   = readtable('odour_chemicals.tsv', 'FileType', 'text', 'Delimiter', '\t');
+        
+            n = height(bottleTable);
+        
             self.bottles = struct( ...
-                'Name',   {'BL1','BL2','C3cA','C4cA','C3cB','C4cB','C3f','O','BL9','BL10','MeA','MwB','MeB','BL14','MwA','C4f'}, ...
-                'Chemicals', { ...
-                    {'AIR'}, ...
-                    {'AIR'}, ...
-                    {'MES'}, ...
-                    {'CIL'}, ...
-                    {'DMB'}, ...
-                    {'GER'}, ...
-                    {'MBZ'}, ...
-                    {'HAP'}, ...
-                    {'AIR'}, ...
-                    {'AIR'}, ...
-                    {'ATR','ECP'}, ...
-                    {'AIR'}, ...
-                    {'MTR','FCH'}, ...
-                    {'ACP','GUA'}, ...
-                    {'MAP','CYH'}, ...
-                    {'CEN'} ...
-                } ...
+                'Name', [], ...
+                'Chemicals', [], ...
+                'Ratios', [], ...
+                'Saturated_ppm', [], ...
+                'DutyCycle', [] ...
             );
-            
-            for i = 1:numel(self.bottles)
-                chems = self.bottles(i).Chemicals;
+        
+            target_ppm = 20;
+        
+            for i = 1:n
+                % --- Name ---
+                self.bottles(i).Name = string(bottleTable.Name{i});
+        
+                % --- Chemicals ---
+                chems = strtrim(strsplit(bottleTable.Chemicals{i}, ','));
+                self.bottles(i).Chemicals = chems;
+        
+                % --- Ratios ---
+                ratios = str2double(strsplit(bottleTable.Ratios{i}, ','));
+                ratios = ratios / sum(ratios); % normalize
+                self.bottles(i).Ratios = ratios;
+        
+                % --- Lookup saturated ppm for each chemical ---
                 sat_vals = zeros(1, numel(chems));
+        
                 for j = 1:numel(chems)
                     idx = strcmpi(chemTable.Code, chems{j});
+        
                     if any(idx)
                         sat_vals(j) = chemTable.Saturated_ppm(idx);
                     else
                         sat_vals(j) = NaN;
                     end
                 end
-                self.bottles(i).Saturated_ppm = sat_vals;
-            end
         
-            target_ppm = 20;
-            
-            for i = 1:numel(self.bottles)
-                sat_ppms = self.bottles(i).Saturated_ppm;
-            
-                if isempty(sat_ppms) || all(isnan(sat_ppms))
-                    duty = NaN;  % skip missing data
+                self.bottles(i).Saturated_ppm = sat_vals;
+        
+                % --- Compute effective saturation (mixture-aware) ---
+                if all(isnan(sat_vals))
+                    duty = NaN;
                 else
-                    mean_sat = mean(sat_ppms, 'omitnan');
+                    mean_sat = sum(sat_vals .* ratios, 'omitnan'); % weighted
                     duty = min(max(target_ppm / mean_sat, 0.05), 1);
                 end
-            
+        
                 self.bottles(i).DutyCycle = duty;
             end
-            dutycycles = [self.bottles(valve_num).DutyCycle];
+        
+            dutycycles = self.bottles(valve_num).DutyCycle;
+        
         end
     end
 end
