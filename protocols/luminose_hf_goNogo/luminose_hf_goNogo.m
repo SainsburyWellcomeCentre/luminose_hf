@@ -31,13 +31,17 @@ function luminose_hf_goNogo
     olfModel = OlfactometerModel(luminose.olfactometer, true);
     
     %% Launch bonsai
-    % Ask user whether to launch Bonsai
-    choice = questdlg('Launch Bonsai workflow?', ...
-        'Launch Bonsai', ...
-        'Yes', 'No', 'Yes');   % default = Yes
-    launchBonsai = strcmp(choice, 'Yes');
+    launchBonsai = false;
+    if luminose.bonsai.launch_bonsai
+        % Ask user whether to launch Bonsai
+        choice = questdlg('Launch Bonsai workflow?', ...
+            'Launch Bonsai', ...
+            'Yes', 'No', 'Yes');   % default = Yes
+        launchBonsai = strcmp(choice, 'Yes');
+    end
 
-    if luminose.bonsai.launch_bonsai && launchBonsai
+    if launchBonsai
+        currentDataFile = split(BpodSystem.Path.CurrentDataFile, '\');
         currentFilePrefix = currentDataFile{end}; 
         luminose.bonsai.currentFilePrefix = currentFilePrefix(1:end-4);
         luminose.bonsai.dataPath = fullfile(join(currentDataFile(1:end-2), '\'), 'Session Videos');

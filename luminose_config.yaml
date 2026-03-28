@@ -26,7 +26,6 @@ olfactometer:
   mapFile: "C:\\Users\\harrislab\\luminose_hf\\olfactometer\\canberra_all_mds.csv"
   odourChemicalsFile: "C:\\Users\\harrislab\\luminose_hf\\olfactometer\\odour_chemicals.tsv"
   odourBottlesFile: "C:\\Users\\harrislab\\luminose_hf\\olfactometer\\odour_bottles.tsv"
-  sequencesFile: "C:\\Users\\harrislab\\luminose_hf\\olfactometer\\sequences.tsv"
   
   # Back valves configuration
   backValves:
@@ -65,7 +64,7 @@ dmd:
 
 # Bonsai workflow configuration
 bonsai:
-  launch_bonsai: true
+  launch_bonsai: false
   exePath: "C:\\Users\\harrislab\\AppData\\Local\\Bonsai\\bonsai.exe"
   # exePath: "/home/username/.local/share/Bonsai/bonsai"  # Linux/Mac example
   workflowPath: "C:\\Users\\harrislab\\luminose_hf\\bonsai\\BehaviourCamerasAcquisition.bonsai"
