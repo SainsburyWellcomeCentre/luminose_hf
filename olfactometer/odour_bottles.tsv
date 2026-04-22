@@ -1,17 +1,17 @@
-Name	Chemicals	Ratios	Min ppm	Max ppm	CV ppm	Error?
-BL1	AIR	1	0	0	0 %	False
-BL2	AIR	1	0	0	0 %	False
-C3cA	MES	1	1.11	11.12	0 %	False
-C4cA	CIL	1	0.65	6.47	0 %	False
-C3cB	DMB	1	15.26	152.57	0 %	False
-C4cB	GER	1	0.97	9.72	0 %	False
-C3f	MBZ	1	12.34	123.38	0 %	False
-O	HAP	1	2.78	27.77	0 %	False
-BL9	AIR	1	0	0	0 %	False
-BL10	AIR	1	0	0	0 %	False
-MeA	ATR, ECP	0.5, 0.5	53.00	530.03	3 %	False
-MwB	ACP, GUA	0.5, 0.5	8.98	89.76	89 %	False
-MeB	MTR, FCH	0.5, 0.5	13.75	137.50	132 %	False
-BL14	AIR	1	0.00	0.00	0 %	False
-MwA	MAP, CYH	0.5, 0.5	13.25	132.45	86 %	False
-C4f	CEN	1	61.69	616.88	0 %	False
+Name	Chemicals	Ratios	Min ppm	Max ppm	CV ppm	Error?	Notes
+BL1	AIR	1	0	0	0 %	False	Clean Air
+BL2	AIR	1	0	0	0 %	False	Clean Air
+C3cA	MES	1	1.11	11.12	0 %	False	wintergreen
+C4cA	CIL	1	0.65	6.47	0 %	False	rosy
+C3cB	DMB	1	15.26	152.57	0 %	False	nutty
+C4cB	GER	1	0.97	9.72	0 %	False	flowers
+C3f	MBZ	1	12.34	123.38	0 %	False	phenolic
+O	HAP	1	2.78	27.77	0 %	False	eucalyptus
+BL9	AIR	1	0	0	0 %	False	Clean Air
+BL10	AIR	1	0	0	0 %	False	Clean Air
+MeA	ATR, ECP	0.5, 0.5	53.00	530.03	3 %	False	pineapple+cardamom
+MwB	ACP, GUA	0.5, 0.5	8.98	89.76	89 %	False	almond+plaster
+MeB	MTR, FCH	0.5, 0.5	13.75	137.50	132 %	False	grapes+fennel
+BL14	AIR	1	0.00	0.00	0 %	False	nil
+MwA	MAP, CYH	0.5, 0.5	13.25	132.45	86 %	False	almond+camphor
+C4f	CEN	1	61.69	616.88	0 %	False	mint/rosemary

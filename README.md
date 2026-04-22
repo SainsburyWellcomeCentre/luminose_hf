@@ -1,33 +1,67 @@
 # luminose_hf
-### Codebase for head-fixed mouse behaviour with patterned optogenetics and odour delivery.
 
-## Installation:
-Make sure you have installed [git](https://git-scm.com/downloads). Requires [MATLAB](https://uk.mathworks.com/help/install/ug/install-products-with-internet-connection.html) with the following add-ons found in the add-on explorer:
+MATLAB codebase for head-fixed mouse behaviour with patterned optogenetics, odour delivery, and Bpod-controlled task logic.
+
+## Installation
+
+Install [git](https://git-scm.com/downloads) and [MATLAB](https://uk.mathworks.com/help/install/ug/install-products-with-internet-connection.html) with these add-ons:
+
 1. [Data Acquisition Toolbox](https://uk.mathworks.com/help/daq/index.html?s_tid=CRUX_lftnav) for olfactometer control
 2. [Signal Processing Toolbox](https://uk.mathworks.com/help/signal/index.html?s_tid=srchtitle_support_results_1_signal%2520processing%2520toolbox)
 3. [DSP System Toolbox](https://uk.mathworks.com/help/dsp/index.html?s_tid=srchtitle_support_results_1_dsp%2520system%2520toolbox)
 4. [Image Processing Toolbox](https://uk.mathworks.com/help/images/index.html?s_tid=srchtitle_support_results_1_image%2520processing%2520toolbox)
-   
-### Dependencies:
-1. [Bpod_gen2](https://github.com/sanworks/Bpod_Gen2)
+
+### External dependencies
+
+1. [Bpod Gen2](https://github.com/sanworks/Bpod_Gen2)
 2. [DMDController](https://github.com/SainsburyWellcomeCentre/DMDController) for DMD control
-5. [Bonsai](https://bonsai-rx.org/docs/articles/installation.html) with [PointGrey](https://bonsai-rx.org/pointgrey/index.html), [Scripting.Expressions](https://bonsai-rx.org/docs/api/Bonsai.Scripting.Expressions.html), [Reactive](https://bonsai-rx.org/docs/api/Bonsai.Reactive.html), [Dsp](https://bonsai-rx.org/docs/api/Bonsai.Dsp.html), [Vision](https://bonsai-rx.org/docs/api/Bonsai.Vision.html) packages for synchronized camera acquisition.
+3. [Bonsai](https://bonsai-rx.org/docs/articles/installation.html) with the `PointGrey`, `Scripting.Expressions`, `Reactive`, `Dsp`, and `Vision` packages for synchronized camera acquisition
 
-### Instructions:
-1. Install all dependencies to a parent directory in your local system.
+### Setup
+
+1. Install dependencies in a parent directory on your local machine.
 2. Clone this repository:
-   ```
-   cd <parent directory>
-   git clone https://github.com/SainsburyWellcomeCentre/luminose.git
-   ```
-3. Add all folders and sub-folders of parent directory to MATLAB path.
 
-## Usage:
-1. Edit config file in luminose_hf/luminose_config.yml with correct constants
-2. Launch Bpod
-   ```
-   Bpod(<COM#>)
-   ```
-3. Launch desired protocol on Bpod GUI.
-## Notes:
-1. Protocols require the Bpod Hifi module for sound and rotary encoder module for treadmill movement.
+```bash
+cd <parent directory>
+git clone https://github.com/SainsburyWellcomeCentre/luminose.git
+```
+
+3. Add the parent directory and its subfolders to the MATLAB path.
+4. Edit `luminose_config.yaml` for the local rig, file paths, and hardware IDs.
+
+## Usage
+
+1. Launch Bpod:
+
+```matlab
+Bpod('COM3')
+```
+
+2. Select a protocol from the Bpod GUI.
+
+Current protocol families include:
+
+- `protocols/luminose_hf_goNogo/` for the main go/no-go task
+- `protocols/luminose_hf_playground/` for rapid testing of stimuli, training settings, and rig integrations
+
+## Project layout
+
+- `LuminoseConstants.m`: central configuration loader and path setup
+- `luminose_config.yaml`: rig-specific configuration
+- `dmd/`: DMD control, pattern generation, and image export helpers
+- `olfactometer/`: NI-DAQ based odour sequencing and bottle metadata
+- `protocols/`: behavioural tasks and their `HelperFiles`
+- `gui/`: shared GUI utilities for start control, odour selection, and trial/opto visualizations
+
+## Recent behaviour changes
+
+- `dmd/DMDmodel.m` now exports only unique pattern frames in `save_images`, writing deduplicated BMPs for test stacks
+- `dmd/test_dmd.m` now exercises pattern generation plus BMP export using the `testimages` prefix
+- `olfactometer/OlfactometerModel.m` now builds valve sequences in per-odour time slots, includes safer index bounds, and returns early for empty valve selections
+- Default go/no-go odour assignments were updated in `GUIparams_luminose_hf_goNogo.m`
+
+## Notes
+
+- Protocols require the Bpod HiFi module and rotary encoder module.
+- The playground protocol also depends on the custom top-level GUI helpers for the parameter screen and stimulus previews.

@@ -44,7 +44,7 @@ function GUIparams_luminose_hf_goNogo()
     S.GUIPanels.CueParams = {'CueType', 'CueTime'};
     S.GUIPanels.Stimulus = {'CSplusType', 'CSminusType', 'StimTime'};
     S.GUIPanels.Response = {'ResponseType', 'ResponseTime', 'RewardAmount', ...
-        'ErrorDelay', 'Amplitude_error', 'NoiseTime'};
+        'ErrorDelay', 'NoiseTime'};
     S.GUIPanels.ITI = {'VariableITI', 'InterTrialInterval', 'MaxITI'};
     % == CueParams ==
     S.GUI.CueType = 3;
@@ -62,7 +62,6 @@ function GUIparams_luminose_hf_goNogo()
     S.GUI.StimTime = 1*(0.001+1+0.001); % olfactometer: preSequence_delay + pulseTime + postSequence_delay
     
     % == Response ==
-    S.GUI.Amplitude_error = [1, 1];
     S.GUI.ResponseType = 1;
     S.GUIMeta.ResponseType.Style = 'popupmenu';
     S.GUIMeta.ResponseType.String = {'Lick', 'Rotary Encoder'};
@@ -106,9 +105,9 @@ function GUIparams_luminose_hf_goNogo()
     S.GUIPanels.Light_CSplus = {'Intensity_CSplus'};
     S.GUIPanels.Pattern_CSplus = {'Nimages_CSplus', 'imgIdx_CSplus', 'exposure_CSplus', 'dark_CSplus', 'repeat_CSplus'};
     % == Odour ==
-    S.GUI.valves_CSplus = [7; 16]; % separate by , (columns) for sequence in same odour. separate by ; for diffeent odours with corresponding probabilities (rows)
-    S.GUI.dutyCycles_CSplus = [1; 1]; % specify scalar 0 to use default duty cycles
-    S.GUI.probs_CSplus = [0.5, 0.5];
+    S.GUI.valves_CSplus = [11]; % separate by , (columns) for sequence in same odour. separate by ; for diffeent odours with corresponding probabilities (rows)
+    S.GUI.dutyCycles_CSplus = [1]; % specify scalar 0 to use default duty cycles
+    S.GUI.probs_CSplus = [1];
     % == Sound ==
     S.GUI.Amplitude_CSplus = [0.1, 0.1];
     S.GUI.HighFreq_CSplus = 8;   
@@ -129,7 +128,7 @@ function GUIparams_luminose_hf_goNogo()
     S.GUIPanels.Light_CSminus = {'Intensity_CSminus'};
     S.GUIPanels.Pattern_CSminus = {'Nimages_CSminus', 'imgIdx_CSminus', 'exposure_CSminus', 'dark_CSminus', 'repeat_CSminus'};
     % == Odour ==
-    S.GUI.valves_CSminus = [12];
+    S.GUI.valves_CSminus = [16];
     S.GUI.dutyCycles_CSminus = [1]; % specify scalar 0 to use default duty cycles
     S.GUI.probs_CSminus = [1];
     % == Sound ==

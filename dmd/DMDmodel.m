@@ -102,16 +102,24 @@ classdef DMDmodel < handle
             close(v);
         end
         
-        function save_images(img_stack, patternsFilepath)
+        function save_images(self, img_stack, patternsFilepath)
+            % Get dimensions
             [H, W, N] = size(img_stack);
-            frames_2D = reshape(img_stack, [], N)';  % size [N x H*W]
-            [unique_frames, ~, ~] = unique(frames_2D, 'rows');
-            % Reshape back to 3D stack
+        
+            % Flatten each frame into one row without unnecessary intermediate copies
+            frames = reshape(img_stack, H * W, N).';
+        
+            % Find unique frames only
+            unique_frames = unique(frames, 'rows', 'stable');
+        
+            % Save directly from unique rows without reconstructing full 3D stack
             n_unique = size(unique_frames, 1);
-            patterns = reshape(unique_frames', H, W, n_unique);
-
-            for k = 1:size(patterns, 3)
-                imwrite(patterns(:, :, k), sprintf('%s_%03d.bmp', patternsFilepath, k));
+        
+            for k = 1:n_unique
+                frame = reshape(unique_frames(k, :), H, W);
+        
+                % Convert to uint8 for faster and safer BMP writing
+                imwrite(uint8(frame) * 255, sprintf('%s_%03d.bmp', patternsFilepath, k));
             end
         end
         

@@ -11,7 +11,7 @@ bpod:
   protocols: "C:\\Users\\harrislab\\luminose_hf\\protocols"
   protocolFile: "luminose_hf_goNogo.m"
   dataPath: "C:\\Users\\harrislab\\luminoseData"
-
+    
 # Olfactometer configuration
 olfactometer:
   # Timing parameters

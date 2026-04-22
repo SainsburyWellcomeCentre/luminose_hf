@@ -83,7 +83,10 @@ classdef OlfactometerModel < handle
         end
 
         function valveStates = generate_valve_pattern(self, odourValves, dutyCycles)
-            self.acquisitionTime = (self.preSequenceTime + self.pulseTime + self.postSequenceTime) * length(odourValves);
+            slotDuration = (self.preSequenceTime + self.pulseTime + self.postSequenceTime);
+            slotSamples = round(slotDuration * self.sampleRate);
+            
+            self.acquisitionTime = slotDuration * length(odourValves);
             self.acquisitionSamples = round(self.acquisitionTime * self.sampleRate);
             
             valveStates = false(self.frontValves.channelCount+self.backValves.channelCount+self.syncTTL.channelCount, self.acquisitionSamples);
@@ -94,18 +97,38 @@ classdef OlfactometerModel < handle
                 onSamples = round(self.cycleSamples * dutyCycles(k));
                 starts = 0:self.cycleSamples:(self.pulseSamples - self.cycleSamples);
                 pulsePattern = reshape(starts' + (0:onSamples-1), [], 1);
-                idx = pulsePattern + self.preSequenceSamples + self.pulseSamples * (k - 1);
+                
+                % Start of this odor's slot in samples
+                slotStartSamples = (k-1) * slotSamples;
+                % Pulse start within the slot
+                pulseStartSamples = slotStartSamples + self.preSequenceSamples;
+                
+                idx = pulsePattern + pulseStartSamples;
+                % Boundary check
+                idx = idx(idx > 0 & idx <= self.acquisitionSamples);
+                
                 valveStates(odourValves(k), idx) = true;
+                
+                % Back valve (final valve) logic
                 if ~ismember(odourValves(k), [1, 2, 9, 10])
-                    valveStates(odourValves(k) + 16, (self.preSequenceSamples + self.pulseSamples * (k - 1) + self.backValveDelaySamples):(self.preSequenceSamples + self.pulseSamples * k - self.backValveDelaySamples)) = true;
+                    bvStart = pulseStartSamples + self.backValveDelaySamples;
+                    bvEnd = pulseStartSamples + self.pulseSamples - self.backValveDelaySamples;
+                    valveStates(odourValves(k) + 16, bvStart:bvEnd) = true;
                 end
+                
+                % Turn off clean air during pulses
                 valveStates(cleanAirValves(k), idx) = false;
+                
+                % TTL sync
                 valveStates(end-3:end, idx) = true;
             end
         end
 
         function play_valve_sequence(self, odourValves, dutyCycles)
             try
+                if isempty(odourValves)
+                    return;
+                end
                 pattern = self.generate_valve_pattern(odourValves, dutyCycles);
                 self.valveSession.preload(double(pattern)');
                 self.valveSession.start("Finite");
@@ -202,8 +225,12 @@ classdef OlfactometerModel < handle
         
                 self.bottles(i).DutyCycle = duty;
             end
-        
-            dutycycles = self.bottles(valve_num).DutyCycle;
+            
+            if isempty(valve_num)
+                dutycycles = [];
+            else
+                dutycycles = [self.bottles(valve_num).DutyCycle];
+            end
         
         end
     end
