@@ -18,5 +18,7 @@ elseif hasReward
     outcome = 1;
 elseif hasPunishment
     outcome = 0;
+else
+    outcome = 3;
 end
 end

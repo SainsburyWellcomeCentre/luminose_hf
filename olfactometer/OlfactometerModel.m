@@ -70,7 +70,7 @@ classdef OlfactometerModel < handle
             valveMap = containers.Map('KeyType','int32','ValueType','int32');
             for k = [3:8, 11:16]
                 if k > 9
-                    valveMap(k) = floor(k/8)*8 + 1 + mod(k, 2);
+                    valveMap(k) = 9 + mod(k, 2);
                 else
                     valveMap(k) = mod(k, 2) + 1;
                 end

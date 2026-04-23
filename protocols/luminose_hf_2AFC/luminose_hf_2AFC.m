@@ -24,6 +24,7 @@ function luminose_hf_2AFC
             return  % GUI was closed
         end
     end
+    S.GUI = BpodSystem.GUIData.ParameterGUI.LatestGUIParams;
     S = LuminoseParameterGUI_hf_2AFC('sync', S);
     disp('START pressed — beginning experiment.');
     

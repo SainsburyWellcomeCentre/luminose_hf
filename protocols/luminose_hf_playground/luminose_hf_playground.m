@@ -65,6 +65,7 @@ function luminose_hf_playground
             return  % GUI was closed
         end
     end
+    S.GUI = BpodSystem.GUIData.ParameterGUI.LatestGUIParams;
     S = LuminoseParameterGUI_hf_playground('sync', S);
     disp('START pressed — beginning experiment.');
 
@@ -339,7 +340,7 @@ function luminose_hf_playground
                 currentTrialType = nextTrialType;
                 nextTrialType = getNextTrialType_hf_playground(BpodSystem.Data, 50, S.GUI.BiasCorrection, 0.2, S.GUI.Leftprob);
     
-                sma = PrepareStateMachine(S, currentTrialType, currentTrial+1, ITI, [], emulator);
+                sma = PrepareStateMachine(S, currentTrialType, currentTrial+1, ITI, emulator);
                 SendStateMachine(sma);
                 RawEvents = RunStateMachine; % Run the trial and return events
     
@@ -439,7 +440,7 @@ function [sma, S] = PrepareStateMachine(S, currentTrialType, currentTrial, ITI, 
                         case 1 % Habituation
                             chooseState2 = 'GetResponse';
                         case 2 % Training
-                            chooseState2 = 'DeliverStim';
+                            chooseState2 = 'GetSniff';
                     end
                 case 'Light'
                     stimAction{end+1} = 'PWM1'; stimAction{end+1} = S.GUI.Intensity_Left;
@@ -488,7 +489,7 @@ function [sma, S] = PrepareStateMachine(S, currentTrialType, currentTrial, ITI, 
                         case 1 % Habituation
                             chooseState2 = 'GetResponse';
                         case 2 % Training
-                            chooseState2 = 'DeliverStim';
+                            chooseState2 = 'GetSniff';
                     end
                 case 'Light'
                     stimAction{end+1} = 'PWM4'; stimAction{end+1} = S.GUI.Intensity_Right;
@@ -579,7 +580,7 @@ function [sma, S] = PrepareStateMachine(S, currentTrialType, currentTrial, ITI, 
                 'OutputActions', {'PWM2', S.GUI.Intensity_cue}); % light on
             sma = AddState(sma, 'Name', 'GetResponse', ...
                 'Timer', S.GUI.ResponseTime,...
-                'StateChangeConditions', {'Port2In', goAction, 'Port3In', noGoAction, 'Tup', noGoAction},...
+                'StateChangeConditions', {'BNC1High', leftAction, 'BNC2High', rightAction, 'Tup', noAction},...
                 'OutputActions', {'PWM3', S.GUI.Intensity_cue});
             sma = AddState(sma, 'Name', 'Reward', ...
                 'Timer', valveTime,...
