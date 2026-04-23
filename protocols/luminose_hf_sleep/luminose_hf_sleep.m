@@ -2,7 +2,7 @@ function luminose_hf_sleep
     %% clear & setup
     clc;
 
-    global BpodSystem S luminose dmdModel olfModel
+    global BpodSystem S luminose olfModel
     beep('off'); % native matlab error sounds OFF
     BpodSystem.SoftCodeHandlerFunction = 'SoftCodeHandler_luminose_hf_sleep';
 
@@ -26,8 +26,6 @@ function luminose_hf_sleep
     disp("=====  Bonsai =====");
     disp(luminose.bonsai);
     
-    dmdModel = DMDmodel(luminose.dmd);
-
     %% Launch bonsai
     launchBonsai = false;
     if luminose.bonsai.launch_bonsai
@@ -287,11 +285,12 @@ function [sma, S] = PrepareStateMachine(S, trialTypes, currentTrial, stimTime, I
     stimAction = {'BNC1', 1, 'PWM5', 255}; % sync
     if S.GUI.TestPulses
         switch trialTypes(currentTrial)
-            case 1 
-                % stimAction{end+1} = 'SoftCode'; stimAction{end+1} = 9;
-            case 2 
-                % stimAction{end+1} = 'SoftCode'; stimAction{end+1} = 10;
+            case 1
+                startAction{end+1} = 'SoftCode'; startAction{end+1} = 9;
+            case 2
+                startAction{end+1} = 'SoftCode'; startAction{end+1} = 10;
         end
+        stimAction{end+1} = 'BNC2'; stimAction{end+1} = 1;
         chooseState1 = 'GetSniff';
     else
         chooseState1 = 'InterTrialInterval';

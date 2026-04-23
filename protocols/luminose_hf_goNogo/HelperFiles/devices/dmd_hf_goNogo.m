@@ -1,27 +1,64 @@
 function dmd_hf_goNogo(code)
-    global S luminose dmdModel
+% dmd_hf_goNogo  DMD soft-code handler for the goNogo protocol.
+%
+%   Called via parfeval from SoftCodeHandler at trial start.
+%   Connects the DMD (once per session), sets slave mode, loads the
+%   appropriate pattern frame, and calls projStart so the device waits
+%   for the hardware BNC trigger that fires at cue/stim time.
+%
+%   Soft-code mapping  (codes <= 7 go to olfactometer handler):
+%     8  - cue pattern    (imgIdx_cue,    exposure_cue)
+%     9  - CS+ pattern    (imgIdx_CSplus, exposure_CSplus)
+%    10  - CS- pattern    (imgIdx_CSminus, exposure_CSminus)
 
-    if isempty(dmdModel)
-        dmdModel = DMDmodel(luminose.dmd);
+    persistent dmd cueSeq cueKey plusSeq plusKey minusSeq minusKey
+    global S luminose
+    C = DMDController.Constants;
+
+    if isempty(dmd)
+        dmd = DMDController.DMD();
+        dmd.connect();
+        dmd.device.projControl(C.ALP_PROJ_MODE, C.ALP_SLAVE);
+        dmd.device.projControl(C.ALP_TRIGGER_EDGE, C.ALP_EDGE_RISING);
+        fprintf('DMD connected in slave mode (goNogo).\n');
     end
 
-    switch(code)
-        case 8
-            dmdModel.pre_stored_pattern(...
-                S.GUI.Nimages_cue, S.GUI.exposure_cue, S.GUI.dark_cue, S.GUI.imgIdx_cue, S.GUI.repeat_cue);
-        case 9
-            % dmdModel.pre_stored_pattern(...
-            %     S.GUI.Nimages_CSplus, S.GUI.exposure_CSplus, S.GUI.dark_CSplus, S.GUI.imgIdx_CSplus, S.GUI.repeat_CSplus);
-            dmdModel.pattern_on_the_fly(...
-                S.GUI.Nimages_CSplus, S.GUI.exposure_CSplus, S.GUI.dark_CSplus, S.GUI.imgIdx_CSplus, S.GUI.repeat_CSplus);
-        case 10
-            dmdModel.pre_stored_pattern(...
-                S.GUI.Nimages_CSminus, S.GUI.exposure_CSminus, S.GUI.dark_CSminus, S.GUI.imgIdx_CSminus, S.GUI.repeat_CSminus);
+    switch code
+        case 8   % cue
+            key = [S.GUI.imgIdx_cue(1), S.GUI.exposure_cue(1)];
+            if ~isequaln(cueKey, key) || isempty(cueSeq)
+                if ~isempty(cueSeq), delete(cueSeq); end
+                cueSeq = buildDMDSlaveSequence(dmd, luminose.dmd.patternsFolder, ...
+                    S.GUI.imgIdx_cue(1), S.GUI.exposure_cue(1));
+                cueKey = key;
+            end
+            seq = cueSeq;
+
+        case 9   % CS+
+            key = [S.GUI.imgIdx_CSplus(1), S.GUI.exposure_CSplus(1)];
+            if ~isequaln(plusKey, key) || isempty(plusSeq)
+                if ~isempty(plusSeq), delete(plusSeq); end
+                plusSeq = buildDMDSlaveSequence(dmd, luminose.dmd.patternsFolder, ...
+                    S.GUI.imgIdx_CSplus(1), S.GUI.exposure_CSplus(1));
+                plusKey = key;
+            end
+            seq = plusSeq;
+
+        case 10  % CS-
+            key = [S.GUI.imgIdx_CSminus(1), S.GUI.exposure_CSminus(1)];
+            if ~isequaln(minusKey, key) || isempty(minusSeq)
+                if ~isempty(minusSeq), delete(minusSeq); end
+                minusSeq = buildDMDSlaveSequence(dmd, luminose.dmd.patternsFolder, ...
+                    S.GUI.imgIdx_CSminus(1), S.GUI.exposure_CSminus(1));
+                minusKey = key;
+            end
+            seq = minusSeq;
+
         otherwise
-            disp(['Unknown SoftCode received: ' num2str(code)]);
+            fprintf('dmd_hf_goNogo: unknown code %d\n', code);
             return;
     end
-    
-    % Run pattern sequence
-    dmdModel.start_pattern();
+
+    dmd.halt();
+    dmd.device.projStart(seq);
 end

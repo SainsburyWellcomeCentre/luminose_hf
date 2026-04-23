@@ -58,4 +58,48 @@ function OdourBottleClicked(src, paramNum)
     end
     
     set(htable, 'UserData', selectorData);
+    
+    % Push the updated odour-table state into the cached GUI params immediately.
+    nRows = size(currentData, 1);
+    valvesMatrix = [];
+    probsVector = zeros(nRows, 1);
+    dutyMatrix = [];
+    for iR = 1:nRows
+        probsVector(iR) = currentData{iR, 1};
+        valvesRow = str2num(currentData{iR, 2}); %#ok<ST2NM>
+        dutyRow = str2num(currentData{iR, 3}); %#ok<ST2NM>
+        if isempty(valvesRow), valvesRow = 0; end
+        if isempty(dutyRow), dutyRow = 1; end
+        valvesMatrix = padAndAppend(valvesMatrix, valvesRow);
+        dutyMatrix = padAndAppend(dutyMatrix, dutyRow);
+    end
+
+    if isfield(BpodSystem.GUIData, 'ParameterGUI') && ...
+       isfield(BpodSystem.GUIData.ParameterGUI, 'LatestGUIParams')
+        BpodSystem.GUIData.ParameterGUI.LatestGUIParams.(selectorData.ParamName) = valvesMatrix;
+        BpodSystem.GUIData.ParameterGUI.LatestGUIParams.(selectorData.ProbParam) = probsVector;
+        BpodSystem.GUIData.ParameterGUI.LatestGUIParams.(selectorData.DutyParam) = dutyMatrix;
+    end
+
+    % Only sync in real-time if START hasn't been pressed
+    startPressed = isappdata(BpodSystem.ProtocolFigures.ParameterGUI, 'StartPressed') && ...
+        getappdata(BpodSystem.ProtocolFigures.ParameterGUI, 'StartPressed');
+
+    if ~startPressed
+        suffix = BpodSystem.GUIData.ParameterGUI.ProtocolSuffix;
+        syncFunc = str2func(sprintf('LuminoseParameterGUI_hf_%s', suffix));
+        syncFunc('sync', struct('GUI', BpodSystem.GUIData.ParameterGUI.LatestGUIParams, 'GUIMeta', BpodSystem.GUIData.ParameterGUI.LatestMeta));
+    end
+end
+
+function m = padAndAppend(m, row)
+    if isempty(m), m = row; return; end
+    nColsM = size(m, 2);
+    nColsR = length(row);
+    if nColsM < nColsR
+        m = [m, zeros(size(m, 1), nColsR - nColsM)];
+    elseif nColsR < nColsM
+        row = [row, zeros(1, nColsM - nColsR)];
+    end
+    m = [m; row];
 end

@@ -1,64 +1,32 @@
-function Bias = computeBias_hf_goNogo(data, N)
-% computeBias calculates the response bias over the last N trials
-% BpodData: BpodSystem.Data
-% N: number of previous trials to consider
-%
-% Returns:
-%   Bias: bias measure (CSminus proportion - CSplus proportion), from -1 to 1
+function bias = computeBias_hf_goNogo(data, N)
+% computeBias calculates response bias based on last N trials
+% bias > 0: right bias (more right responses)
+% bias < 0: left bias (more left responses)
 
-if nargin < 2
-    N = 50; % default window
+if nargin < 2, N = 20; end
+
+if ~isfield(data, 'Custom') || ~isfield(data.Custom, 'TrialResponse')
+    bias = 0;
+    return;
 end
 
-if ~isfield(data,'RawEvents') || isempty(data.RawEvents)
-    Bias = 0;
-    return
-end
-nTrials = length(data.RawEvents.Trial);
+responses = data.Custom.TrialResponse;
+nTrials = length(responses);
 startIdx = max(1, nTrials - N + 1);
+window = responses(startIdx:end);
 
-% Extract first lick choice from each trial
-choices = nan(1, nTrials);
-for i = startIdx:nTrials
-    events = data.RawEvents.Trial{i}.Events;
-    hasPlus  = isfield(events,'BNC1High');
-    hasMinus = isfield(events,'BNC2High');
-    
-    if hasPlus && ~hasMinus
-        choices(i) = 1; % left
-    elseif hasMinus && ~hasPlus
-        choices(i) = 2; % right
-    else
-        choices(i) = NaN;
-    end
+% Ignore no-responses for bias calculation
+validResponses = window(~isnan(window));
+
+if isempty(validResponses)
+    bias = 0;
+    return;
 end
 
-% Only keep non-NaN trials (filter both arrays using the same mask)
-window = choices(startIdx:nTrials);
-correctSides = data.TrialTypes(startIdx:nTrials);
-validMask = ~isnan(window);
-validChoices = window(validMask);
-correctSides = correctSides(validMask);
+pLeft = sum(validResponses == 1) / length(validResponses);
+pRight = sum(validResponses == 2) / length(validResponses);
 
-if isempty(validChoices)
-    Bias = 0;
-    return
-end
-
-WrongResps = validChoices ~= correctSides;
-nWrong = sum(WrongResps);
-WrongRespProportion = nWrong / length(WrongResps);
-
-% Fraction of wrong responses to each side (guard against zero wrong trials)
-if nWrong == 0
-    WrongMinusProportion = 0;
-    WrongPlusProportion  = 0;
-else
-    WrongMinusProportion = WrongRespProportion * sum(WrongResps & validChoices==2) / nWrong;
-    WrongPlusProportion  = WrongRespProportion * sum(WrongResps & validChoices==1) / nWrong;
-end
-
-% Bias (positive = right bias, negative = left bias)
-Bias = WrongMinusProportion - WrongPlusProportion;
+% Bias from -1 (total left) to 1 (total right)
+bias = pRight - pLeft;
 
 end

@@ -1,22 +1,57 @@
-function nextTrialType = getNextTrialType_hf_2AFC(data, N, biasCorrection, biasThreshold, leftProb)
+function nextTrialType = getNextTrialType_hf_2AFC(data, varargin)
+% getNextTrialType determines the next trial side based on bias and error repeating
+% Supports either:
+%   getNextTrialType_hf_2AFC(data, S)
+% or the legacy form:
+%   getNextTrialType_hf_2AFC(data, nTrialsToUse, biasCorrection, correctionGain, leftProb)
 
-correctedLeftProb = leftProb;
+if nargin >= 2 && isstruct(varargin{1})
+    S = varargin{1};
+    leftProb = S.GUI.Leftprob; % Base probability
+    useBiasCorrection = isfield(S.GUI, 'BiasCorrection') && S.GUI.BiasCorrection;
+    useRepeatOnError = isfield(S.GUI, 'RepeatOnError') && S.GUI.RepeatOnError;
+    nTrialsToUse = 20;
+    correctionGain = 0.5;
+else
+    nTrialsToUse = varargin{1};
+    useBiasCorrection = varargin{2};
+    correctionGain = varargin{3};
+    leftProb = varargin{4};
+    useRepeatOnError = false;
+end
 
-if biasCorrection 
-    try
-        RBias = computeBias_hf_2AFC(data, N);
-        excessBias = RBias - sign(RBias) * biasThreshold;
-        excessBias = max(-1, min(1, excessBias));
-        correctedLeftProb = leftProb + excessBias * (1 - leftProb) * (RBias > 0) ...
-                                     - excessBias * leftProb       * (RBias < 0);
-        correctedLeftProb = max(0, min(1, correctedLeftProb));
-    catch ME
-        warning('computeBias failed on trial %d: %s', nTrials, ME.message);
+nextTrialType = 0;
+
+% 1. Repeat on Error (if enabled)
+if useRepeatOnError
+    if isfield(data, 'Custom') && isfield(data.Custom, 'TrialOutcome') && ~isempty(data.Custom.TrialOutcome)
+        lastOutcome = data.Custom.TrialOutcome(end);
+        if lastOutcome == 0 % Incorrect response
+            nextTrialType = data.Custom.TrialSide(end);
+            return;
+        end
     end
 end
 
+% 2. Bias Correction (if enabled)
+correctedLeftProb = leftProb;
+if useBiasCorrection
+    bias = computeBias_hf_2AFC(data, nTrialsToUse);
+    
+    % Adjust probability: 
+    % If bias > 0 (Right bias), increase Left probability
+    % If bias < 0 (Left bias), decrease Left probability (increase Right)
+    correctedLeftProb = leftProb + bias * correctionGain;
+    
+    % Bound probability
+    correctedLeftProb = max(0.1, min(0.9, correctedLeftProb));
+end
+
+% 3. Random Selection
 if rand < correctedLeftProb
     nextTrialType = 1;
 else
     nextTrialType = 2;
+end
+
 end

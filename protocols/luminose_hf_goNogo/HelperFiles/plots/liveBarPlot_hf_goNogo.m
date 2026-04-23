@@ -65,6 +65,13 @@ function liveBarPlot_hf_goNogo(ax, op, data)
             if isempty(data) || ~isfield(data, 'TrialTypes')
                 return;
             end
+
+            % Recover if AccuracyPlot was initialized by the legacy line plot.
+            if ~isfield(BpodSystem.GUIHandles, 'AccuracyPlot') || ...
+               ~isfield(BpodSystem.GUIHandles.AccuracyPlot, 'Bars') || ...
+               ~ishandle(BpodSystem.GUIHandles.AccuracyPlot.Bars)
+                liveBarPlot_hf_goNogo(ax, 'init', []);
+            end
             
             % Get completed trials
             nTrials = length(data.TrialTypes);

@@ -17,30 +17,32 @@ function DrawOptoStim(Params)
         'HorizontalAlignment','center','VerticalAlignment','middle', ...
         'Parent',ax);
 
-    if Params.TestPulsesType == 1
-        freq = Params.SPfrequency;
-        duration = Params.SPduration;
-        amplitude = Params.SPamplitude;
-        symbol = '*';
-    else
-        freq = Params.PPfrequency;
-        duration = Params.PPduration;
-        amplitude = Params.PPamplitude;
-        symbol = '**';
-    end
+    if logical(Params.TestPulses)
+        if Params.TestPulsesType == 1
+            freq = Params.SPfrequency;
+            duration = Params.SPduration;
+            amplitude = Params.SPamplitude;
+            symbol = '*';
+        else
+            freq = Params.PPfrequency;
+            duration = Params.PPduration;
+            amplitude = Params.PPamplitude;
+            symbol = '**';
+        end
 
-    if freq > 0
-        dt = 1 / freq;
-        tEvents = 0:dt:totalTrial;
-        color = [0 0 max(min(amplitude,1),0)];
+        if freq > 0
+            dt = 1 / freq;
+            tEvents = 0:dt:totalTrial;
+            color = [0 0 max(min(amplitude,1),0)];
 
-        for tEv = tEvents
-            tScaled = tEv * widthScale;
-            text(ax, tScaled, ypos + height + 0.05, symbol, ...
-                 'Color', color, ...
-                 'FontSize', 10 + 8 * (duration / 1000), ...
-                 'HorizontalAlignment', 'center', ...
-                 'VerticalAlignment', 'bottom');
+            for tEv = tEvents
+                tScaled = tEv * widthScale;
+                text(ax, tScaled, ypos + height + 0.05, symbol, ...
+                     'Color', color, ...
+                     'FontSize', 10 + 8 * (duration / 1000), ...
+                     'HorizontalAlignment', 'center', ...
+                     'VerticalAlignment', 'bottom');
+            end
         end
     end
 

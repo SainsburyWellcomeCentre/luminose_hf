@@ -5,6 +5,9 @@ function varargout = LuminoseParameterGUI_hf_playground(varargin)
 %       Returns a param struct. Fields in the GUI sub-struct are read from the UI.
 
     global BpodSystem
+    % Suppress JavaFrame warnings
+    warning('off', 'MATLAB:HandleGraphics:ObsoleteProperty:JavaFrame');
+    
     Op = varargin{1};
     Params = varargin{2};
     Op = lower(Op);
@@ -42,11 +45,27 @@ function varargout = LuminoseParameterGUI_hf_playground(varargin)
             BpodSystem.GUIHandles.ParameterGUI.Labels = zeros(1,nParams);
             BpodSystem.GUIHandles.ParameterGUI.Params = zeros(1,nParams);
             BpodSystem.GUIData.ParameterGUI.LastParamValues = cell(1,nParams);
+            BpodSystem.GUIData.ParameterGUI.PanelParams = struct;
+            BpodSystem.GUIData.ParameterGUI.ParamIndexByName = struct;
+            BpodSystem.GUIData.ParameterGUI.PanelStyles = struct;
+            BpodSystem.GUIData.ParameterGUI.LockedParams = LOCKED_PARAMS;
+            BpodSystem.GUIData.ParameterGUI.ProtocolSuffix = 'playground';
     
             if isfield(Params, 'GUIMeta')
                 Meta = Params.GUIMeta;
             else
                 Meta = struct;
+            end
+            BpodSystem.GUIData.ParameterGUI.LatestGUIParams = Params.GUI;
+            BpodSystem.GUIData.ParameterGUI.LatestMeta = Meta;
+            hiddenParams = {};
+            if ~isempty(fieldnames(Meta))
+                metaNames = fieldnames(Meta);
+                for iMeta = 1:numel(metaNames)
+                    if isstruct(Meta.(metaNames{iMeta})) && isfield(Meta.(metaNames{iMeta}), 'Hidden') && Meta.(metaNames{iMeta}).Hidden
+                        hiddenParams{end+1} = metaNames{iMeta}; %#ok<AGROW>
+                    end
+                end
             end
             if isfield(Params, 'GUIPanels')
                 Panels = Params.GUIPanels;
@@ -54,13 +73,15 @@ function varargout = LuminoseParameterGUI_hf_playground(varargin)
                 nPanels = length(PanelNames);
                 paramNames = fieldnames(Params.GUI);
                 nParameters = length(paramNames);
-                paramPanels = zeros(1,nParameters);
                 paramsInPanels = {}; 
                 for i = 1:nPanels
                     paramsInPanels = [paramsInPanels Panels.(PanelNames{i})];
                 end
                 paramsInDefaultPanel = {};
                 for i = 1:nParameters
+                    if ismember(paramNames{i}, hiddenParams)
+                        continue
+                    end
                     if ~strcmp(paramNames{i}, paramsInPanels)
                         paramsInDefaultPanel = [paramsInDefaultPanel paramNames{i}];
                     end
@@ -119,6 +140,11 @@ function varargout = LuminoseParameterGUI_hf_playground(varargin)
     
                 for p = 1:nPanels
                     ThisPanelParamNames = Panels.(ThisTabPanelNames{p});
+                    ThisPanelParamNames = ThisPanelParamNames(~ismember(ThisPanelParamNames, hiddenParams));
+                    if isempty(ThisPanelParamNames)
+                        continue
+                    end
+                    BpodSystem.GUIData.ParameterGUI.PanelParams.(ThisTabPanelNames{p}) = ThisPanelParamNames;
                     ThisPanelParamNames = ThisPanelParamNames(end:-1:1);
                     nParams = length(ThisPanelParamNames);
                     paramHeight = 35;      
@@ -129,73 +155,76 @@ function varargout = LuminoseParameterGUI_hf_playground(varargin)
                         'ForegroundColor',tabColor,'BackgroundColor',COLORS.panelBg,'Units','Pixels',...
                         'Position',[HPos VPos 455 ThisPanelHeight],'BorderType','line','HighlightColor',tabColor,...
                         'BorderWidth',2,'ShadowColor',[0.8 0.8 0.8]);
+                    BpodSystem.GUIData.ParameterGUI.PanelStyles.(ThisTabPanelNames{p}) = struct( ...
+                        'ForegroundColor', tabColor, ...
+                        'BackgroundColor', COLORS.panelBg, ...
+                        'HighlightColor', tabColor, ...
+                        'ShadowColor', [0.8 0.8 0.8]);
     
                     InPanelPos = 15;
                     for i = 1:nParams
                         ThisParamName = ThisPanelParamNames{i};
                         ThisParam = Params.(ThisParamName);
                         BpodSystem.GUIData.ParameterGUI.ParamNames{ParamNum} = ThisParamName;
+                        BpodSystem.GUIData.ParameterGUI.ParamIndexByName.(ThisParamName) = ParamNum;
                         if ischar(ThisParam)
                             BpodSystem.GUIData.ParameterGUI.LastParamValues{ParamNum} = NaN;
                         else
                             BpodSystem.GUIData.ParameterGUI.LastParamValues{ParamNum} = ThisParam;
                         end
-                        if isfield(Meta, ThisParamName)
-                            if isstruct(Meta.(ThisParamName))
-                                if isfield(Meta.(ThisParamName), 'Style')
-                                    ThisParamStyle = Meta.(ThisParamName).Style;
-                                    if isfield(Meta.(ThisParamName), 'String')
-                                        ThisParamString = Meta.(ThisParamName).String;
-                                    else
-                                        ThisParamString = '';
-                                    end
-                                else
-                                    error(['Style not specified for parameter ' ThisParamName '.'])
-                                end
-                            else
-                                error(['GUIMeta entry for ' ThisParamName ' must be a struct.'])
+                        ThisParamStyle = 'edit';
+                        ThisParamString = '';
+                        if isfield(Meta, ThisParamName) && isstruct(Meta.(ThisParamName))
+                            if isfield(Meta.(ThisParamName), 'Style')
+                                ThisParamStyle = Meta.(ThisParamName).Style;
                             end
-                        else
-                            ThisParamStyle = 'edit';
-                            ThisParamValue = NaN;
+                            if isfield(Meta.(ThisParamName), 'String')
+                                ThisParamString = Meta.(ThisParamName).String;
+                            end
                         end
-                        underscorePos = strfind(ThisParamName,'_');
-                        if isempty(underscorePos)
-                            labelStr = ThisParamName;
+                        if isfield(Meta, ThisParamName) && isfield(Meta.(ThisParamName), 'Label')
+                            labelStr = Meta.(ThisParamName).Label;
                         else
-                            labelStr = ThisParamName(1:underscorePos(1)-1);
+                            underscorePos = strfind(ThisParamName,'_');
+                            if isempty(underscorePos)
+                                labelStr = ThisParamName;
+                            else
+                                labelStr = ThisParamName(1:underscorePos(1)-1);
+                            end
+                            labelStr = strrep(labelStr,'_',' ');
                         end
-                        labelStr = strrep(labelStr,'_',' ');
     
                         BpodSystem.GUIHandles.ParameterGUI.Labels(ParamNum) = uicontrol(htab,...
                             'Style','text','String',labelStr,'Position',[HPos+15 VPos+InPanelPos 215 28],...
                             'FontWeight','normal','FontSize',11,'BackgroundColor',COLORS.panelBg,...
                             'ForegroundColor',COLORS.textDark,'FontName','Segoe UI','HorizontalAlignment','Left');
     
+                        callbackFunc = @(~,~) HandleRealTimeSync('playground');
+
                         switch lower(ThisParamStyle)
                             case 'edit'
                                 BpodSystem.GUIData.ParameterGUI.Styles(ParamNum) = 1;
-                                BpodSystem.GUIHandles.ParameterGUI.Params(ParamNum) = uicontrol(htab,'Style', 'edit', 'String', mat2str(ThisParam), 'Position', [HPos+220 VPos+InPanelPos+2 200 25], 'FontWeight', 'normal', 'FontSize', 12, 'BackgroundColor','white', 'FontName', 'Arial','HorizontalAlignment','Center');
+                                BpodSystem.GUIHandles.ParameterGUI.Params(ParamNum) = uicontrol(htab,'Style', 'edit', 'String', mat2str(ThisParam), 'Position', [HPos+220 VPos+InPanelPos+2 200 25], 'FontWeight', 'normal', 'FontSize', 12, 'BackgroundColor','white', 'FontName', 'Arial','HorizontalAlignment','Center', 'Callback', callbackFunc);
                             case 'edittext'
                                 BpodSystem.GUIData.ParameterGUI.Styles(ParamNum) = 8;
-                                BpodSystem.GUIHandles.ParameterGUI.Params(ParamNum) = uicontrol(htab,'Style', 'edit', 'String', ThisParam, 'Position', [HPos+220 VPos+InPanelPos+2 200 25], 'FontWeight', 'normal', 'FontSize', 12, 'BackgroundColor','white', 'FontName', 'Arial','HorizontalAlignment','Center');
+                                BpodSystem.GUIHandles.ParameterGUI.Params(ParamNum) = uicontrol(htab,'Style', 'edit', 'String', ThisParam, 'Position', [HPos+220 VPos+InPanelPos+2 200 25], 'FontWeight', 'normal', 'FontSize', 12, 'BackgroundColor','white', 'FontName', 'Arial','HorizontalAlignment','Center', 'Callback', callbackFunc);
                             case 'text'
                                 BpodSystem.GUIData.ParameterGUI.Styles(ParamNum) = 2;
                                 BpodSystem.GUIHandles.ParameterGUI.Params(ParamNum) = uicontrol(htab,'Style', 'text', 'String', num2str(ThisParam), 'Position', [HPos+220 VPos+InPanelPos+2 200 25], 'FontWeight', 'normal', 'FontSize', 12, 'BackgroundColor','white', 'FontName', 'Arial','HorizontalAlignment','Center');
                             case 'checkbox'
                                 BpodSystem.GUIData.ParameterGUI.Styles(ParamNum) = 3;
-                                BpodSystem.GUIHandles.ParameterGUI.Params(ParamNum) = uicontrol(htab,'Style', 'checkbox', 'Value', ThisParam, 'String', '   (check to activate)', 'Position', [HPos+220 VPos+InPanelPos+4 200 25], 'FontWeight', 'normal', 'FontSize', 12, 'BackgroundColor','white', 'FontName', 'Arial','HorizontalAlignment','Center');
+                                BpodSystem.GUIHandles.ParameterGUI.Params(ParamNum) = uicontrol(htab,'Style', 'checkbox', 'Value', ThisParam, 'String', '   (check to activate)', 'Position', [HPos+220 VPos+InPanelPos+4 200 25], 'FontWeight', 'normal', 'FontSize', 12, 'BackgroundColor','white', 'FontName', 'Arial','HorizontalAlignment','Center', 'Callback', callbackFunc);
                             case 'popupmenu'
                                 BpodSystem.GUIData.ParameterGUI.Styles(ParamNum) = 4;
-                                BpodSystem.GUIHandles.ParameterGUI.Params(ParamNum) = uicontrol(htab,'Style', 'popupmenu', 'String', ThisParamString, 'Value', ThisParam, 'Position', [HPos+220 VPos+InPanelPos+2 200 25], 'FontWeight', 'normal', 'FontSize', 12, 'BackgroundColor','white', 'FontName', 'Arial','HorizontalAlignment','Center');
+                                BpodSystem.GUIHandles.ParameterGUI.Params(ParamNum) = uicontrol(htab,'Style', 'popupmenu', 'String', ThisParamString, 'Value', ThisParam, 'Position', [HPos+220 VPos+InPanelPos+2 200 25], 'FontWeight', 'normal', 'FontSize', 12, 'BackgroundColor','white', 'FontName', 'Arial','HorizontalAlignment','Center', 'Callback', callbackFunc);
                             case 'togglebutton'
                                 BpodSystem.GUIData.ParameterGUI.Styles(ParamNum) = 5;
-                                BpodSystem.GUIHandles.ParameterGUI.Params(ParamNum) = uicontrol(htab,'Style', 'togglebutton', 'String', ThisParamString, 'Value', ThisParam, 'Position', [HPos+220 VPos+InPanelPos+2 200 25], 'FontWeight', 'normal', 'FontSize', 12, 'BackgroundColor','white', 'FontName', 'Arial','HorizontalAlignment','Center');
+                                BpodSystem.GUIHandles.ParameterGUI.Params(ParamNum) = uicontrol(htab,'Style', 'togglebutton', 'String', ThisParamString, 'Value', ThisParam, 'Position', [HPos+220 VPos+InPanelPos+2 200 25], 'FontWeight', 'normal', 'FontSize', 12, 'BackgroundColor','white', 'FontName', 'Arial','HorizontalAlignment','Center', 'Callback', callbackFunc);
                             case 'pushbutton'
                                 BpodSystem.GUIData.ParameterGUI.Styles(ParamNum) = 6;
                                 BpodSystem.GUIHandles.ParameterGUI.Params(ParamNum) = uicontrol(htab,'Style', 'pushbutton', 'String', ThisParamString,...
                                     'Value', ThisParam, 'Position', [HPos+220 VPos+InPanelPos+2 200 25], 'FontWeight', 'normal', 'FontSize', 12,...
-                                    'BackgroundColor','white', 'FontName', 'Arial','HorizontalAlignment','Center');
+                                    'BackgroundColor','white', 'FontName', 'Arial','HorizontalAlignment','Center', 'Callback', callbackFunc);
                             case 'table'
                                 BpodSystem.GUIData.ParameterGUI.Styles(ParamNum) = 7;
                                 columnNames = fieldnames(Params.(ThisParamName));
@@ -209,7 +238,7 @@ function varargout = LuminoseParameterGUI_hf_playground(varargin)
                                     tableData = [tableData, Params.(ThisParamName).(columnNames{iTableCol})];
                                 end
                                 htable = uitable(htab,'data',tableData,'columnname',columnLabel,...
-                                    'ColumnEditable',true(1,numel(columnLabel)), 'FontSize', 12);
+                                    'ColumnEditable',true(1,numel(columnLabel)), 'FontSize', 12, 'CellEditCallback', callbackFunc);
                                 htable.Position([3 4]) = htable.Extent([3 4]);
                                 htable.Position([1 2]) = [HPos+220 VPos+InPanelPos+2];
                                 BpodSystem.GUIHandles.ParameterGUI.Params(ParamNum) = htable;
@@ -278,7 +307,9 @@ function varargout = LuminoseParameterGUI_hf_playground(varargin)
                                 otable = uitable(selectorPanel, 'Data', tableData, ...
                                     'ColumnName', {'Prob', 'Valves', 'DutyCycles'}, ...
                                     'ColumnWidth', {50, 160, 160}, 'ColumnEditable', [true, true, true], ...
-                                    'Position', [5 10 385 125], 'FontSize', 10);
+                                    'ColumnFormat', {'numeric', 'char', 'char'}, ...
+                                    'Position', [5 10 385 125], 'FontSize', 10, 'CellEditCallback', callbackFunc);
+                                
                                 set(otable, 'CellSelectionCallback', @(src, ev) OdourTableSelectionChanged(src, ev, bottleButtons));
                                 
                                 % Repositioned +/- buttons to the right of the wider table
@@ -290,7 +321,8 @@ function varargout = LuminoseParameterGUI_hf_playground(varargin)
                                     'Callback', @(~, ~) OdourRemoveRow(otable));
 
                                 selectorData = struct('Buttons', bottleButtons, 'Table', otable, ...
-                                    'ProbParam', probParam, 'DutyParam', dutyParam, 'Mapping', mapping, 'ActiveRow', 1);
+                                    'ParamName', ThisParamName, 'ProbParam', probParam, 'DutyParam', dutyParam, ...
+                                    'Mapping', mapping, 'ActiveRow', 1);
                                 BpodSystem.GUIHandles.ParameterGUI.Params(ParamNum) = otable; 
                                 set(otable, 'UserData', selectorData);
                                 
@@ -328,7 +360,7 @@ function varargout = LuminoseParameterGUI_hf_playground(varargin)
                         'Style', 'pushbutton', 'String', 'START', ...
                         'Position', [15 VPos 455 50], 'FontSize', 16, 'FontWeight', 'Bold', ...
                         'BackgroundColor', [0.2 0.7 0.3], 'ForegroundColor', 'white', ...
-                        'FontName', 'Segoe UI', 'Callback', @(~,~) StartButtonPressed(LOCKED_PARAMS));
+                        'FontName', 'Segoe UI', 'Callback', @(~,~) HandlePlaygroundStartButton(LOCKED_PARAMS));
                     VPos = VPos + 60;
                 end
                 if contains(lower(TabNames{t}),'trial')
@@ -390,6 +422,14 @@ function varargout = LuminoseParameterGUI_hf_playground(varargin)
                 end
                 set(BpodSystem.ProtocolFigures.ParameterGUI,'Position',[1760 400 MaxHPos+500 min(MaxVPos+120,GUIHeight)]);
             end
+            nCreatedParams = ParamNum - 1;
+            BpodSystem.GUIData.ParameterGUI.nParams = nCreatedParams;
+            BpodSystem.GUIData.ParameterGUI.ParamNames = BpodSystem.GUIData.ParameterGUI.ParamNames(1:nCreatedParams);
+            BpodSystem.GUIHandles.ParameterGUI.Labels = BpodSystem.GUIHandles.ParameterGUI.Labels(1:nCreatedParams);
+            BpodSystem.GUIHandles.ParameterGUI.Params = BpodSystem.GUIHandles.ParameterGUI.Params(1:nCreatedParams);
+            BpodSystem.GUIData.ParameterGUI.LastParamValues = BpodSystem.GUIData.ParameterGUI.LastParamValues(1:nCreatedParams);
+            BpodSystem.GUIData.ParameterGUI.Styles = BpodSystem.GUIData.ParameterGUI.Styles(1:nCreatedParams);
+            UpdateRelevantPanels(Params, Meta);
         case 'sync'
             ParamNames = BpodSystem.GUIData.ParameterGUI.ParamNames;
             nParams = BpodSystem.GUIData.ParameterGUI.nParams;
@@ -434,11 +474,59 @@ function varargout = LuminoseParameterGUI_hf_playground(varargin)
                 end
                 if ~isequal(ThisParamStyle, 5), BpodSystem.GUIData.ParameterGUI.LastParamValues{p} = Params.GUI.(ThisParamName); end
             end
+            % Update StimTime based on odour selection (number of rows in matrix)
+            % Assumes 1 row = 1 pulse sequence (pre + pulse + post)
+            % Each sequence is roughly 1.002s (0.001 + 1 + 0.001)
+            % We update StimTime if the current stim type is Odour
+            if isfield(Params, 'GUIMeta')
+                Meta = Params.GUIMeta;
+            elseif isfield(BpodSystem.GUIData.ParameterGUI, 'LatestMeta')
+                Meta = BpodSystem.GUIData.ParameterGUI.LatestMeta;
+            else
+                Meta = struct;
+            end
+            currentLeftType = Meta.LeftType.String{Params.GUI.LeftType};
+            currentRightType = Meta.RightType.String{Params.GUI.RightType};
+            if strcmp(currentLeftType, 'Odour') || strcmp(currentRightType, 'Odour')
+                % Count max rows across all odour selectors
+                nRows = 1;
+                odourParams = {'valves_cue', 'valves_Left', 'valves_Right'};
+                for iO = 1:numel(odourParams)
+                    if isfield(Params.GUI, odourParams{iO})
+                        nRows = max(nRows, size(Params.GUI.(odourParams{iO}), 1));
+                    end
+                end
+                Params.GUI.StimTime = nRows * (0.001 + 1 + 0.001);
+                % Force update of StimTime edit box if it exists
+                if isfield(BpodSystem.GUIData.ParameterGUI, 'ParamIndexByName') && ...
+                   isfield(BpodSystem.GUIData.ParameterGUI.ParamIndexByName, 'StimTime')
+                    stimIdx = BpodSystem.GUIData.ParameterGUI.ParamIndexByName.StimTime;
+                    hStim = BpodSystem.GUIHandles.ParameterGUI.Params(stimIdx);
+                    if ishandle(hStim), set(hStim, 'String', num2str(Params.GUI.StimTime)); end
+                    BpodSystem.GUIData.ParameterGUI.LastParamValues{stimIdx} = Params.GUI.StimTime;
+                end
+            end
+
+            BpodSystem.GUIData.ParameterGUI.LatestGUIParams = Params.GUI;
+            BpodSystem.GUIData.ParameterGUI.LatestMeta = Params.GUIMeta;
+            UpdateRelevantPanels(Params.GUI, Params.GUIMeta);
             if isfield(BpodSystem.GUIHandles.ParameterGUI, 'TrialStructureAxes'), DrawTrialStructure(Params.GUI, Params.GUIMeta); end
             if isfield(BpodSystem.GUIHandles.ParameterGUI, 'OptoStimAxes'), DrawOptoStim(Params.GUI); end
     end
     if verLessThan('MATLAB', '8.4'), drawnow; end
     varargout{1} = Params;
+end
+
+function HandleRealTimeSync(suffix)
+    global BpodSystem
+    % Only sync in real-time if START hasn't been pressed
+    startPressed = isappdata(BpodSystem.ProtocolFigures.ParameterGUI, 'StartPressed') && ...
+        getappdata(BpodSystem.ProtocolFigures.ParameterGUI, 'StartPressed');
+    
+    if ~startPressed
+        syncFunc = str2func(sprintf('LuminoseParameterGUI_hf_%s', suffix));
+        syncFunc('sync', struct('GUI', BpodSystem.GUIData.ParameterGUI.LatestGUIParams, 'GUIMeta', BpodSystem.GUIData.ParameterGUI.LatestMeta));
+    end
 end
 
 function m = PadAndAppend(m, row)
@@ -476,4 +564,229 @@ function OdourRemoveRow(htable)
         data(end, :) = [];
         set(htable, 'Data', data);
     end
+end
+
+function UpdateRelevantPanels(Params, Meta)
+    global BpodSystem
+
+    % Define colors locally for indicator updates
+    COLORS.accentCS_plus = [0.2 0.5 0.8];
+    COLORS.accentCS_minus = [0.8 0.4 0.2];
+    COLORS.accentCue = [0.4 0.7 0.4];
+
+    panelStates = struct( ...
+        'Light_cue', false, 'Sound_cue', false, 'Odour_cue', false, 'Pattern_cue', false, ...
+        'Light_Left', false, 'Sound_Left', false, 'Odour_Left', false, 'Pattern_Left', false, ...
+        'Light_Right', false, 'Sound_Right', false, 'Odour_Right', false, 'Pattern_Right', false, ...
+        'MaskLED', false, 'SinglePulse', false, 'PairedPulse', false, ...
+        'DrugSpecs', logical(Params.Drug), 'EEGSpecs', logical(Params.EEG), 'EphysSpecs', logical(Params.Ephys));
+
+    % Determine active panels based on selection
+    if isfield(Meta, 'CueType')
+        cueType = Meta.CueType.String{Params.CueType};
+        panelStates.(sprintf('%s_cue', cueType)) = true;
+    end
+    if isfield(Meta, 'LeftType')
+        leftType = Meta.LeftType.String{Params.LeftType};
+        panelStates.(sprintf('%s_Left', leftType)) = true;
+    end
+    if isfield(Meta, 'RightType')
+        rightType = Meta.RightType.String{Params.RightType};
+        panelStates.(sprintf('%s_Right', rightType)) = true;
+    end
+
+    if logical(Params.TestPulses)
+        panelStates.MaskLED = true;
+        if isfield(Meta, 'TestPulsesType')
+            pulseType = Meta.TestPulsesType.String{Params.TestPulsesType};
+            panelStates.(pulseType) = true;
+        end
+    end
+
+    % Apply enabled/disabled state to panels
+    panelNames = fieldnames(panelStates);
+    for iPanel = 1:numel(panelNames)
+        SetPanelEnabled(panelNames{iPanel}, panelStates.(panelNames{iPanel}));
+    end
+
+    % Update stimulus indicator highlights
+    tabs = {'Cue', 'Left', 'Right'};
+    for iTab = 1:numel(tabs)
+        tabName = tabs{iTab};
+        if isfield(BpodSystem.GUIHandles.ParameterGUI, 'StimIndicators') && ...
+           isfield(BpodSystem.GUIHandles.ParameterGUI.StimIndicators, tabName)
+            
+            switch lower(tabName)
+                case 'cue', selIdx = Params.CueType; tabColor = COLORS.accentCue;
+                case 'left', selIdx = Params.LeftType; tabColor = COLORS.accentCS_plus;
+                case 'right', selIdx = Params.RightType; tabColor = COLORS.accentCS_minus;
+            end
+            
+            indicators = BpodSystem.GUIHandles.ParameterGUI.StimIndicators.(tabName);
+            for iInd = 1:numel(indicators)
+                hInd = indicators(iInd);
+                if iInd == selIdx
+                    bgColor = tabColor;
+                else
+                    bgColor = [0.9 0.9 0.9];
+                end
+                set(hInd, 'BackgroundColor', bgColor);
+                set(findall(hInd, 'Type', 'uicontrol'), 'BackgroundColor', bgColor);
+            end
+        end
+    end
+end
+
+function HandlePlaygroundStartButton(lockedParams)
+    global BpodSystem
+
+    StartButtonPressed(lockedParams);
+    if isfield(BpodSystem.GUIData, 'ParameterGUI') && ...
+            isfield(BpodSystem.GUIData.ParameterGUI, 'LatestGUIParams') && ...
+            isfield(BpodSystem.GUIData.ParameterGUI, 'LatestMeta')
+        UpdateRelevantPanels(BpodSystem.GUIData.ParameterGUI.LatestGUIParams, ...
+            BpodSystem.GUIData.ParameterGUI.LatestMeta);
+    end
+end
+
+function SetPanelEnabled(panelName, isEnabled)
+    global BpodSystem
+
+    if ~isfield(BpodSystem.GUIHandles.ParameterGUI.Panels, panelName)
+        return
+    end
+
+    panelHandle = BpodSystem.GUIHandles.ParameterGUI.Panels.(panelName);
+    if ~ishandle(panelHandle)
+        return
+    end
+    startPressed = isappdata(BpodSystem.ProtocolFigures.ParameterGUI, 'StartPressed') && ...
+        getappdata(BpodSystem.ProtocolFigures.ParameterGUI, 'StartPressed');
+
+    style = BpodSystem.GUIData.ParameterGUI.PanelStyles.(panelName);
+    if isEnabled
+        fgColor = style.ForegroundColor;
+        bgColor = style.BackgroundColor;
+        hiColor = style.HighlightColor;
+        shadowColor = style.ShadowColor;
+        textColor = [0.2 0.2 0.2];
+        inputBg = [1 1 1];
+    else
+        fgColor = [0.65 0.65 0.65];
+        bgColor = [0.95 0.95 0.95];
+        hiColor = [0.82 0.82 0.82];
+        shadowColor = [0.9 0.9 0.9];
+        textColor = [0.55 0.55 0.55];
+        inputBg = [0.94 0.94 0.94];
+    end
+
+    set(panelHandle, 'ForegroundColor', fgColor, 'BackgroundColor', bgColor, ...
+        'HighlightColor', hiColor, 'ShadowColor', shadowColor);
+
+    if isfield(BpodSystem.GUIData.ParameterGUI.PanelParams, panelName)
+        paramNames = BpodSystem.GUIData.ParameterGUI.PanelParams.(panelName);
+        for iParam = 1:numel(paramNames)
+            paramName = paramNames{iParam};
+            if ~isfield(BpodSystem.GUIData.ParameterGUI.ParamIndexByName, paramName)
+                continue
+            end
+            paramIdx = BpodSystem.GUIData.ParameterGUI.ParamIndexByName.(paramName);
+            if ishandle(BpodSystem.GUIHandles.ParameterGUI.Labels(paramIdx))
+                set(BpodSystem.GUIHandles.ParameterGUI.Labels(paramIdx), 'ForegroundColor', textColor);
+            end
+            if ishandle(BpodSystem.GUIHandles.ParameterGUI.Params(paramIdx))
+                allowEnable = ~(startPressed && isEnabled && ...
+                    any(strcmp(paramName, BpodSystem.GUIData.ParameterGUI.LockedParams)));
+                SetControlEnabled(BpodSystem.GUIHandles.ParameterGUI.Params(paramIdx), isEnabled, inputBg, textColor, allowEnable);
+            end
+        end
+    end
+
+    childHandles = findall(panelHandle);
+    for iChild = 1:numel(childHandles)
+        allowEnable = ~(startPressed && isEnabled);
+        SetControlEnabled(childHandles(iChild), isEnabled, inputBg, textColor, allowEnable);
+    end
+end
+
+function SetControlEnabled(h, isEnabled, bgColor, textColor, allowEnable)
+    if ~ishandle(h)
+        return
+    end
+
+    if isprop(h, 'Enable')
+        if isEnabled && allowEnable
+            set(h, 'Enable', 'on');
+        elseif ~isEnabled
+            set(h, 'Enable', 'off');
+        end
+    end
+    if isprop(h, 'BackgroundColor')
+        try
+            set(h, 'BackgroundColor', bgColor);
+        catch
+        end
+    end
+    if isprop(h, 'ForegroundColor')
+        try
+            set(h, 'ForegroundColor', textColor);
+        catch
+        end
+    end
+end
+
+function DisplayPNGImage()
+    global BpodSystem
+    ax = BpodSystem.GUIHandles.ParameterGUI.ImageAxes;
+    imagePath = fullfile(BpodSystem.Path.ProtocolFolder, '..', 'logo.png');
+    if exist(imagePath, 'file')
+        img = imread(imagePath); imshow(img, 'Parent', ax); axis(ax, 'off');
+    else
+        cla(ax); text(0.5, 0.5, 'Image not found', 'Parent', ax, 'HorizontalAlignment', 'center');
+        axis(ax, 'off');
+    end
+end
+
+function DrawTrialStructure(Params, Meta)
+    global BpodSystem
+    ax = BpodSystem.GUIHandles.ParameterGUI.TrialStructureAxes;
+    cla(ax); hold(ax,'on');
+
+    cueTime = Params.CueTime; cueType = Meta.CueType.String{Params.CueType};
+    stimTime = Params.StimTime; stimType = strcat(Meta.LeftType.String{Params.LeftType}, '/', Meta.RightType.String{Params.RightType});
+    responseTime = Params.ResponseTime; errorDelay = Params.ErrorDelay; iti = Params.InterTrialInterval;
+    itiType = 'Fixed'; if Params.VariableITI, itiType = 'Variable'; end
+
+    blocks = {'Cue','Stim','Response','Reward/Error','ITI'};
+    blockNames = {cueType, stimType, 'Lick spout', 'Water/Noise', itiType};
+    colors = [0.4 0.7 0.4; 0.2 0.5 0.8; 0.8 0.8 0.2; 0.8 0.4 0.2; 0.6 0.6 0.6];
+    ypos = 0.4; height = 0.4; t = 0;
+    blockTimes = [cueTime, stimTime, responseTime, errorDelay, iti];
+    for i = 1:length(blocks)
+        rectangle(ax,'Position',[t ypos blockTimes(i) height], 'FaceColor', colors(i,:), 'EdgeColor','k');
+        text(t + blockTimes(i)/2, ypos+height*1.4, blocks{i}, 'HorizontalAlignment','center','Parent',ax);
+        text(t + blockTimes(i)/2, ypos+height/2, string(blockTimes(i))+'s', 'HorizontalAlignment','center','Parent',ax);
+        text(t + blockTimes(i)/2, ypos-height*0.6, blockNames{i}, 'HorizontalAlignment','center', 'Rotation', 25,'Parent',ax);
+        t = t + blockTimes(i);
+    end
+    ax.XLim = [0 t]; ax.YLim = [0 1]; axis(ax,'off');
+end
+
+function DrawOptoStim(Params)
+    global BpodSystem
+    ax = BpodSystem.GUIHandles.ParameterGUI.OptoStimAxes;
+    cla(ax); hold(ax,'on');
+    widthScale = 0.5; ypos = 0.3; height = 0.4;
+    totalTrial = Params.CueTime + Params.StimTime + Params.ResponseTime + Params.ErrorDelay + Params.InterTrialInterval;
+    scaledTotal = totalTrial * widthScale;
+    rectangle(ax, 'Position', [0 ypos scaledTotal height], 'FaceColor', [0.85 0.85 0.85], 'EdgeColor', [0 0 0]);
+    if Params.TestPulsesType == 1, freq = Params.SPfrequency; duration = Params.SPduration; amplitude = Params.SPamplitude; symbol = '*';
+    else freq = Params.PPfrequency; duration = Params.PPduration; amplitude = Params.PPamplitude; symbol = '**'; end
+    if freq > 0
+        dt = 1 / freq; tEvents = 0:dt:totalTrial; color = [0 0 max(min(amplitude,1),0)];
+        for tEv = tEvents, tScaled = tEv * widthScale;
+            text(ax, tScaled, ypos + height + 0.05, symbol, 'Color', color, 'FontSize', 10 + 8 * (duration / 1000), 'HorizontalAlignment', 'center', 'VerticalAlignment', 'bottom');
+        end
+    end
+    ax.XLim = [0 scaledTotal]; ax.YLim = [0 1]; axis(ax, 'off');
 end

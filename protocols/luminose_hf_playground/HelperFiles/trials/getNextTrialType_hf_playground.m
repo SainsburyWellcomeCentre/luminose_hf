@@ -1,12 +1,30 @@
-function nextTrialType = getNextTrialType_hf_playground(data, S)
+function nextTrialType = getNextTrialType_hf_playground(data, varargin)
 % getNextTrialType determines the next trial side based on bias and error repeating
-% S: current S.GUI struct
+% Supports either:
+%   getNextTrialType_hf_playground(data, S)
+% or the legacy form:
+%   getNextTrialType_hf_playground(data, nTrialsToUse, biasCorrection, correctionGain, leftProb)
 
-leftProb = S.LeftProb; % Base probability
+if nargin >= 2 && isstruct(varargin{1})
+    S = varargin{1};
+    leftProb = S.Leftprob; % Base probability
+    useBiasCorrection = isfield(S, 'BiasCorrection') && S.BiasCorrection;
+    useRepeatOnError = isfield(S, 'RepeatOnError') && S.RepeatOnError;
+    nTrialsToUse = 20;
+    correctionGain = 0.5;
+else
+    S = struct;
+    nTrialsToUse = varargin{1};
+    useBiasCorrection = varargin{2};
+    correctionGain = varargin{3};
+    leftProb = varargin{4};
+    useRepeatOnError = false;
+end
+
 nextTrialType = 0;
 
 % 1. Repeat on Error (if enabled)
-if isfield(S, 'RepeatOnError') && S.RepeatOnError
+if useRepeatOnError
     if isfield(data, 'Custom') && isfield(data.Custom, 'TrialOutcome') && ~isempty(data.Custom.TrialOutcome)
         lastOutcome = data.Custom.TrialOutcome(end);
         if lastOutcome == 0 % Incorrect response
@@ -18,15 +36,14 @@ end
 
 % 2. Bias Correction (if enabled)
 correctedLeftProb = leftProb;
-if isfield(S, 'BiasCorrection') && S.BiasCorrection
-    % Calculate bias over last 20 trials
-    bias = computeBias_hf_playground(data, 20);
+if useBiasCorrection
+    bias = computeBias_hf_playground(data, nTrialsToUse);
     
     % Adjust probability: 
     % If bias > 0 (Right bias), increase Left probability
     % If bias < 0 (Left bias), decrease Left probability (increase Right)
     % A simple linear correction:
-    correctedLeftProb = leftProb + bias * 0.5;
+    correctedLeftProb = leftProb + bias * correctionGain;
     
     % Bound probability
     correctedLeftProb = max(0.1, min(0.9, correctedLeftProb));

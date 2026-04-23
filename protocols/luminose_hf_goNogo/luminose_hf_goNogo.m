@@ -1,53 +1,13 @@
 function luminose_hf_goNogo
     %% clear & setup
     clc;
+    % Suppress JavaFrame warnings globally for this session
+    warning('off', 'MATLAB:HandleGraphics:ObsoleteProperty:JavaFrame');
 
-    global BpodSystem S luminose dmdModel olfModel
+    global BpodSystem S luminose olfModel
     beep('off'); % native matlab error sounds OFF
     BpodSystem.SoftCodeHandlerFunction = 'SoftCodeHandler_luminose_hf_goNogo';
-    ManualOverride('OP', 5); ManualOverride('OP', 5); ManualOverride('OP', 5); disp('rig lights toggled');
-
-    %% Define luminose constants
-    % Add folders and save output log
-    luminose = LuminoseConstants();
-    currentDataFile = split(BpodSystem.Path.CurrentDataFile, '\');
-    log_file = char(fullfile(join(currentDataFile(1:end-1), '\'), sprintf('output_log_%s.txt', datestr(now, 'yyyy-mm-dd_HH-MM-SS'))));
-    diary(log_file);
-
-    % Display confirmation
-    disp('Luminose experiment initialized:');
-    disp("=====  Folders =====");
-    disp(luminose.f);
-    disp("=====  Bpod =====");
-    disp(luminose.bpod);
-    disp("=====  Olfactometer =====");
-    disp(luminose.olfactometer);
-    disp("=====  DMD =====");
-    disp(luminose.dmd);
-    disp("=====  Bonsai =====");
-    disp(luminose.bonsai);
     
-    dmdModel = DMDmodel(luminose.dmd);
-    olfModel = OlfactometerModel(luminose.olfactometer, true);
-    
-    %% Launch bonsai
-    launchBonsai = false;
-    if luminose.bonsai.launch_bonsai
-        % Ask user whether to launch Bonsai
-        choice = questdlg('Launch Bonsai workflow?', ...
-            'Launch Bonsai', ...
-            'Yes', 'No', 'Yes');   % default = Yes
-        launchBonsai = strcmp(choice, 'Yes');
-    end
-
-    if launchBonsai
-        currentDataFile = split(BpodSystem.Path.CurrentDataFile, '\');
-        currentFilePrefix = currentDataFile{end}; 
-        luminose.bonsai.currentFilePrefix = currentFilePrefix(1:end-4);
-        luminose.bonsai.dataPath = fullfile(join(currentDataFile(1:end-2), '\'), 'Session Videos');
-        launch_bonsai(luminose.bonsai.exePath, luminose.bonsai.workflowPath, luminose.bonsai.dataPath, luminose.bonsai.currentFilePrefix);
-    end
-
     %% Configure trials  
     S = BpodSystem.ProtocolSettings;
     if isempty(fieldnames(S))
@@ -67,12 +27,12 @@ function luminose_hf_goNogo
     S = LuminoseParameterGUI_hf_goNogo('sync', S);
     disp('START pressed — beginning experiment.');
     
-    BpodSystem.Data.TrialTypes = []; % The trial type of each trial completed will be added here.
-    if rand < S.GUI.CSplus_prob
-        nextTrialType = 1;
-    else
-        nextTrialType = 2;
-    end
+    BpodSystem.Data.Custom.TrialSide = [];
+    BpodSystem.Data.Custom.TrialResponse = [];
+    BpodSystem.Data.Custom.TrialOutcome = [];
+    BpodSystem.Data.Custom.TrialType = [];
+    
+    nextTrialType = getNextTrialType_hf_goNogo(BpodSystem.Data, S);
     currentTrialType = nextTrialType;
 
     cue = S.GUIMeta.CueType.String{S.GUI.CueType};
@@ -101,13 +61,7 @@ function luminose_hf_goNogo
     BpodSystem.ProtocolFigures.AccuracyPlot = figure('Position', [1040 1035 350 350], ...
         'name', 'Accuracy Plot', 'numbertitle', 'off', 'MenuBar', 'none', 'Resize', 'on');
     BpodSystem.GUIHandles.AccuracyAxes = axes('Position', [.15 .12 .8 .8]);
-    liveAccuracyPlot_hf_goNogo(BpodSystem.GUIHandles.AccuracyAxes, 'init', []);
-    
-    % % Live psychometric curve
-    % BpodSystem.ProtocolFigures.PsychometricPlot = figure('Position', [500 600 450 350], ...
-    %     'name', 'Psychometric Curve', 'numbertitle', 'off', 'MenuBar', 'none', 'Resize', 'off');
-    % BpodSystem.GUIHandles.PsychometricAxes = axes('Position', [.15 .15 .8 .75]);
-    % livePsychometricPlot_hf_goNogo(BpodSystem.GUIHandles.PsychometricAxes, 'init', [], [1]);
+    liveBarPlot_hf_goNogo(BpodSystem.GUIHandles.AccuracyAxes, 'init', []);
     
     % Live reward monitor
     BpodSystem.ProtocolFigures.RewardPlot = figure('Position', [1040 645 350 350], ...
@@ -120,6 +74,12 @@ function luminose_hf_goNogo
         'name', 'Response Time Plot', 'numbertitle', 'off', 'MenuBar', 'none', 'Resize', 'on');
     BpodSystem.GUIHandles.ResponseAxes = axes('Position', [.15 .12 .8 .8]);
     liveResponseTimePlot_hf_goNogo(BpodSystem.GUIHandles.ResponseAxes, 'init', []);
+
+    % Live Encoder Plot
+    BpodSystem.ProtocolFigures.EncoderPlot = figure('Position', [1045 730 500 350], ...
+        'name', 'Encoder Plot', 'numbertitle', 'off', 'MenuBar', 'none', 'Resize', 'on');
+    BpodSystem.GUIHandles.EncoderAxes = axes('Position', [.15 .15 .8 .8]);
+    liveEncoderPlot_hf_goNogo(BpodSystem.GUIHandles.EncoderAxes, 'init', 0);
 
     % Initialize Bpod notebook (for manual data annotation)                                                          
     BpodNotebook('init'); 
@@ -155,7 +115,6 @@ function luminose_hf_goNogo
     
         H = BpodHiFi(BpodSystem.ModuleUSB.HiFi1);
         R = RotaryEncoderModule(BpodSystem.ModuleUSB.RotaryEncoder1); 
-        % A = BpodAnalogIn(BpodSystem.ModuleUSB.AnalogIn1);
     
         if BpodSystem.Modules.HWVersion_Major(strcmp(BpodSystem.Modules.Name, 'RotaryEncoder1')) < 2
             error('Error: This protocol requires rotary encoder module v2 or newer');
@@ -196,26 +155,6 @@ function luminose_hf_goNogo
             R.useAdvancedThresholds = 'off';
         end
         R.startUSBStream; % Begin streaming position data to PC via USB
-        BpodSystem.ProtocolFigures.EncoderPlotFig = figure('Position', [1400 1035 350 350],'name','Encoder plot',...
-                                                   'numbertitle','off', 'MenuBar', 'none', 'Resize', 'off');
-        BpodSystem.GUIHandles.EncoderAxes = axes('Position', [.15 .15 .8 .8]);
-        liveEncoderPlot_hf_goNogo(BpodSystem.GUIHandles.EncoderAxes, 'init', 0);
-
-        %% Setup analog input module
-        % A.InputRange(1:3) = {'-5V:5V', '-5V:5V', '-2.5V:2.5V'}; % set range to -5V:5V
-        % A.SamplingRate = 1000; % Hz
-        % A.nActiveChannels = 0; 
-        % A.Stream2USB(1:2) = 1; % Configure only channels 1 and 2 for USB streaming
-        % A.DIOconfig(1:2) = 1;
-        % A.SMeventsEnabled(1) = 1; % Return threshold crossing events from Ch1
-        % A.Thresholds(1) = 2.5; % Set voltage threshold of Ch1 to 2.5V
-        % A.ResetVoltages(1) = 1; % Voltage must return below 1V before another threshold crossing event can be triggered
-        % A.startReportingEvents; % Enable threshold event signaling
-        % behaviorDataFile = BpodSystem.Path.CurrentDataFile;
-        % A.USBStreamFile = [behaviorDataFile(1:end-4) '_StimFeedback.mat']; % Set datafile for analog data captured in this session
-        % A.scope; % Launch Scope GUI
-        % A.scope_StartStop; % Start USB streaming + data logging
-        
         
         %% Prepare and start first trial 
         ManualOverride('OP', 5); ManualOverride('OP', 5); ManualOverride('OP', 5); disp('rig lights toggled');
@@ -231,16 +170,14 @@ function luminose_hf_goNogo
                 S = LuminoseParameterGUI_hf_goNogo('sync', S); % Sync parameters with LuminoseParameterGUI_hf_goNogo plugin
     
                 currentTrialType = nextTrialType;
-                if currentTrial >= 20
-                    nextTrialType = getNextTrialType_hf_goNogo(BpodSystem.Data, 50, S.GUI.BiasCorrection, 0.2, S.GUI.CSplus_prob);
-                else
-                    nextTrialType = (rand > S.GUI.CSplus_prob) + 1;
-                end
-                disp(['calculated next trial: ', num2str(toc(t1))]);
+                BpodSystem.Data.TrialTypes(currentTrial) = currentTrialType;
+                BpodSystem.Data.Custom.TrialSide(currentTrial) = currentTrialType;
+                BpodSystem.Data.Custom.TrialType(currentTrial) = currentTrialType;
 
                 handle_pause_condition(H, R); % Handle pause/stop by user
                 
                 if currentTrial < S.GUI.maxTrials
+                    nextTrialType = getNextTrialType_hf_goNogo(BpodSystem.Data, S);
                     [sma, S] = PrepareStateMachine(S, nextTrialType, currentTrial+1, ITI, emulator);
                     disp(['Session: ', sessionStart, ' | Trial: ', num2str(currentTrial)]);
                     SendStateMachine(sma, 'RunASAP');
@@ -263,7 +200,19 @@ function luminose_hf_goNogo
                 if ~isempty(fieldnames(RawEvents))
                     BpodSystem.Data = AddTrialEvents(BpodSystem.Data,RawEvents);
                     BpodSystem.Data.TrialSettings(currentTrial) = S;
-                    BpodSystem.Data.TrialTypes(currentTrial) = currentTrialType;
+                    
+                    % Update Custom data
+                    outcome = getTrialOutcome_hf_goNogo(BpodSystem.Data, currentTrial);
+                    BpodSystem.Data.Custom.TrialOutcome(currentTrial) = outcome;
+                    % For response: 1=Left/CS+, 2=Right/CS-, NaN=NoResp
+                    if outcome == 1 % Correct
+                        BpodSystem.Data.Custom.TrialResponse(currentTrial) = currentTrialType;
+                    elseif outcome == 0 % Incorrect
+                        BpodSystem.Data.Custom.TrialResponse(currentTrial) = 3 - currentTrialType;
+                    else
+                        BpodSystem.Data.Custom.TrialResponse(currentTrial) = NaN;
+                    end
+
                     BpodSystem.Data = BpodNotebook('sync', BpodSystem.Data); % Sync with Bpod notebook plugin
                     
                     % Save rotary encoder data
@@ -273,7 +222,6 @@ function luminose_hf_goNogo
                     end
                     
                     BpodSystem.Data.EncoderData{currentTrial} = R.readUSBStream(0); % Returns REM data up to event '0'
-                                                                                    % see {'RotaryEncoder1', ['#' 0]} in output actions of first state 
                     
                     %% Update plots
                     t3 = tic;
@@ -281,11 +229,9 @@ function luminose_hf_goNogo
                     disp(['Updated outcome plot: ', num2str(toc(t3))]);
 
                     t4 = tic;
-                    liveAccuracyPlot_hf_goNogo(BpodSystem.GUIHandles.AccuracyAxes, 'update', BpodSystem.Data);
+                    liveBarPlot_hf_goNogo(BpodSystem.GUIHandles.AccuracyAxes, 'update', BpodSystem.Data);
                     disp(['Updated bar plot: ', num2str(toc(t4))]);
                     
-                    % livePsychometricPlot_hf_goNogo(BpodSystem.GUIHandles.PsychometricAxes, 'update', ...
-                        % BpodSystem.Data, [1]);
                     t5 = tic;
                     liveRewardPlot_hf_goNogo(BpodSystem.GUIHandles.RewardAxes, 'update', BpodSystem.Data);
                     disp(['Updated reward plot: ', num2str(toc(t5))]);
@@ -296,17 +242,15 @@ function luminose_hf_goNogo
 
                     t7 = tic;
                     % Update rotary encoder plot
-                    if currentTrial == 1 % Only on the first trial, the first and second trial's trial-start timestamps will be retrieved in the rotary encoder data
-                                         % On all subsequent trials, only the next trial's start timestamp will be returned (because data is retrieved mid-trial)
-                        % For first trial, TrialStartTime is computed above
+                    if currentTrial == 1 
                         NextTrialStartTime = BpodSystem.Data.EncoderData{currentTrial}.EventTimestamps(1);
                     else
                         TrialStartTime = NextTrialStartTime;
                         NextTrialStartTime = BpodSystem.Data.EncoderData{currentTrial}.EventTimestamps(1);
                     end
-                    BpodSystem.Data.EncoderData{currentTrial}.Times = BpodSystem.Data.EncoderData{currentTrial}.Times - TrialStartTime; % Align timestamps to state machine's trial time 0
+                    BpodSystem.Data.EncoderData{currentTrial}.Times = BpodSystem.Data.EncoderData{currentTrial}.Times - TrialStartTime; 
                     BpodSystem.Data.EncoderData{currentTrial}.EventTimestamps = ...
-                        BpodSystem.Data.EncoderData{currentTrial}.EventTimestamps - TrialStartTime; % Align event timestamps to state machine's trial time 0
+                        BpodSystem.Data.EncoderData{currentTrial}.EventTimestamps - TrialStartTime; 
 
                     TrialDuration = BpodSystem.Data.TrialEndTimestamp(currentTrial)-BpodSystem.Data.TrialStartTimestamp(currentTrial);
                     liveEncoderPlot_hf_goNogo(BpodSystem.GUIHandles.EncoderAxes, 'update', 0, BpodSystem.Data.EncoderData{currentTrial},TrialDuration);
@@ -318,7 +262,9 @@ function luminose_hf_goNogo
                     SaveOnlinePlots;
                     disp(['Saved data: ', num2str(toc(t8))]);
                 end
-            catch
+            catch ME
+                disp('=== CRASH ===');
+                disp(ME.message);
                 cleanup; % Save FlexI/O analog input data
                 ManualOverride('OP', 5); ManualOverride('OP', 5); ManualOverride('OP', 5); disp('rig lights toggled');
                 break
@@ -331,30 +277,39 @@ function luminose_hf_goNogo
                 S = LuminoseParameterGUI_hf_goNogo('sync', S); % Sync parameters with LuminoseParameterGUI_hf_goNogo plugin
                 
                 currentTrialType = nextTrialType;
-                nextTrialType = getNextTrialType_hf_goNogo(BpodSystem.Data, 50, S.GUI.BiasCorrection, 0.2, S.GUI.CSplus_prob);
-                
-                sma = PrepareStateMachine(S, currentTrialType, currentTrial+1, ITI, [], emulator);
+                BpodSystem.Data.TrialTypes(currentTrial) = currentTrialType;
+                BpodSystem.Data.Custom.TrialSide(currentTrial) = currentTrialType;
+                BpodSystem.Data.Custom.TrialType(currentTrial) = currentTrialType;
+
+                sma = PrepareStateMachine(S, currentTrialType, currentTrial+1, ITI, emulator);
                 SendStateMachine(sma);
                 RawEvents = RunStateMachine; % Run the trial and return events
     
                 if ~isempty(fieldnames(RawEvents))
                     BpodSystem.Data = AddTrialEvents(BpodSystem.Data,RawEvents);
                     BpodSystem.Data.TrialSettings(currentTrial) = S;
-                    BpodSystem.Data.TrialTypes(currentTrial) = currentTrialType;
+                    
+                    % Update Custom data
+                    outcome = getTrialOutcome_hf_goNogo(BpodSystem.Data, currentTrial);
+                    BpodSystem.Data.Custom.TrialOutcome(currentTrial) = outcome;
+                    if outcome == 1 % Correct
+                        BpodSystem.Data.Custom.TrialResponse(currentTrial) = currentTrialType;
+                    elseif outcome == 0 % Incorrect
+                        BpodSystem.Data.Custom.TrialResponse(currentTrial) = 3 - currentTrialType;
+                    else
+                        BpodSystem.Data.Custom.TrialResponse(currentTrial) = NaN;
+                    end
+
                     BpodSystem.Data = BpodNotebook('sync', BpodSystem.Data); % Sync with Bpod notebook plugin
     
                     % Update plots
                     TrialDuration = BpodSystem.Data.TrialEndTimestamp(currentTrial)-BpodSystem.Data.TrialStartTimestamp(currentTrial);
                     
+                    nextTrialType = getNextTrialType_hf_goNogo(BpodSystem.Data, S);
                     liveOutcomePlot_hf_goNogo(BpodSystem.GUIHandles.OutcomeAxes, 'update', BpodSystem.Data, nextTrialType);
     
                     liveBarPlot_hf_goNogo(BpodSystem.GUIHandles.AccuracyAxes, 'update', BpodSystem.Data);
-    
-                    % livePsychometricPlot_hf_goNogo(BpodSystem.GUIHandles.PsychometricAxes, 'update', ...
-                        % BpodSystem.Data, [1]);
-    
                     liveRewardPlot_hf_goNogo(BpodSystem.GUIHandles.RewardAxes, 'update', BpodSystem.Data);
-                    
                     liveResponseTimePlot_hf_goNogo(BpodSystem.GUIHandles.ResponseAxes, 'update', BpodSystem.Data);
                 end
                 HandlePauseCondition; % Checks to see if the protocol is paused. If so, waits until user resumes.
@@ -364,7 +319,6 @@ function luminose_hf_goNogo
             catch ME
                 disp('=== CRASH ===');
                 disp(ME.message);
-                disp(ME.stack(1));
                 cleanup; % Save FlexI/O analog input data
                 ManualOverride('OP', 5); ManualOverride('OP', 5); ManualOverride('OP', 5); disp('rig lights toggled');
                 break
@@ -380,13 +334,11 @@ function [sma, S] = PrepareStateMachine(S, currentTrialType, currentTrial, ITI, 
     CSminus = S.GUIMeta.CSminusType.String{S.GUI.CSminusType};   
     response = S.GUIMeta.ResponseType.String{S.GUI.ResponseType}; 
     
-    % analog input module: 'Serial3', ['=' 1 'High'], 'Serial3', ['=' 0 'High']
     startAction = {'BNC1', 1}; % sync
     if ~emulator
         startAction{end+1} = 'HiFi1'; startAction{end+1} = '*';
         startAction{end+1} = 'RotaryEncoder1'; startAction{end+1} = ['#' 0];
         startAction{end+1} = 'AnalogThreshEnable'; startAction{end+1} = 1;
-        % startAction{end+1} = 'Serial3'; startAction{end+1} = ['#' 1]; % analog input module sync
     end
     cueAction = {'RotaryEncoder1', '*Z'};
     switch cue
@@ -394,7 +346,8 @@ function [sma, S] = PrepareStateMachine(S, currentTrialType, currentTrial, ITI, 
             cueAction{end+1} = 'BNC2'; cueAction{end+1} = 1;
             startAction{end+1} = 'SoftCode'; startAction{end+1} = 1;
         case 'Pattern'
-            cueAction{end+1} = 'SoftCode'; cueAction{end+1} = 8;
+            cueAction{end+1} = 'BNC2'; cueAction{end+1} = 1;
+            startAction{end+1} = 'SoftCode'; startAction{end+1} = 8;
         case 'Light'
             cueAction{end+1} = 'PWM3'; cueAction{end+1} = S.GUI.Intensity_cue;
         case 'Sound'
@@ -409,7 +362,8 @@ function [sma, S] = PrepareStateMachine(S, currentTrialType, currentTrial, ITI, 
                     startAction{end+1} = 'SoftCode'; startAction{end+1} = 2;
                     chooseState2 = 'DeliverStim';
                 case 'Pattern'
-                    stimAction{end+1} = 'SoftCode'; stimAction{end+1} = 9;
+                    stimAction{end+1} = 'BNC2'; stimAction{end+1} = 1;
+                    startAction{end+1} = 'SoftCode'; startAction{end+1} = 9;
                     chooseState2 = 'GetSniff';
                 case 'Light'
                     stimAction{end+1} = 'PWM1'; stimAction{end+1} = S.GUI.Intensity_CSplus;
@@ -426,8 +380,8 @@ function [sma, S] = PrepareStateMachine(S, currentTrialType, currentTrial, ITI, 
                     startAction{end+1} = 'SoftCode'; startAction{end+1} = 3;
                     chooseState2 = 'DeliverStim';
                 case 'Pattern'
-                    stimAction{end+1} = 'SoftCode'; stimAction{end+1} = 10;
-                    stimAction{end+1} = 'Serial3'; stimAction{end+1} = ['=' 0 'High'];
+                    stimAction{end+1} = 'BNC2'; stimAction{end+1} = 1;
+                    startAction{end+1} = 'SoftCode'; startAction{end+1} = 10;
                     chooseState2 = 'GetSniff';
                 case 'Light'
                     stimAction{end+1} = 'PWM2'; stimAction{end+1} = S.GUI.Intensity_CSminus;
@@ -457,27 +411,21 @@ function [sma, S] = PrepareStateMachine(S, currentTrialType, currentTrial, ITI, 
     end
     
     switch emulator
-        %%
         case true
-            %%
             if currentTrial == 1
                 sma = NewStateMachine();
-                % unique barcode sent to identify protocol in first trial
                 sma = AddState(sma, 'Name', 'Barcode1', ...
                 'Timer', normrnd(S.GUI.muBarcodeDur, S.GUI.sigmaBarcodeDur),...
                 'StateChangeConditions', {'Tup', 'Barcode2'},...
                 'OutputActions', {'BNC1', 1}); 
-        
                 sma = AddState(sma, 'Name', 'Barcode2', ...
                 'Timer', normrnd(S.GUI.muBarcodeDur, S.GUI.sigmaBarcodeDur),...
                 'StateChangeConditions', {'Tup', 'Barcode3'},...
                 'OutputActions', {'BNC1', 0}); 
-        
                 sma = AddState(sma, 'Name', 'Barcode3', ...
                 'Timer', normrnd(S.GUI.muBarcodeDur, S.GUI.sigmaBarcodeDur),...
                 'StateChangeConditions', {'Tup', 'Barcode4'},...
                 'OutputActions', {'BNC1', 1}); 
-
                 sma = AddState(sma, 'Name', 'Barcode4', ...
                 'Timer', normrnd(S.GUI.muBarcodeDur, S.GUI.sigmaBarcodeDur),...
                 'StateChangeConditions', {'Tup', 'TrialStart'},...
@@ -485,15 +433,14 @@ function [sma, S] = PrepareStateMachine(S, currentTrialType, currentTrial, ITI, 
             else
                 sma = NewStateMachine();
             end
-
             sma = AddState(sma, 'Name', 'TrialStart', ...
                 'Timer', S.GUI.CueTime,...
                 'StateChangeConditions', {'Tup', 'DeliverStim'},...
-                'OutputActions', {'PWM1', S.GUI.Intensity_cue}); % light on
+                'OutputActions', {'PWM1', S.GUI.Intensity_cue}); 
             sma = AddState(sma, 'Name', 'DeliverStim', ... 
                 'Timer', S.GUI.StimTime,...
                 'StateChangeConditions', {'Tup', 'getResponse'},...
-                'OutputActions', {'PWM2', S.GUI.Intensity_cue}); % light on
+                'OutputActions', {'PWM2', S.GUI.Intensity_cue}); 
             sma = AddState(sma, 'Name', 'getResponse', ...
                 'Timer', S.GUI.ResponseTime,...
                 'StateChangeConditions', {'Port3In', goAction, 'Tup', noGoAction},...
@@ -516,25 +463,20 @@ function [sma, S] = PrepareStateMachine(S, currentTrialType, currentTrial, ITI, 
                 'OutputActions', {});
     
         case false
-            %%
             if currentTrial == 1
                 sma = NewStateMachine();
-                % unique barcode sent to identify protocol in first trial
                 sma = AddState(sma, 'Name', 'Barcode1', ...
                 'Timer', normrnd(S.GUI.muBarcodeDur, S.GUI.sigmaBarcodeDur),...
                 'StateChangeConditions', {'Tup', 'Barcode2'},...
                 'OutputActions', {'BNC1', 1}); 
-        
                 sma = AddState(sma, 'Name', 'Barcode2', ...
                 'Timer', normrnd(S.GUI.muBarcodeDur, S.GUI.sigmaBarcodeDur),...
                 'StateChangeConditions', {'Tup', 'Barcode3'},...
                 'OutputActions', {'BNC1', 0}); 
-        
                 sma = AddState(sma, 'Name', 'Barcode3', ...
                 'Timer', normrnd(S.GUI.muBarcodeDur, S.GUI.sigmaBarcodeDur),...
                 'StateChangeConditions', {'Tup', 'Barcode4'},...
                 'OutputActions', {'BNC1', 1}); 
-
                 sma = AddState(sma, 'Name', 'Barcode4', ...
                 'Timer', normrnd(S.GUI.muBarcodeDur, S.GUI.sigmaBarcodeDur),...
                 'StateChangeConditions', {'Tup', 'TrialStart'},...
@@ -542,19 +484,18 @@ function [sma, S] = PrepareStateMachine(S, currentTrialType, currentTrial, ITI, 
             else
                 sma = NewStateMachine();
             end
-            %%
             sma = AddState(sma, 'Name', 'TrialStart', ...
                 'Timer', ITI(currentTrial)/2,...
                 'StateChangeConditions', {'Tup', 'ShowCue'},...
-                'OutputActions', startAction); % light on
-            sma = AddState(sma, 'Name', 'ShowCue', ... % Turn on LED of port1. Wait for InitDelay seconds. Ensure that wheel does not move.
+                'OutputActions', startAction); 
+            sma = AddState(sma, 'Name', 'ShowCue', ... 
                 'Timer', S.GUI.CueTime,...
                 'StateChangeConditions', {'Tup', chooseState1},...
-                'OutputActions', cueAction); % '*' = push new thresholds to rotary encoder 'Z' = zero position
+                'OutputActions', cueAction); 
             sma = AddState(sma, 'Name', 'InitRE', ...
                 'Timer', 0.2,...
                 'StateChangeConditions', {'RotaryEncoder1_3', chooseState2, 'RotaryEncoder1_4', chooseState2},...
-                'OutputActions', {'RotaryEncoder1', [';' 4]}); % ';' = enable thresholds specified by bits of a byte. 4 = binary 100 (enable threshold# 3)  
+                'OutputActions', {'RotaryEncoder1', [';' 4]}); 
             sma = AddState(sma, 'Name', 'GetSniff', ...
                 'Timer', 0, ...
                 'StateChangeConditions', {'Flex1Trig1', 'DeliverStim'}, ...
@@ -585,53 +526,33 @@ function [sma, S] = PrepareStateMachine(S, currentTrialType, currentTrial, ITI, 
                 'OutputActions', {});
     end
 end
-%% Handle pause condition
-% function handle_pause_condition(H, R, A)
 function handle_pause_condition(H, R)
     global BpodSystem
     HandlePauseCondition;
     if BpodSystem.Status.BeingUsed == 0
             H.stop;
             R.stopUSBStream;
-            % A.stopUSBStream;
-            % A.scope_StartStop; % Stop Oscope GUI
             return
     end
 end
-
-%% Cleanup
 function cleanup()
     global BpodSystem
-    BpodSystem.Data = AddFlexIOAnalogData(BpodSystem.Data, 'Volts', 1); % Save FlexI/O analog input data
+    BpodSystem.Data = AddFlexIOAnalogData(BpodSystem.Data, 'Volts', 1);
     SaveBpodSessionData;
-    % SaveBpodProtocolSettings;
-    % A.endAcq; % Close Oscope GUI
-    % A.stopReportingEvents; % Stop sending events to state machine
     diary off;
 end
-
-%% Save online plots
 function SaveOnlinePlots()
     global BpodSystem
-
-    % Get full path of the session file
     dataFile = BpodSystem.Path.CurrentDataFile;
-
-    % Extract folder where the data file is saved
     savePath = fileparts(dataFile);
-
-    % Get session name without extension
-    [~, sessionName, ~] = fileparts(dataFile);
-    % sessionName = regexprep(sessionName, '_\d{6}$', '');
-    figNames = {'OutcomePlot', 'AccuracyPlot', 'RewardPlot', 'ResponsePlot'};
-
-    for i = 1:numel(figNames)
+    [~, sessionName] = fileparts(dataFile);
+    figNames = {'OutcomePlot', 'AccuracyPlot', 'RewardPlot', 'ResponsePlot', 'EncoderPlotFig'};
+    for i = 1:length(figNames)
         try
-            fig = BpodSystem.ProtocolFigures.(figNames{i});  % get the figure handle
+            fig = BpodSystem.ProtocolFigures.(figNames{i});
             fname = fullfile(savePath, [sessionName '_' figNames{i} '.png']);
             saveas(fig, fname)
         catch
-            warning('Could not save figure %s', figNames{i})
         end
     end
 end

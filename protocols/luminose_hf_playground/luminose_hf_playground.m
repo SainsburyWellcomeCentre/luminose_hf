@@ -1,8 +1,10 @@
 function luminose_hf_playground
     %% clear & setup
     clc;
+    % Suppress JavaFrame warnings globally for this session
+    warning('off', 'MATLAB:HandleGraphics:ObsoleteProperty:JavaFrame');
 
-    global BpodSystem S luminose dmdModel olfModel
+    global BpodSystem S luminose olfModel
     beep('off'); % native matlab error sounds OFF
     BpodSystem.SoftCodeHandlerFunction = 'SoftCodeHandler_luminose_hf_playground';
     ManualOverride('OP', 5); ManualOverride('OP', 5); ManualOverride('OP', 5); disp('rig lights toggled');
@@ -27,7 +29,6 @@ function luminose_hf_playground
     disp("=====  Bonsai =====");
     disp(luminose.bonsai);
     
-    dmdModel = DMDmodel(luminose.dmd);
     olfModel = OlfactometerModel(luminose.olfactometer, true);
 
     %% Launch bonsai
@@ -236,7 +237,7 @@ function luminose_hf_playground
                 nextTrialType = getNextTrialType_hf_playground(BpodSystem.Data, S.GUI);
                 
                 disp(['calculated next trial: ', num2str(toc(t1))]);
-
+                
                 handle_pause_condition(H, R); % Handle pause/stop by user
                 
                 if currentTrial < S.GUI.maxTrials
@@ -254,7 +255,7 @@ function luminose_hf_playground
                         [0 0 0.2]);
                 end
                 disp(['set RE: ', num2str(toc(t2))]);
-
+                
                 if currentTrial < S.GUI.maxTrials
                     trialManager.startTrial(); % Start processing the next trial's events (call with no argument since SM was already sent)
                 end
@@ -405,7 +406,8 @@ function [sma, S] = PrepareStateMachine(S, currentTrialType, currentTrial, ITI, 
                     startAction{end+1} = 'SoftCode'; startAction{end+1} = 1;
             end
         case 'Pattern'
-            cueAction{end+1} = 'SoftCode'; cueAction{end+1} = 8;
+            cueAction{end+1} = 'BNC2'; cueAction{end+1} = 1;
+            startAction{end+1} = 'SoftCode'; startAction{end+1} = 8;
         case 'Light'
             cueAction{end+1} = 'PWM3'; cueAction{end+1} = S.GUI.Intensity_cue;
         case 'Sound'
@@ -431,7 +433,8 @@ function [sma, S] = PrepareStateMachine(S, currentTrialType, currentTrial, ITI, 
                             chooseState2 = 'DeliverStim';
                     end
                 case 'Pattern'
-                    stimAction{end+1} = 'SoftCode'; stimAction{end+1} = 9;
+                    stimAction{end+1} = 'BNC2'; stimAction{end+1} = 1;
+                    startAction{end+1} = 'SoftCode'; startAction{end+1} = 9;
                     switch S.GUI.TrainingLevel
                         case 1 % Habituation
                             chooseState2 = 'GetResponse';
@@ -479,7 +482,8 @@ function [sma, S] = PrepareStateMachine(S, currentTrialType, currentTrial, ITI, 
                             chooseState2 = 'DeliverStim';
                     end
                 case 'Pattern'
-                    stimAction{end+1} = 'SoftCode'; stimAction{end+1} = 10;
+                    stimAction{end+1} = 'BNC2'; stimAction{end+1} = 1;
+                    startAction{end+1} = 'SoftCode'; startAction{end+1} = 10;
                     switch S.GUI.TrainingLevel
                         case 1 % Habituation
                             chooseState2 = 'GetResponse';
