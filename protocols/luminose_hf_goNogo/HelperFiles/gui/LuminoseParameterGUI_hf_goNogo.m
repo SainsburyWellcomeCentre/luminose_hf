@@ -226,9 +226,19 @@ function varargout = LuminoseParameterGUI_hf_goNogo(varargin)
                                 BpodSystem.GUIHandles.ParameterGUI.Params(ParamNum) = uicontrol(htab,'Style', 'togglebutton', 'String', ThisParamString, 'Value', ThisParam, 'Position', [HPos+220 VPos+InPanelPos+2 200 25], 'FontWeight', 'normal', 'FontSize', 12, 'BackgroundColor','white', 'FontName', 'Arial','HorizontalAlignment','Center', 'Callback', callbackFunc);
                             case 'pushbutton'
                                 BpodSystem.GUIData.ParameterGUI.Styles(ParamNum) = 6;
+                                if isfield(Meta, ThisParamName) && isfield(Meta.(ThisParamName), 'Callback')
+                                    cbFn  = Meta.(ThisParamName).Callback;
+                                    cbArg = '';
+                                    if isfield(Meta.(ThisParamName), 'CallbackArg')
+                                        cbArg = Meta.(ThisParamName).CallbackArg;
+                                    end
+                                    thisCallback = @(~,~) feval(cbFn, cbArg);
+                                else
+                                    thisCallback = callbackFunc;
+                                end
                                 BpodSystem.GUIHandles.ParameterGUI.Params(ParamNum) = uicontrol(htab,'Style', 'pushbutton', 'String', ThisParamString,...
                                     'Value', ThisParam, 'Position', [HPos+220 VPos+InPanelPos+2 200 25], 'FontWeight', 'normal', 'FontSize', 12,...
-                                    'BackgroundColor','white', 'FontName', 'Arial','HorizontalAlignment','Center', 'Callback', callbackFunc);
+                                    'BackgroundColor','white', 'FontName', 'Arial','HorizontalAlignment','Center', 'Callback', thisCallback);
                             case 'table'
                                 BpodSystem.GUIData.ParameterGUI.Styles(ParamNum) = 7;
                                 columnNames = fieldnames(Params.(ThisParamName));
@@ -454,7 +464,9 @@ function varargout = LuminoseParameterGUI_hf_goNogo(varargin)
                         GUIParam = get(ThisParamHandle, 'Value');
                         if ~isequal(GUIParam, ThisParamLastValue), Params.GUI.(ThisParamName) = GUIParam;
                         elseif ~isequal(ThisParamCurrentValue, ThisParamLastValue), set(ThisParamHandle, 'Value', ThisParamCurrentValue); end
-                    case 9 
+                    case 6
+                        GUIParam = ThisParamCurrentValue;
+                    case 9
                         tableData = get(ThisParamHandle, 'Data');
                         selectorData = get(ThisParamHandle, 'UserData');
                         nRows = size(tableData, 1);

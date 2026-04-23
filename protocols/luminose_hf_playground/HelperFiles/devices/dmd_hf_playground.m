@@ -1,60 +1,154 @@
 function dmd_hf_playground(code)
 % dmd_hf_playground  DMD soft-code handler for the playground protocol.
 %
-%   Called via parfeval from SoftCodeHandler at trial start.
 %   Soft-code mapping:
-%     8  - cue pattern   (imgIdx_cue,   exposure_cue)
-%     9  - Left pattern  (imgIdx_Left,  exposure_Left)
-%    10  - Right pattern (imgIdx_Right, exposure_Right)
+%     8  - cue pattern   (imgIdx_cue,   exposure_cue,  nFrames_cue)
+%     9  - Left pattern  (imgIdx_Left,  exposure_Left, nFrames_Left)
+%    10  - Right pattern (imgIdx_Right, exposure_Right,nFrames_Right)
+%
+%   nFrames == 1  : single BMP loaded by index, slave mode (BNC trigger).
+%   nFrames  > 1  : designed pattern loaded from BpodSystem.PluginObjects.
+%                   Random spots get new positions each trial.
+%                   All-fixed designs are cached; any-random designs are not.
 
-    persistent dmd cueSeq cueKey leftSeq leftKey rightSeq rightKey
-    global S luminose
+    persistent dmd ...
+        cueSeq  cueKey  leftSeq leftKey rightSeq rightKey
+
+    global S luminose BpodSystem
     C = DMDController.Constants;
 
     if isempty(dmd)
         dmd = DMDController.DMD();
         dmd.connect();
-        dmd.device.projControl(C.ALP_PROJ_MODE, C.ALP_SLAVE);
-        dmd.device.projControl(C.ALP_TRIGGER_EDGE, C.ALP_EDGE_RISING);
-        fprintf('DMD connected in slave mode (playground).\n');
+        fprintf('DMD connected (playground).\n');
     end
 
     switch code
-        case 8   % cue
-            key = [S.GUI.imgIdx_cue(1), S.GUI.exposure_cue(1)];
-            if ~isequaln(cueKey, key) || isempty(cueSeq)
-                if ~isempty(cueSeq), delete(cueSeq); end
-                cueSeq = buildDMDSlaveSequence(dmd, luminose.dmd.patternsFolder, ...
-                    S.GUI.imgIdx_cue(1), S.GUI.exposure_cue(1));
-                cueKey = key;
-            end
-            seq = cueSeq;
-
-        case 9   % Left
-            key = [S.GUI.imgIdx_Left(1), S.GUI.exposure_Left(1)];
-            if ~isequaln(leftKey, key) || isempty(leftSeq)
-                if ~isempty(leftSeq), delete(leftSeq); end
-                leftSeq = buildDMDSlaveSequence(dmd, luminose.dmd.patternsFolder, ...
-                    S.GUI.imgIdx_Left(1), S.GUI.exposure_Left(1));
-                leftKey = key;
-            end
-            seq = leftSeq;
-
-        case 10  % Right
-            key = [S.GUI.imgIdx_Right(1), S.GUI.exposure_Right(1)];
-            if ~isequaln(rightKey, key) || isempty(rightSeq)
-                if ~isempty(rightSeq), delete(rightSeq); end
-                rightSeq = buildDMDSlaveSequence(dmd, luminose.dmd.patternsFolder, ...
-                    S.GUI.imgIdx_Right(1), S.GUI.exposure_Right(1));
-                rightKey = key;
-            end
-            seq = rightSeq;
-
+        case 8,   typeName = 'cue';
+        case 9,   typeName = 'Left';
+        case 10,  typeName = 'Right';
         otherwise
             fprintf('dmd_hf_playground: unknown code %d\n', code);
             return;
     end
 
+    nF       = S.GUI.(sprintf('nFrames_%s',  typeName));
+    illuTime = S.GUI.(sprintf('exposure_%s', typeName));
+    imgIdx   = S.GUI.(sprintf('imgIdx_%s',   typeName));
+
     dmd.halt();
-    dmd.device.projStart(seq);
+
+    if nF == 1
+        % --- Single-frame BMP path (original behaviour) ---
+        key = [imgIdx, illuTime];
+        [cachedSeq, cachedKey] = getCache(code, cueKey, cueSeq, leftKey, leftSeq, rightKey, rightSeq);
+        if ~isequaln(cachedKey, key) || isempty(cachedSeq)
+            if ~isempty(cachedSeq), delete(cachedSeq); end
+            cachedSeq = buildDMDSlaveSequence(dmd, luminose.dmd.patternsFolder, imgIdx, illuTime);
+            [cueSeq, cueKey, leftSeq, leftKey, rightSeq, rightKey] = ...
+                setCache(code, cachedSeq, key, cueSeq, cueKey, leftSeq, leftKey, rightSeq, rightKey);
+        end
+        dmd.device.projControl(C.ALP_PROJ_MODE, C.ALP_SLAVE);
+        dmd.device.projControl(C.ALP_TRIGGER_EDGE, C.ALP_EDGE_RISING);
+        dmd.device.projStart(cachedSeq);
+
+    else
+        % --- Designed pattern: in-memory generation ---
+        design = getDesign(BpodSystem, typeName, luminose.dmd.patternsFolder);
+        if isempty(design)
+            fprintf('dmd_hf_playground: no pattern design found for %s\n', typeName);
+            return;
+        end
+        spots  = design.spots;
+        tickMs = design.tickMs;
+        r_px   = design.r_px;
+
+        hasRandom = any(~[spots.isFixed]);
+
+        % Cache key: fixed if all-fixed, empty if any-random (never cache)
+        if ~hasRandom
+            key = [imgIdx, nF, illuTime];
+            [cachedSeq, cachedKey] = getCache(code, cueKey, cueSeq, leftKey, leftSeq, rightKey, rightSeq);
+        else
+            key = [];
+            cachedSeq = [];
+            cachedKey = [];
+        end
+
+        if ~isequaln(cachedKey, key) || isempty(cachedSeq)
+            % Randomise random-spot positions
+            margin = r_px + 1;
+            for i = 1:numel(spots)
+                if ~spots(i).isFixed
+                    spots(i).x = randi([margin, 2560 - margin]);
+                    spots(i).y = randi([margin, 1600 - margin]);
+                end
+            end
+            frameStack = buildPatternFrameStack(spots, r_px, tickMs);
+            if ~isempty(cachedSeq), delete(cachedSeq); end
+            cachedSeq = allocFrameStack(dmd, frameStack, illuTime);
+            if ~hasRandom
+                [cueSeq, cueKey, leftSeq, leftKey, rightSeq, rightKey] = ...
+                    setCache(code, cachedSeq, key, cueSeq, cueKey, leftSeq, leftKey, rightSeq, rightKey);
+            end
+        end
+
+        dmd.device.projControl(C.ALP_PROJ_MODE, C.ALP_MASTER);
+        dmd.startFinite(cachedSeq, 1);
+    end
+end
+
+% -----------------------------------------------------------------------
+
+function seq = allocFrameStack(dmd, frameStack, illuTime_us)
+    nF  = size(frameStack, 3);
+    seq = dmd.device.allocSequence(1, nF);
+    for k = 1:nF
+        seq.put(k-1, 1, frameStack(:,:,k));
+    end
+    seq.setBinaryMode(true);
+    t = round(illuTime_us);
+    seq.timing(t, t, 0, 0, 0);
+    seq.setRepeat(1);
+end
+
+function design = getDesign(BpodSystem, typeName, patternsFolder)
+    design = [];
+    if isfield(BpodSystem, 'PluginObjects') && ...
+       isfield(BpodSystem.PluginObjects, 'PatternDesign') && ...
+       isfield(BpodSystem.PluginObjects.PatternDesign, typeName)
+        design = BpodSystem.PluginObjects.PatternDesign.(typeName);
+        return
+    end
+    % Fallback: load most recent meta file from disk
+    patternsFolder = char(patternsFolder);
+    metas = dir(fullfile(patternsFolder, sprintf('designed_%s_*_meta.mat', typeName)));
+    if isempty(metas), return; end
+    [~, newest] = max([metas.datenum]);
+    try
+        m = load(fullfile(patternsFolder, metas(newest).name), 'spots', 'tickMs', 'r_px');
+        for i = 1:numel(m.spots)
+            if ~isfield(m.spots(i), 'isFixed'), m.spots(i).isFixed = true; end
+        end
+        design = struct('spots', m.spots, 'tickMs', m.tickMs, 'r_px', m.r_px);
+    catch
+    end
+end
+
+function [seq, key] = getCache(code, cueKey, cueSeq, leftKey, leftSeq, rightKey, rightSeq)
+    switch code
+        case 8,  seq = cueSeq;   key = cueKey;
+        case 9,  seq = leftSeq;  key = leftKey;
+        case 10, seq = rightSeq; key = rightKey;
+        otherwise, seq = []; key = [];
+    end
+end
+
+function [cueSeq, cueKey, leftSeq, leftKey, rightSeq, rightKey] = ...
+        setCache(code, seq, key, cueSeq, cueKey, leftSeq, leftKey, rightSeq, rightKey)
+    switch code
+        case 8,  cueSeq  = seq; cueKey  = key;
+        case 9,  leftSeq = seq; leftKey = key;
+        case 10, rightSeq= seq; rightKey= key;
+    end
 end

@@ -1,38 +1,65 @@
-function seq = buildDMDSlaveSequence(dmd, patternsFolder, imgIdx, illuminateTime_us)
-% buildDMDSlaveSequence  Load one BMP frame and return a slave-mode sequence.
+function seq = buildDMDSlaveSequence(dmd, patternsFolder, imgIdx, illuminateTime_us, nFrames)
+% buildDMDSlaveSequence  Load BMP frame(s) and return an ALP sequence.
 %
 %   seq = buildDMDSlaveSequence(dmd, patternsFolder, imgIdx, illuminateTime_us)
+%   seq = buildDMDSlaveSequence(dmd, patternsFolder, imgIdx, illuminateTime_us, nFrames)
 %
 %   dmd               - DMDController.DMD object (must be connected)
 %   patternsFolder    - path to folder containing BMP pattern files
-%   imgIdx            - 1-based index into the sorted BMP file list
-%   illuminateTime_us - mirror-on time per trigger (microseconds)
+%   imgIdx            - 1-based index into the sorted BMP file list (first frame)
+%   illuminateTime_us - mirror-on time per frame (microseconds)
+%   nFrames           - number of consecutive frames to load (default 1)
 %
-%   In slave mode each external trigger pulse advances one frame.
-%   This function loads a single frame so one BNC trigger = one complete stimulus.
-%   Call dmd.device.projStart(seq) after to arm the DMD; it will then
-%   wait for the hardware trigger on the ALP trigger input pin.
+%   Single frame (nFrames=1): slave mode, waits for external BNC trigger.
+%   Multi-frame  (nFrames>1): caller must switch device to master mode and
+%                             use dmd.startFinite(seq,1) to play immediately.
 
-files = dir(fullfile(char(patternsFolder), '*.bmp'));
-H = dmd.device.height;
-W = dmd.device.width;
-
-if imgIdx <= numel(files)
-    img = imread(fullfile(char(patternsFolder), files(imgIdx).name));
-    if ndims(img) == 3
-        img = rgb2gray(img);
+    if nargin < 5 || isempty(nFrames)
+        nFrames = 1;
     end
-    img = img > 127;
-else
-    warning('buildDMDSlaveSequence: index %d exceeds %d files in %s', ...
-        imgIdx, numel(files), char(patternsFolder));
-    img = false(H, W);
-end
 
-seq = dmd.device.allocSequence(1, 1);
-seq.put(0, 1, img);
-seq.setBinaryMode(true);
-illuTime = round(illuminateTime_us);
-seq.timing(illuTime, illuTime, 0, 0, 0);
-seq.setRepeat(1);
+    files = dir(fullfile(char(patternsFolder), '*.bmp'));
+    H = dmd.device.height;
+    W = dmd.device.width;
+
+    if nFrames == 1
+        if imgIdx <= numel(files)
+            img = imread(fullfile(char(patternsFolder), files(imgIdx).name));
+            if ndims(img) == 3
+                img = rgb2gray(img);
+            end
+            img = img > 127;
+        else
+            warning('buildDMDSlaveSequence: index %d exceeds %d files in %s', ...
+                imgIdx, numel(files), char(patternsFolder));
+            img = false(H, W);
+        end
+        seq = dmd.device.allocSequence(1, 1);
+        seq.put(0, 1, img);
+        seq.setBinaryMode(true);
+        illuTime = round(illuminateTime_us);
+        seq.timing(illuTime, illuTime, 0, 0, 0);
+        seq.setRepeat(1);
+    else
+        % Multi-frame: load nFrames consecutive BMPs starting at imgIdx
+        frameStack = false(H, W, nFrames);
+        for k = 1:nFrames
+            idx = imgIdx + k - 1;
+            if idx <= numel(files)
+                img = imread(fullfile(char(patternsFolder), files(idx).name));
+                if ndims(img) == 3
+                    img = rgb2gray(img);
+                end
+                frameStack(:,:,k) = img > 127;
+            end
+        end
+        seq = dmd.device.allocSequence(1, nFrames);
+        for k = 1:nFrames
+            seq.put(k-1, 1, frameStack(:,:,k));
+        end
+        seq.setBinaryMode(true);
+        illuTime = round(illuminateTime_us);
+        seq.timing(illuTime, illuTime, 0, 0, 0);  % uniform per-frame duration
+        seq.setRepeat(1);
+    end
 end

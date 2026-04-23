@@ -202,6 +202,21 @@ function varargout = LuminoseParameterGUI_hf_sleep(varargin)
                             case 'popupmenu'
                                 BpodSystem.GUIData.ParameterGUI.Styles(ParamNum) = 4;
                                 BpodSystem.GUIHandles.ParameterGUI.Params(ParamNum) = uicontrol(htab,'Style', 'popupmenu', 'String', ThisParamString, 'Value', ThisParam, 'Position', [HPos+220 VPos+InPanelPos+2 200 25], 'FontWeight', 'normal', 'FontSize', 12, 'BackgroundColor','white', 'FontName', 'Arial','HorizontalAlignment','Center', 'Callback', callbackFunc);
+                            case 'pushbutton'
+                                BpodSystem.GUIData.ParameterGUI.Styles(ParamNum) = 6;
+                                if isfield(Meta, ThisParamName) && isfield(Meta.(ThisParamName), 'Callback')
+                                    cbFn  = Meta.(ThisParamName).Callback;
+                                    cbArg = '';
+                                    if isfield(Meta.(ThisParamName), 'CallbackArg')
+                                        cbArg = Meta.(ThisParamName).CallbackArg;
+                                    end
+                                    thisCallback = @(~,~) feval(cbFn, cbArg);
+                                else
+                                    thisCallback = callbackFunc;
+                                end
+                                BpodSystem.GUIHandles.ParameterGUI.Params(ParamNum) = uicontrol(htab,'Style', 'pushbutton', 'String', ThisParamString,...
+                                    'Value', ThisParam, 'Position', [HPos+220 VPos+InPanelPos+2 200 25], 'FontWeight', 'normal', 'FontSize', 12,...
+                                    'BackgroundColor','white', 'FontName', 'Arial','HorizontalAlignment','Center', 'Callback', thisCallback);
                             otherwise
                                 error('Invalid parameter style specified.');
                         end
@@ -272,10 +287,12 @@ function varargout = LuminoseParameterGUI_hf_sleep(varargin)
                         GUIParam = get(ThisParamHandle, 'Value');
                         if ~isequal(GUIParam, ThisParamLastValue), Params.GUI.(ThisParamName) = GUIParam;
                         elseif ~isequal(ThisParamCurrentValue, ThisParamLastValue), set(ThisParamHandle, 'Value', ThisParamCurrentValue); end
-                    case 4 
+                    case 4
                         GUIParam = get(ThisParamHandle, 'Value');
                         if ~isequal(GUIParam, ThisParamLastValue), Params.GUI.(ThisParamName) = GUIParam;
                         elseif ~isequal(ThisParamCurrentValue, ThisParamLastValue), set(ThisParamHandle, 'Value', ThisParamCurrentValue); end
+                    case 6
+                        GUIParam = ThisParamCurrentValue;
                 end
                 BpodSystem.GUIData.ParameterGUI.LastParamValues{p} = Params.GUI.(ThisParamName);
             end

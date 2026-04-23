@@ -47,18 +47,34 @@ function GUIparams_luminose_hf_sleep()
     %% OptoStim
     S.GUITabs.OptoStim = {'Pattern_CSplus', 'Pattern_CSminus', 'MaskLED', 'SinglePulse', 'PairedPulse'};
 
-    S.GUIPanels.Pattern_CSplus  = {'imgIdx_CSplus',  'exposure_CSplus'};
-    S.GUIPanels.Pattern_CSminus = {'imgIdx_CSminus', 'exposure_CSminus'};
+    S.GUIPanels.Pattern_CSplus  = {'imgIdx_CSplus',  'exposure_CSplus',  'DesignPattern_CSplus'};
+    S.GUIPanels.Pattern_CSminus = {'imgIdx_CSminus', 'exposure_CSminus', 'DesignPattern_CSminus'};
 
     S.GUI.imgIdx_CSplus = 1;
     S.GUIMeta.imgIdx_CSplus.Label = 'Image Index (CS+)';
     S.GUI.exposure_CSplus = 1e+6;
     S.GUIMeta.exposure_CSplus.Label = 'Exposure (us, CS+)';
+    S.GUI.DesignPattern_CSplus = 0;
+    S.GUIMeta.DesignPattern_CSplus.Style       = 'pushbutton';
+    S.GUIMeta.DesignPattern_CSplus.String      = 'Design Pattern...';
+    S.GUIMeta.DesignPattern_CSplus.Callback    = 'PatternDesignerGUI';
+    S.GUIMeta.DesignPattern_CSplus.CallbackArg = 'CSplus';
+    S.GUIMeta.DesignPattern_CSplus.Label       = '';
+    S.GUI.nFrames_CSplus = 1;
+    S.GUIMeta.nFrames_CSplus.Hidden = true;
 
     S.GUI.imgIdx_CSminus = 2;
     S.GUIMeta.imgIdx_CSminus.Label = 'Image Index (CS-)';
     S.GUI.exposure_CSminus = 1e+6;
     S.GUIMeta.exposure_CSminus.Label = 'Exposure (us, CS-)';
+    S.GUI.DesignPattern_CSminus = 0;
+    S.GUIMeta.DesignPattern_CSminus.Style       = 'pushbutton';
+    S.GUIMeta.DesignPattern_CSminus.String      = 'Design Pattern...';
+    S.GUIMeta.DesignPattern_CSminus.Callback    = 'PatternDesignerGUI';
+    S.GUIMeta.DesignPattern_CSminus.CallbackArg = 'CSminus';
+    S.GUIMeta.DesignPattern_CSminus.Label       = '';
+    S.GUI.nFrames_CSminus = 1;
+    S.GUIMeta.nFrames_CSminus.Hidden = true;
 
     S.GUIPanels.SinglePulse = {'SPduration', 'SPfrequency', 'SPamplitude', 'SPvariable', 'MaxSPfrequency'};
     S.GUIPanels.PairedPulse = {'PPduration', 'PPfrequency', 'PPamplitude', 'PPvariable', 'MaxPPfrequency'};

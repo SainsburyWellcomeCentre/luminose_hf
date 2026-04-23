@@ -112,7 +112,7 @@ function GUIparams_luminose_hf_2AFC()
     S.GUIPanels.Light_cue = {'Intensity_cue'};
     S.GUIPanels.Sound_cue = {'Freq_cue'};
     S.GUIPanels.Odour_cue = {'valves_cue'};
-    S.GUIPanels.Pattern_cue = {'imgIdx_cue', 'exposure_cue'};
+    S.GUIPanels.Pattern_cue = {'imgIdx_cue', 'exposure_cue', 'DesignPattern_cue'};
     % == Light ==
     S.GUI.Intensity_cue = 100;
     S.GUIMeta.Intensity_cue.Label = 'Intensity (0-255)';
@@ -132,13 +132,21 @@ function GUIparams_luminose_hf_2AFC()
     S.GUIMeta.imgIdx_cue.Label = 'Image Index';
     S.GUI.exposure_cue = 1e+6;
     S.GUIMeta.exposure_cue.Label = 'Exposure (us)';
+    S.GUI.DesignPattern_cue = 0;
+    S.GUIMeta.DesignPattern_cue.Style       = 'pushbutton';
+    S.GUIMeta.DesignPattern_cue.String      = 'Design Pattern...';
+    S.GUIMeta.DesignPattern_cue.Callback    = 'PatternDesignerGUI';
+    S.GUIMeta.DesignPattern_cue.CallbackArg = 'cue';
+    S.GUIMeta.DesignPattern_cue.Label       = '';
+    S.GUI.nFrames_cue = 1;
+    S.GUIMeta.nFrames_cue.Hidden = true;
 
     %% ===== Left =====
     S.GUITabs.Left = {'Light_Left', 'Sound_Left', 'Odour_Left', 'Pattern_Left'};
     S.GUIPanels.Light_Left = {'Intensity_Left'};
     S.GUIPanels.Sound_Left = {'HighFreq_Left', 'LowFreq_Left'};
     S.GUIPanels.Odour_Left = {'valves_Left'};
-    S.GUIPanels.Pattern_Left = {'imgIdx_Left', 'exposure_Left'};
+    S.GUIPanels.Pattern_Left = {'imgIdx_Left', 'exposure_Left', 'DesignPattern_Left'};
     % == Light ==
     S.GUI.Intensity_Left = 100;
     S.GUIMeta.Intensity_Left.Label = 'Intensity (0-255)';
@@ -160,13 +168,21 @@ function GUIparams_luminose_hf_2AFC()
     S.GUIMeta.imgIdx_Left.Label = 'Image Index';
     S.GUI.exposure_Left = 1e+6;
     S.GUIMeta.exposure_Left.Label = 'Exposure (us)';
+    S.GUI.DesignPattern_Left = 0;
+    S.GUIMeta.DesignPattern_Left.Style       = 'pushbutton';
+    S.GUIMeta.DesignPattern_Left.String      = 'Design Pattern...';
+    S.GUIMeta.DesignPattern_Left.Callback    = 'PatternDesignerGUI';
+    S.GUIMeta.DesignPattern_Left.CallbackArg = 'Left';
+    S.GUIMeta.DesignPattern_Left.Label       = '';
+    S.GUI.nFrames_Left = 1;
+    S.GUIMeta.nFrames_Left.Hidden = true;
 
     %% ===== Right =====
     S.GUITabs.Right = {'Light_Right', 'Sound_Right', 'Odour_Right', 'Pattern_Right'};
     S.GUIPanels.Light_Right = {'Intensity_Right'};
     S.GUIPanels.Sound_Right = {'HighFreq_Right', 'LowFreq_Right'};
     S.GUIPanels.Odour_Right = {'valves_Right'};
-    S.GUIPanels.Pattern_Right = {'imgIdx_Right', 'exposure_Right'};
+    S.GUIPanels.Pattern_Right = {'imgIdx_Right', 'exposure_Right', 'DesignPattern_Right'};
     % == Light ==
     S.GUI.Intensity_Right = 100;
     S.GUIMeta.Intensity_Right.Label = 'Intensity (0-255)';
@@ -188,6 +204,14 @@ function GUIparams_luminose_hf_2AFC()
     S.GUIMeta.imgIdx_Right.Label = 'Image Index';
     S.GUI.exposure_Right = 1e+6;
     S.GUIMeta.exposure_Right.Label = 'Exposure (us)';
+    S.GUI.DesignPattern_Right = 0;
+    S.GUIMeta.DesignPattern_Right.Style       = 'pushbutton';
+    S.GUIMeta.DesignPattern_Right.String      = 'Design Pattern...';
+    S.GUIMeta.DesignPattern_Right.Callback    = 'PatternDesignerGUI';
+    S.GUIMeta.DesignPattern_Right.CallbackArg = 'Right';
+    S.GUIMeta.DesignPattern_Right.Label       = '';
+    S.GUI.nFrames_Right = 1;
+    S.GUIMeta.nFrames_Right.Hidden = true;
     
     %% OptoStim
     S.GUITabs.OptoStim = {'MaskLED', 'SinglePulse', 'PairedPulse'};
