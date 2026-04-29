@@ -23,18 +23,17 @@ switch action
     case 'update'
         nDone = data.nTrials;
 
-        % Plot all completed trials
-        for i = 1:nDone
-            side    = getTrialSide_hf_goNogo(data, i);
-            outcome = getTrialOutcome_hf_goNogo(data, i);
+        % Only process the latest trial
+        i = nDone;
+        side    = getTrialSide_hf_goNogo(data, i);
+        outcome = getTrialOutcome_hf_goNogo(data, i);
 
-            if outcome == 1
-                xC(end+1) = i; yC(end+1) = side;
-            elseif outcome == 0
-                xE(end+1) = i; yE(end+1) = side;
-            elseif outcome == 3
-                xN(end+1) = i; yN(end+1) = side;
-            end
+        if outcome == 1
+            xC(end+1) = i; yC(end+1) = side;
+        elseif outcome == 0
+            xE(end+1) = i; yE(end+1) = side;
+        elseif outcome == 3
+            xN(end+1) = i; yN(end+1) = side;
         end
 
         set(h.correct, 'XData', xC, 'YData', yC)
@@ -47,7 +46,7 @@ switch action
         if nargin >= 4 && ~isempty(nextTrialType)
             nextSide = nextTrialType == 1;
         end
-        set(ax,'XLim',[max(nDone-100, 0) max(nDone, 100)])
+        set(ax,'XLim',[max(nDone-100, 0) max(nDone+1, 100)])
         set(h.current, 'XData', nextTrial, 'YData', nextSide)
         drawnow nocallbacks
 end

@@ -109,7 +109,7 @@ function GUIparams_luminose_hf_goNogo()
     S.GUIPanels.Light_cue = {'Intensity_cue'};
     S.GUIPanels.Sound_cue = {'Freq_cue'};
     S.GUIPanels.Odour_cue = {'valves_cue'};
-    S.GUIPanels.Pattern_cue = {'imgIdx_cue', 'exposure_cue', 'DesignPattern_cue'};
+    S.GUIPanels.Pattern_cue = {'imgIdx_cue', 'exposure_cue'};
     % == Light ==
     S.GUI.Intensity_cue = 100;
     S.GUIMeta.Intensity_cue.Label = 'Intensity (0-255)';
@@ -129,21 +129,13 @@ function GUIparams_luminose_hf_goNogo()
     S.GUIMeta.imgIdx_cue.Label = 'Image Index';
     S.GUI.exposure_cue = 1e+6;
     S.GUIMeta.exposure_cue.Label = 'Exposure (us)';
-    S.GUI.DesignPattern_cue = 0;
-    S.GUIMeta.DesignPattern_cue.Style       = 'pushbutton';
-    S.GUIMeta.DesignPattern_cue.String      = 'Design Pattern...';
-    S.GUIMeta.DesignPattern_cue.Callback    = 'PatternDesignerGUI';
-    S.GUIMeta.DesignPattern_cue.CallbackArg = 'cue';
-    S.GUIMeta.DesignPattern_cue.Label       = '';
-    S.GUI.nFrames_cue = 1;
-    S.GUIMeta.nFrames_cue.Hidden = true;
 
     %% ===== CS+ =====
     S.GUITabs.CSplus = {'Light_CSplus', 'Sound_CSplus', 'Odour_CSplus', 'Pattern_CSplus'};
     S.GUIPanels.Light_CSplus = {'Intensity_CSplus'};
     S.GUIPanels.Sound_CSplus = {'HighFreq_CSplus', 'LowFreq_CSplus'};
     S.GUIPanels.Odour_CSplus = {'valves_CSplus'};
-    S.GUIPanels.Pattern_CSplus = {'imgIdx_CSplus', 'exposure_CSplus', 'DesignPattern_CSplus'};
+    S.GUIPanels.Pattern_CSplus = {'imgIdx_CSplus', 'exposure_CSplus'};
     % == Light ==
     S.GUI.Intensity_CSplus = 100;
     S.GUIMeta.Intensity_CSplus.Label = 'Intensity (0-255)';
@@ -153,7 +145,7 @@ function GUIparams_luminose_hf_goNogo()
     S.GUI.LowFreq_CSplus = 4;     
     S.GUIMeta.LowFreq_CSplus.Label = 'Low Freq (Hz)';
     % == Odour ==
-    S.GUI.valves_CSplus = [11]; 
+    S.GUI.valves_CSplus = [12]; 
     S.GUIMeta.valves_CSplus.Style = 'odour_selector';
     S.GUIMeta.valves_CSplus.ProbParam = 'probs_CSplus';
     S.GUIMeta.valves_CSplus.DutyParam = 'dutyCycles_CSplus';
@@ -165,21 +157,13 @@ function GUIparams_luminose_hf_goNogo()
     S.GUIMeta.imgIdx_CSplus.Label = 'Image Index';
     S.GUI.exposure_CSplus = 1e+6;
     S.GUIMeta.exposure_CSplus.Label = 'Exposure (us)';
-    S.GUI.DesignPattern_CSplus = 0;
-    S.GUIMeta.DesignPattern_CSplus.Style       = 'pushbutton';
-    S.GUIMeta.DesignPattern_CSplus.String      = 'Design Pattern...';
-    S.GUIMeta.DesignPattern_CSplus.Callback    = 'PatternDesignerGUI';
-    S.GUIMeta.DesignPattern_CSplus.CallbackArg = 'CSplus';
-    S.GUIMeta.DesignPattern_CSplus.Label       = '';
-    S.GUI.nFrames_CSplus = 1;
-    S.GUIMeta.nFrames_CSplus.Hidden = true;
 
     %% ===== CS- =====
     S.GUITabs.CSminus = {'Light_CSminus', 'Sound_CSminus', 'Odour_CSminus', 'Pattern_CSminus'};
     S.GUIPanels.Light_CSminus = {'Intensity_CSminus'};
     S.GUIPanels.Sound_CSminus = {'HighFreq_CSminus', 'LowFreq_CSminus'};
     S.GUIPanels.Odour_CSminus = {'valves_CSminus'};
-    S.GUIPanels.Pattern_CSminus = {'imgIdx_CSminus', 'exposure_CSminus', 'DesignPattern_CSminus'};
+    S.GUIPanels.Pattern_CSminus = {'imgIdx_CSminus', 'exposure_CSminus'};
     % == Light ==
     S.GUI.Intensity_CSminus = 100;
     S.GUIMeta.Intensity_CSminus.Label = 'Intensity (0-255)';
@@ -201,15 +185,7 @@ function GUIparams_luminose_hf_goNogo()
     S.GUIMeta.imgIdx_CSminus.Label = 'Image Index';
     S.GUI.exposure_CSminus = 1e+6;
     S.GUIMeta.exposure_CSminus.Label = 'Exposure (us)';
-    S.GUI.DesignPattern_CSminus = 0;
-    S.GUIMeta.DesignPattern_CSminus.Style       = 'pushbutton';
-    S.GUIMeta.DesignPattern_CSminus.String      = 'Design Pattern...';
-    S.GUIMeta.DesignPattern_CSminus.Callback    = 'PatternDesignerGUI';
-    S.GUIMeta.DesignPattern_CSminus.CallbackArg = 'CSminus';
-    S.GUIMeta.DesignPattern_CSminus.Label       = '';
-    S.GUI.nFrames_CSminus = 1;
-    S.GUIMeta.nFrames_CSminus.Hidden = true;
-
+    
     %% OptoStim
     S.GUITabs.OptoStim = {'MaskLED', 'SinglePulse', 'PairedPulse'};
     S.GUIPanels.SinglePulse = {'SPduration', 'SPfrequency', 'SPamplitude'};

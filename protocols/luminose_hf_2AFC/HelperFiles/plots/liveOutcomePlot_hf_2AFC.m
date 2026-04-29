@@ -46,7 +46,7 @@ switch action
         if nargin >= 4 && ~isempty(nextTrialType)
             nextSide = nextTrialType == 1;
         end
-        set(ax,'XLim',[max(nDone-100, 0) max(nDone, 100)])
+        set(ax,'XLim',[max(nDone-100, 0) max(nDone+1, 100)])
         set(h.current, 'XData', nextTrial, 'YData', nextSide)
         drawnow nocallbacks
 end

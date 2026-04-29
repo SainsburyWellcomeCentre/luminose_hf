@@ -105,7 +105,7 @@ function varargout = LuminoseParameterGUI_hf_sleep(varargin)
             
             Params = Params.GUI;
             PanelNames = PanelNames(end:-1:1);
-            GUIHeight = 900;
+            GUIHeight = 1200;
             MaxVPos = 0;
             MaxHPos = 0;
             BpodSystem.ProtocolFigures.ParameterGUI = figure('Position', [50 50 450 GUIHeight],'name','Luminose','numbertitle','off', 'MenuBar', 'none', 'Resize', 'on');

@@ -3,7 +3,7 @@ function GUIparams_luminose_hf_sleep()
     
     %% ===== Trials =====
     S.GUITabs.Trials = {'ProtocolSettings', 'TreatmentType', 'TestPulses', 'TrialParams'};
-    S.GUIPanels.TrialParams = {'maxTrials', 'Typeprob'};
+    S.GUIPanels.TrialParams = {'maxTrials', 'Typeprob', 'ITImin', 'ITImax'};
     S.GUIPanels.TestPulses = {'TestPulses', 'TestPulsesType'};
     S.GUIPanels.TreatmentType = {'Ephys', 'EEG', 'Drug'};
     S.GUIPanels.ProtocolSettings = {'Sleep', 'muBarcodeDur', 'sigmaBarcodeDur'};
@@ -12,7 +12,11 @@ function GUIparams_luminose_hf_sleep()
     S.GUI.maxTrials = 10000;  
     S.GUIMeta.maxTrials.Label = 'Max Trials';
     S.GUI.Typeprob = 0.5;
-    S.GUIMeta.Typeprob.Label = 'Type Probability';
+    S.GUIMeta.Typeprob.Label = 'Type 1 Probability';
+    S.GUI.ITImin = 2;
+    S.GUIMeta.ITImin.Label = 'ITI Min (s)';
+    S.GUI.ITImax = 5;
+    S.GUIMeta.ITImax.Label = 'ITI Max (s)';
     
     % == Test Pulses ==
     S.GUI.TestPulses = false;
@@ -45,15 +49,15 @@ function GUIparams_luminose_hf_sleep()
     S.GUIMeta.Sleep.Label = 'Sleep Phase';
 
     %% OptoStim
-    S.GUITabs.OptoStim = {'Pattern_CSplus', 'Pattern_CSminus', 'MaskLED', 'SinglePulse', 'PairedPulse'};
+    S.GUITabs.OptoStim = {'Pattern_Type1', 'Pattern_Type2', 'MaskLED', 'SinglePulse', 'PairedPulse'};
 
-    S.GUIPanels.Pattern_CSplus  = {'imgIdx_CSplus',  'exposure_CSplus',  'DesignPattern_CSplus'};
-    S.GUIPanels.Pattern_CSminus = {'imgIdx_CSminus', 'exposure_CSminus', 'DesignPattern_CSminus'};
+    S.GUIPanels.Pattern_Type1  = {'imgIdx_CSplus',  'exposure_CSplus',  'DesignPattern_CSplus'};
+    S.GUIPanels.Pattern_Type2 = {'imgIdx_CSminus', 'exposure_CSminus', 'DesignPattern_CSminus'};
 
     S.GUI.imgIdx_CSplus = 1;
-    S.GUIMeta.imgIdx_CSplus.Label = 'Image Index (CS+)';
+    S.GUIMeta.imgIdx_CSplus.Label = 'Image Index (Type 1)';
     S.GUI.exposure_CSplus = 1e+6;
-    S.GUIMeta.exposure_CSplus.Label = 'Exposure (us, CS+)';
+    S.GUIMeta.exposure_CSplus.Label = 'Exposure (us, Type 1)';
     S.GUI.DesignPattern_CSplus = 0;
     S.GUIMeta.DesignPattern_CSplus.Style       = 'pushbutton';
     S.GUIMeta.DesignPattern_CSplus.String      = 'Design Pattern...';
@@ -64,9 +68,9 @@ function GUIparams_luminose_hf_sleep()
     S.GUIMeta.nFrames_CSplus.Hidden = true;
 
     S.GUI.imgIdx_CSminus = 2;
-    S.GUIMeta.imgIdx_CSminus.Label = 'Image Index (CS-)';
+    S.GUIMeta.imgIdx_CSminus.Label = 'Image Index (Type 2)';
     S.GUI.exposure_CSminus = 1e+6;
-    S.GUIMeta.exposure_CSminus.Label = 'Exposure (us, CS-)';
+    S.GUIMeta.exposure_CSminus.Label = 'Exposure (us, Type 2)';
     S.GUI.DesignPattern_CSminus = 0;
     S.GUIMeta.DesignPattern_CSminus.Style       = 'pushbutton';
     S.GUIMeta.DesignPattern_CSminus.String      = 'Design Pattern...';
