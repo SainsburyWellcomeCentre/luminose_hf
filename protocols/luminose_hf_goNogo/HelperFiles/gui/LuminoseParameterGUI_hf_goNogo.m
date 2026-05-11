@@ -318,7 +318,8 @@ function varargout = LuminoseParameterGUI_hf_goNogo(varargin)
                                     'ColumnName', {'Prob', 'Valves', 'DutyCycles'}, ...
                                     'ColumnWidth', {50, 160, 160}, 'ColumnEditable', [true, true, true], ...
                                     'ColumnFormat', {'numeric', 'char', 'char'}, ...
-                                    'Position', [5 10 385 125], 'FontSize', 10, 'CellEditCallback', callbackFunc);
+                                    'Position', [5 10 385 125], 'FontSize', 10, ...
+                                    'CellEditCallback', @(src, ev) OdourTableCellEdited(src, ev, 'goNogo'));
                                 
                                 set(otable, 'CellSelectionCallback', @(src, ev) OdourTableSelectionChanged(src, ev, bottleButtons));
                                 
@@ -576,10 +577,14 @@ end
 
 function OdourAddRow(htable, suffix)
     data = get(htable, 'Data');
-    newRow = {0, '0', '1'};
-    set(htable, 'Data', [data; newRow]);
+    nRows = size(data, 1) + 1;
+    data = [data; {0, '', ''}];
+    for i = 1:nRows
+        data{i, 1} = round(1/nRows, 4);
+    end
+    set(htable, 'Data', data);
     selectorData = get(htable, 'UserData');
-    selectorData.ActiveRow = size(data, 1) + 1;
+    selectorData.ActiveRow = nRows;
     set(htable, 'UserData', selectorData);
     HandleRealTimeSync(suffix);
 end
@@ -589,11 +594,41 @@ function OdourRemoveRow(htable, suffix)
     if size(data, 1) > 1
         data(end, :) = [];
         set(htable, 'Data', data);
+        normalizeOdourProbs(htable);
         selectorData = get(htable, 'UserData');
         selectorData.ActiveRow = min(selectorData.ActiveRow, size(data, 1));
         set(htable, 'UserData', selectorData);
         HandleRealTimeSync(suffix);
     end
+end
+
+function OdourTableCellEdited(src, ev, suffix)
+    if ~isempty(ev.Indices) && ev.Indices(1, 2) == 1
+        normalizeOdourProbs(src);
+    end
+    HandleRealTimeSync(suffix);
+end
+
+function normalizeOdourProbs(htable)
+    data = get(htable, 'Data');
+    nRows = size(data, 1);
+    if nRows == 0, return; end
+    probs = zeros(nRows, 1);
+    for i = 1:nRows
+        p = data{i, 1};
+        if isempty(p) || (isnumeric(p) && isnan(p)), p = 0; end
+        probs(i) = p;
+    end
+    total = sum(probs);
+    if total == 0
+        probs = ones(nRows, 1) / nRows;
+    else
+        probs = probs / total;
+    end
+    for i = 1:nRows
+        data{i, 1} = round(probs(i), 4);
+    end
+    set(htable, 'Data', data);
 end
 
 function UpdateRelevantPanels(Params, Meta)

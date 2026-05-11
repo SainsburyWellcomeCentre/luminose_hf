@@ -140,8 +140,11 @@ function luminose_hf_2AFC
 
     %% Prepare and start first trial
     trialManager = BpodTrialManager;
-    sma = PrepareStateMachine(S, currentTrialType, 1, ITI);
+    [sma, ~, currentActions] = PrepareStateMachine(S, currentTrialType, 1, ITI);
     sessionStart = datestr(datetime('now'), 'yyyy-mm-dd HH:MM:SS');
+    repoDir = fileparts(fileparts(fileparts(mfilename('fullpath'))));
+    [~, gitHash] = system(['git -C "' repoDir '" rev-parse HEAD']);
+    BpodSystem.Data.GitHash = strtrim(gitHash);
     trialManager.startTrial(sma);
 
     %% Main trial loop
@@ -159,7 +162,7 @@ function luminose_hf_2AFC
 
             if currentTrial < S.GUI.maxTrials
                 nextTrialType = getNextTrialType_hf_2AFC(BpodSystem.Data, S);
-                [sma, S] = PrepareStateMachine(S, nextTrialType, currentTrial+1, ITI);
+                [sma, S, nextActions] = PrepareStateMachine(S, nextTrialType, currentTrial+1, ITI);
                 disp(['Session: ', sessionStart, ' | Trial: ', num2str(currentTrial)]);
                 SendStateMachine(sma, 'RunASAP');
             end
@@ -180,6 +183,7 @@ function luminose_hf_2AFC
             if ~isempty(fieldnames(RawEvents))
                 BpodSystem.Data = AddTrialEvents(BpodSystem.Data, RawEvents);
                 BpodSystem.Data.TrialSettings(currentTrial) = S;
+                BpodSystem.Data.TrialActions{currentTrial} = currentActions;
 
                 outcome = getTrialOutcome_hf_2AFC(BpodSystem.Data, currentTrial);
                 BpodSystem.Data.Custom.TrialOutcome(currentTrial) = outcome;
@@ -245,9 +249,15 @@ function luminose_hf_2AFC
                 SaveOnlinePlots;
                 disp(['Saved data: ', num2str(toc(t8))]);
             end
+            if currentTrial < S.GUI.maxTrials
+                currentActions = nextActions;
+            end
         catch ME
             disp('=== CRASH ===');
             disp(ME.message);
+            for iStack = 1:length(ME.stack)
+                disp(['  ', ME.stack(iStack).name, ' line ', num2str(ME.stack(iStack).line)]);
+            end
             break
         end
     end
@@ -255,7 +265,7 @@ function luminose_hf_2AFC
 end
 
 %% State machine
-function [sma, S] = PrepareStateMachine(S, currentTrialType, currentTrial, ITI)
+function [sma, S, actions] = PrepareStateMachine(S, currentTrialType, currentTrial, ITI)
     cue = S.GUIMeta.CueType.String{S.GUI.CueType};
     Left = S.GUIMeta.LeftType.String{S.GUI.LeftType};
     Right = S.GUIMeta.RightType.String{S.GUI.RightType};
@@ -318,7 +328,7 @@ function [sma, S] = PrepareStateMachine(S, currentTrialType, currentTrial, ITI)
     responseAction = {};
     switch response
         case 'Lick'
-            responseDetect = {'Port1In', leftAction, 'Port2In', rightAction, 'Tup', 'InterTrialInterval'};
+            responseDetect = {'BNC1High', leftAction, 'BNC2High', rightAction, 'Tup', 'InterTrialInterval'};
             chooseState1 = chooseState2;
         case 'Rotary Encoder'
             responseDetect = {'RotaryEncoder1_1', leftAction, 'RotaryEncoder1_2', rightAction, 'Tup', 'InterTrialInterval'};
@@ -351,6 +361,10 @@ function [sma, S] = PrepareStateMachine(S, currentTrialType, currentTrial, ITI)
             'StateChangeConditions', {'Tup', 'Barcode4'}, ...
             'OutputActions', {'BNC1', 1});
         sma = AddState(sma, 'Name', 'Barcode4', ...
+            'Timer', normrnd(S.GUI.muBarcodeDur, S.GUI.sigmaBarcodeDur), ...
+            'StateChangeConditions', {'Tup', 'Barcode5'}, ...
+            'OutputActions', {'BNC1', 0});
+        sma = AddState(sma, 'Name', 'Barcode5', ...
             'Timer', normrnd(S.GUI.muBarcodeDur, S.GUI.sigmaBarcodeDur), ...
             'StateChangeConditions', {'Tup', 'TrialStart'}, ...
             'OutputActions', {'BNC1', 0});
@@ -397,6 +411,15 @@ function [sma, S] = PrepareStateMachine(S, currentTrialType, currentTrial, ITI)
         'Timer', ITI(currentTrial)/2, ...
         'StateChangeConditions', {'Tup', 'exit'}, ...
         'OutputActions', {});
+
+    actions = struct();
+    actions.TrialStart   = startAction;
+    actions.ShowCue      = cueAction;
+    actions.DeliverStim  = stimAction;
+    actions.GetResponse  = responseAction;
+    actions.Reward       = rewardAction;
+    actions.Punishment   = punishAction;
+    actions.RewardValveTime = valveTime;
 end
 
 function handle_pause_condition(H, R)

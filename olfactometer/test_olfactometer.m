@@ -1,6 +1,6 @@
 luminose = LuminoseConstants();
 unique_valves = [3:8, 11:16];
-% unique_valves = [11,16];
+unique_valves = [14];
 valves = reshape(repmat(unique_valves, 3, 100), 1, []);
 triggered = false;
 

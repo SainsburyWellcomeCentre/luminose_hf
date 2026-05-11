@@ -3,7 +3,7 @@ function luminose_hf_playground
     clc;
     warning('off', 'MATLAB:HandleGraphics:ObsoleteProperty:JavaFrame');
 
-    global BpodSystem S luminose olfModel
+    global BpodSystem S luminose olfModel sniffDetector
     beep('off'); % native matlab error sounds OFF
     BpodSystem.SoftCodeHandlerFunction = 'SoftCodeHandler_luminose_hf_playground';
 
@@ -61,6 +61,8 @@ function luminose_hf_playground
     disp('START pressed — beginning experiment.');
 
     BpodSystem.Data.TrialTypes = [];
+    BpodSystem.Data.Custom.SniffInhalationOnset_s  = [];
+    BpodSystem.Data.Custom.SniffInhalationOffset_s = [];
     if rand < S.GUI.Leftprob
         nextTrialType = 1;
     else
@@ -108,16 +110,17 @@ function luminose_hf_playground
     %% Configure Flex I/O Channels
     chanSniff = 1; chanPhotodetector = 2; chanFlowmeter = 3; chanNIDAQ = 4;
     channelTypes(1:4) = 4; % Disabled
-    channelTypes(chanSniff) = 2; % Analog Input
     channelTypes(chanPhotodetector) = 2; % Analog Input
     channelTypes(chanFlowmeter) = 2; % Analog Input
     channelTypes(chanNIDAQ) = 2;
     BpodSystem.FlexIOConfig.channelTypes = channelTypes;
-
-    BpodSystem.FlexIOConfig.threshold1(chanSniff) = 0.5;
-    BpodSystem.FlexIOConfig.polarity1(chanSniff) = 1;
-    BpodSystem.FlexIOConfig.thresholdMode(chanSniff) = 0;
     BpodSystem.FlexIOConfig.analogSamplingRate = 100;
+
+    % Thresholds come from the GUI (Trials → Sniff panel) so they can be tuned
+    % per animal without touching code.  They are only used for FlexIO hardware
+    % triggering; detectFromAnalog is fully adaptive and ignores them.
+    sniffDetector = SniffDetector(chanSniff, 100);
+    sniffDetector.configure(S.GUI.SniffOnsetThreshold, S.GUI.SniffOffsetThreshold);
 
     BpodSystem.startAnalogViewer;
     flexioPos = get(BpodSystem.GUIHandles.OscopeFig_Builtin, 'Position');
@@ -169,8 +172,11 @@ function luminose_hf_playground
 
     %% Prepare and start first trial
     trialManager = BpodTrialManager;
-    sma = PrepareStateMachine(S, currentTrialType, 1, ITI);
+    [sma, ~, currentActions] = PrepareStateMachine(S, currentTrialType, 1, ITI);
     sessionStart = datestr(datetime('now'), 'yyyy-mm-dd HH:MM:SS');
+    repoDir = fileparts(fileparts(fileparts(mfilename('fullpath'))));
+    [~, gitHash] = system(['git -C "' repoDir '" rev-parse HEAD']);
+    BpodSystem.Data.GitHash = strtrim(gitHash);
     trialManager.startTrial(sma);
 
     %% Main trial loop
@@ -187,7 +193,7 @@ function luminose_hf_playground
             handle_pause_condition(H, R);
 
             if currentTrial < S.GUI.maxTrials
-                [sma, S] = PrepareStateMachine(S, nextTrialType, currentTrial+1, ITI);
+                [sma, S, nextActions] = PrepareStateMachine(S, nextTrialType, currentTrial+1, ITI);
                 disp(['Session: ', sessionStart, ' | Trial: ', num2str(currentTrial)]);
                 SendStateMachine(sma, 'RunASAP');
             end
@@ -209,6 +215,12 @@ function luminose_hf_playground
                 BpodSystem.Data = AddTrialEvents(BpodSystem.Data, RawEvents);
                 BpodSystem.Data.TrialSettings(currentTrial) = S;
                 BpodSystem.Data.TrialTypes(currentTrial) = currentTrialType;
+                BpodSystem.Data.TrialActions{currentTrial} = currentActions;
+
+                BpodSystem.Data.Custom.SniffInhalationOnset_s(currentTrial)  = sniffDetector.getOnset(RawEvents);
+                BpodSystem.Data.Custom.SniffInhalationOffset_s(currentTrial) = sniffDetector.getOffset(RawEvents);
+                disp(['Sniff onset: ' num2str(BpodSystem.Data.Custom.SniffInhalationOnset_s(currentTrial), '%.3f') ...
+                      ' s  offset: ' num2str(BpodSystem.Data.Custom.SniffInhalationOffset_s(currentTrial), '%.3f') ' s']);
 
                 BpodSystem.Data = updateTrialData_hf_playground(BpodSystem.Data, currentTrial);
 
@@ -266,10 +278,15 @@ function luminose_hf_playground
                 SaveOnlinePlots;
                 disp(['Saved data: ', num2str(toc(t8))]);
             end
+            if currentTrial < S.GUI.maxTrials
+                currentActions = nextActions;
+            end
         catch ME
             disp('=== CRASH ===');
             disp(ME.message);
-            disp(ME.stack(1));
+            for iStack = 1:length(ME.stack)
+                disp(['  ', ME.stack(iStack).name, ' line ', num2str(ME.stack(iStack).line)]);
+            end
             break
         end
     end
@@ -277,7 +294,7 @@ function luminose_hf_playground
 end
 
 %% State machine
-function [sma, S] = PrepareStateMachine(S, currentTrialType, currentTrial, ITI)
+function [sma, S, actions] = PrepareStateMachine(S, currentTrialType, currentTrial, ITI)
     cue = S.GUIMeta.CueType.String{S.GUI.CueType};
     Left = S.GUIMeta.LeftType.String{S.GUI.LeftType};
     Right = S.GUIMeta.RightType.String{S.GUI.RightType};
@@ -463,6 +480,15 @@ function [sma, S] = PrepareStateMachine(S, currentTrialType, currentTrial, ITI)
         'Timer', ITI(currentTrial)/2, ...
         'StateChangeConditions', {'Tup', 'exit'}, ...
         'OutputActions', {});
+
+    actions = struct();
+    actions.TrialStart   = startAction;
+    actions.ShowCue      = cueAction;
+    actions.DeliverStim  = stimAction;
+    actions.GetResponse  = responseAction;
+    actions.Reward       = rewardAction;
+    actions.Punishment   = punishAction;
+    actions.RewardValveTime = valveTime;
 end
 
 %% Handle pause condition
@@ -478,7 +504,7 @@ end
 
 %% Cleanup
 function cleanup()
-    global BpodSystem luminose
+    global BpodSystem luminose sniffDetector %#ok<NUSED>
     BpodSystem.Data = AddFlexIOAnalogData(BpodSystem.Data, 'Volts', 1);
     BpodSystem.Data.luminose = luminose;
     SaveBpodSessionData;

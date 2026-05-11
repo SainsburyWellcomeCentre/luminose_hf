@@ -136,8 +136,11 @@ function luminose_hf_sleep
     %% Prepare and start first trial
     trialManager = BpodTrialManager;
     sessionStartTic = tic;
-    sma = PrepareStateMachine(S, trialTypes, 1, stimTime, ITI, sessionStartTic);
+    [sma, ~, currentActions] = PrepareStateMachine(S, trialTypes, 1, stimTime, ITI, sessionStartTic);
     sessionStart = datestr(datetime('now'), 'yyyy-mm-dd HH:MM:SS');
+    repoDir = fileparts(fileparts(fileparts(mfilename('fullpath'))));
+    [~, gitHash] = system(['git -C "' repoDir '" rev-parse HEAD']);
+    BpodSystem.Data.GitHash = strtrim(gitHash);
     trialManager.startTrial(sma);
 
     %% Main trial loop
@@ -152,7 +155,7 @@ function luminose_hf_sleep
             handle_pause_condition(R);
 
             if currentTrial < S.GUI.maxTrials
-                [sma, S] = PrepareStateMachine(S, trialTypes, currentTrial+1, stimTime, ITI, sessionStartTic);
+                [sma, S, nextActions] = PrepareStateMachine(S, trialTypes, currentTrial+1, stimTime, ITI, sessionStartTic);
                 disp(['Session: ', sessionStart, ' | Trial: ', num2str(currentTrial)]);
                 SendStateMachine(sma, 'RunASAP');
             end
@@ -168,6 +171,7 @@ function luminose_hf_sleep
                 BpodSystem.Data = AddTrialEvents(BpodSystem.Data, RawEvents);
                 BpodSystem.Data.TrialSettings(currentTrial) = S;
                 BpodSystem.Data.TrialTypes(currentTrial) = currentTrialType;
+                BpodSystem.Data.TrialActions{currentTrial} = currentActions;
                 BpodSystem.Data = BpodNotebook('sync', BpodSystem.Data);
 
                 % Save rotary encoder data
@@ -207,10 +211,15 @@ function luminose_hf_sleep
                 SaveBpodSessionData;
                 disp(['Saved data: ', num2str(toc(t4))]);
             end
+            if currentTrial < S.GUI.maxTrials
+                currentActions = nextActions;
+            end
         catch ME
             disp('=== CRASH ===');
             disp(ME.message);
-            disp(ME.stack(1));
+            for iStack = 1:length(ME.stack)
+                disp(['  ', ME.stack(iStack).name, ' line ', num2str(ME.stack(iStack).line)]);
+            end
             break
         end
     end
@@ -218,9 +227,9 @@ function luminose_hf_sleep
 end
 
 %% State machine
-function [sma, S] = PrepareStateMachine(S, trialTypes, currentTrial, stimTime, ITI, sessionStartTic)
+function [sma, S, actions] = PrepareStateMachine(S, trialTypes, currentTrial, stimTime, ITI, sessionStartTic)
 
-    onsetDelay = max(0, 600 - toc(sessionStartTic));
+    onsetDelay = max(0, 1 - toc(sessionStartTic));
 
     startAction = {'GlobalTimerTrig', 1, 'RotaryEncoder1', ['#' 0], 'AnalogThreshEnable', 1};
     sniffAction = {'RotaryEncoder1', '*Z'};
@@ -286,6 +295,11 @@ function [sma, S] = PrepareStateMachine(S, trialTypes, currentTrial, stimTime, I
         'Timer', ITI(currentTrial)/2, ...
         'StateChangeConditions', {'Tup', 'exit'}, ...
         'OutputActions', {'BNC1', 1});
+
+    actions = struct();
+    actions.TrialStart  = startAction;
+    actions.GetSniff    = sniffAction;
+    actions.DeliverStim = stimAction;
 end
 
 %% Handle pause condition

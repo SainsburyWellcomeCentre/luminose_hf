@@ -2,11 +2,12 @@ function GUIparams_luminose_hf_playground()
     global S
     
     %% ===== Trials =====
-    S.GUITabs.Trials = {'ProtocolSettings', 'TreatmentType', 'TestPulses', 'TrainingParams'};
+    S.GUITabs.Trials = {'ProtocolSettings', 'Sniff', 'TreatmentType', 'TestPulses', 'TrainingParams'};
     S.GUIPanels.TrainingParams = {'TrainingLevel', 'BiasCorrection', 'RepeatOnError', 'maxTrials', 'Leftprob'};
     S.GUIPanels.TestPulses = {'TestPulses', 'TestPulsesType'};
     S.GUIPanels.TreatmentType = {'Ephys', 'EEG', 'Drug'};
     S.GUIPanels.ProtocolSettings = {'Sleep', 'muBarcodeDur', 'sigmaBarcodeDur'};
+    S.GUIPanels.Sniff = {'SniffOnsetThreshold', 'SniffOffsetThreshold'};
 
     % == Training Params ==
     S.GUI.TrainingLevel = 1; % Default Training Level
@@ -53,6 +54,12 @@ function GUIparams_luminose_hf_playground()
     S.GUIMeta.Sleep.Style = 'popupmenu';
     S.GUIMeta.Sleep.String = {'Pre-sleep', 'Post-sleep', 'During-sleep', 'None'};
     S.GUIMeta.Sleep.Label = 'Sleep Phase';
+
+    % == Sniff ==
+    S.GUI.SniffOnsetThreshold = 2.4;
+    S.GUIMeta.SniffOnsetThreshold.Label = 'Sniff Onset Thresh (V)';
+    S.GUI.SniffOffsetThreshold = 2.5;
+    S.GUIMeta.SniffOffsetThreshold.Label = 'Sniff Offset Thresh (V)';
 
     %% ===== Task =====
     S.GUITabs.Task = {'ITI', 'Response', 'Stimulus', 'CueParams'};

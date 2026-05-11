@@ -318,17 +318,18 @@ function varargout = LuminoseParameterGUI_hf_playground(varargin)
                                     'ColumnName', {'Prob', 'Valves', 'DutyCycles'}, ...
                                     'ColumnWidth', {50, 160, 160}, 'ColumnEditable', [true, true, true], ...
                                     'ColumnFormat', {'numeric', 'char', 'char'}, ...
-                                    'Position', [5 10 385 125], 'FontSize', 10, 'CellEditCallback', callbackFunc);
-                                
+                                    'Position', [5 10 385 125], 'FontSize', 10, ...
+                                    'CellEditCallback', @(src, ev) OdourTableCellEdited(src, ev, 'playground'));
+
                                 set(otable, 'CellSelectionCallback', @(src, ev) OdourTableSelectionChanged(src, ev, bottleButtons));
-                                
+
                                 % Repositioned +/- buttons to the right of the wider table
                                 uicontrol(selectorPanel, 'Style', 'pushbutton', 'String', '+', ...
                                     'Position', [395 90 32 32], 'FontSize', 14, 'FontWeight', 'bold', ...
-                                    'Callback', @(~, ~) OdourAddRow(otable));
+                                    'Callback', @(~, ~) OdourAddRow(otable, 'playground'));
                                 uicontrol(selectorPanel, 'Style', 'pushbutton', 'String', '-', ...
                                     'Position', [395 50 32 32], 'FontSize', 14, 'FontWeight', 'bold', ...
-                                    'Callback', @(~, ~) OdourRemoveRow(otable));
+                                    'Callback', @(~, ~) OdourRemoveRow(otable, 'playground'));
 
                                 selectorData = struct('Buttons', bottleButtons, 'Table', otable, ...
                                     'ParamName', ThisParamName, 'ProbParam', probParam, 'DutyParam', dutyParam, ...
@@ -564,18 +565,60 @@ function OdourTableSelectionChanged(src, ev, bottleButtons)
     end
 end
 
-function OdourAddRow(htable)
+function OdourAddRow(htable, suffix)
     data = get(htable, 'Data');
-    newRow = {0, '0', '1'};
-    set(htable, 'Data', [data; newRow]);
+    nRows = size(data, 1) + 1;
+    data = [data; {0, '', ''}];
+    for i = 1:nRows
+        data{i, 1} = round(1/nRows, 4);
+    end
+    set(htable, 'Data', data);
+    selectorData = get(htable, 'UserData');
+    selectorData.ActiveRow = nRows;
+    set(htable, 'UserData', selectorData);
+    HandleRealTimeSync(suffix);
 end
 
-function OdourRemoveRow(htable)
+function OdourRemoveRow(htable, suffix)
     data = get(htable, 'Data');
     if size(data, 1) > 1
         data(end, :) = [];
         set(htable, 'Data', data);
+        normalizeOdourProbs(htable);
+        selectorData = get(htable, 'UserData');
+        selectorData.ActiveRow = min(selectorData.ActiveRow, size(data, 1));
+        set(htable, 'UserData', selectorData);
+        HandleRealTimeSync(suffix);
     end
+end
+
+function OdourTableCellEdited(src, ev, suffix)
+    if ~isempty(ev.Indices) && ev.Indices(1, 2) == 1
+        normalizeOdourProbs(src);
+    end
+    HandleRealTimeSync(suffix);
+end
+
+function normalizeOdourProbs(htable)
+    data = get(htable, 'Data');
+    nRows = size(data, 1);
+    if nRows == 0, return; end
+    probs = zeros(nRows, 1);
+    for i = 1:nRows
+        p = data{i, 1};
+        if isempty(p) || (isnumeric(p) && isnan(p)), p = 0; end
+        probs(i) = p;
+    end
+    total = sum(probs);
+    if total == 0
+        probs = ones(nRows, 1) / nRows;
+    else
+        probs = probs / total;
+    end
+    for i = 1:nRows
+        data{i, 1} = round(probs(i), 4);
+    end
+    set(htable, 'Data', data);
 end
 
 function UpdateRelevantPanels(Params, Meta)

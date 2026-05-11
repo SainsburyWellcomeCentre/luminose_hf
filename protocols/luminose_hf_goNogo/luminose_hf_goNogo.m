@@ -3,7 +3,8 @@ function luminose_hf_goNogo
     clc;
     warning('off', 'MATLAB:HandleGraphics:ObsoleteProperty:JavaFrame');
 
-    global BpodSystem S luminose
+    global BpodSystem S luminose olfModel
+    luminose = LuminoseConstants();
     beep('off'); % native matlab error sounds OFF
     BpodSystem.SoftCodeHandlerFunction = 'SoftCodeHandler_luminose_hf_goNogo';
     [dataDir, dataBasename, ~] = fileparts(BpodSystem.Path.CurrentDataFile);
@@ -12,7 +13,7 @@ function luminose_hf_goNogo
 
     %% Configure trials
     S = BpodSystem.ProtocolSettings;
-    if isempty(fieldnames(S))
+    if ~isstruct(S) || isempty(fieldnames(S))
         GUIparams_luminose_hf_goNogo();
     end
     LuminoseParameterGUI_hf_goNogo('init', S);
@@ -140,8 +141,11 @@ function luminose_hf_goNogo
 
     %% Prepare and start first trial
     trialManager = BpodTrialManager;
-    sma = PrepareStateMachine(S, currentTrialType, 1, ITI);
+    [sma, ~, currentActions] = PrepareStateMachine(S, currentTrialType, 1, ITI);
     sessionStart = datestr(datetime('now'), 'yyyy-mm-dd HH:MM:SS');
+    repoDir = fileparts(fileparts(fileparts(mfilename('fullpath'))));
+    [~, gitHash] = system(['git -C "' repoDir '" rev-parse HEAD']);
+    BpodSystem.Data.GitHash = strtrim(gitHash);
     trialManager.startTrial(sma);
 
     %% Main trial loop
@@ -159,7 +163,7 @@ function luminose_hf_goNogo
 
             if currentTrial < S.GUI.maxTrials
                 nextTrialType = getNextTrialType_hf_goNogo(BpodSystem.Data, S);
-                [sma, S] = PrepareStateMachine(S, nextTrialType, currentTrial+1, ITI);
+                [sma, S, nextActions] = PrepareStateMachine(S, nextTrialType, currentTrial+1, ITI);
                 disp(['Session: ', sessionStart, ' | Trial: ', num2str(currentTrial)]);
                 SendStateMachine(sma, 'RunASAP');
             end
@@ -180,6 +184,7 @@ function luminose_hf_goNogo
             if ~isempty(fieldnames(RawEvents))
                 BpodSystem.Data = AddTrialEvents(BpodSystem.Data, RawEvents);
                 BpodSystem.Data.TrialSettings(currentTrial) = S;
+                BpodSystem.Data.TrialActions{currentTrial} = currentActions;
 
                 outcome = getTrialOutcome_hf_goNogo(BpodSystem.Data, currentTrial);
                 BpodSystem.Data.Custom.TrialOutcome(currentTrial) = outcome;
@@ -245,9 +250,15 @@ function luminose_hf_goNogo
                 SaveOnlinePlots;
                 disp(['Saved data: ', num2str(toc(t8))]);
             end
+            if currentTrial < S.GUI.maxTrials
+                currentActions = nextActions;
+            end
         catch ME
             disp('=== CRASH ===');
             disp(ME.message);
+            for iStack = 1:length(ME.stack)
+                disp(['  ', ME.stack(iStack).name, ' line ', num2str(ME.stack(iStack).line)]);
+            end
             break
         end
     end
@@ -255,7 +266,7 @@ function luminose_hf_goNogo
 end
 
 %% State machine
-function [sma, S] = PrepareStateMachine(S, currentTrialType, currentTrial, ITI)
+function [sma, S, actions] = PrepareStateMachine(S, currentTrialType, currentTrial, ITI)
     cue = S.GUIMeta.CueType.String{S.GUI.CueType};
     CSplus = S.GUIMeta.CSplusType.String{S.GUI.CSplusType};
     CSminus = S.GUIMeta.CSminusType.String{S.GUI.CSminusType};
@@ -348,6 +359,10 @@ function [sma, S] = PrepareStateMachine(S, currentTrialType, currentTrial, ITI)
             'OutputActions', {'BNC1', 1});
         sma = AddState(sma, 'Name', 'Barcode4', ...
             'Timer', normrnd(S.GUI.muBarcodeDur, S.GUI.sigmaBarcodeDur), ...
+            'StateChangeConditions', {'Tup', 'Barcode5'}, ...
+            'OutputActions', {'BNC1', 0});
+        sma = AddState(sma, 'Name', 'Barcode5', ...
+            'Timer', normrnd(S.GUI.muBarcodeDur, S.GUI.sigmaBarcodeDur), ...
             'StateChangeConditions', {'Tup', 'TrialStart'}, ...
             'OutputActions', {'BNC1', 0});
     else
@@ -393,6 +408,15 @@ function [sma, S] = PrepareStateMachine(S, currentTrialType, currentTrial, ITI)
         'Timer', ITI(currentTrial)/2, ...
         'StateChangeConditions', {'Tup', 'exit'}, ...
         'OutputActions', {});
+
+    actions = struct();
+    actions.TrialStart   = startAction;
+    actions.ShowCue      = cueAction;
+    actions.DeliverStim  = stimAction;
+    actions.GetResponse  = responseAction;
+    actions.Reward       = {'Valve3', 1, 'BNC1', 1};
+    actions.Punishment   = punishAction;
+    actions.RewardValveTime = valveTime;
 end
 
 function handle_pause_condition(H, R)
