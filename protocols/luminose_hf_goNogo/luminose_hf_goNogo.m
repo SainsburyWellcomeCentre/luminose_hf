@@ -322,6 +322,7 @@ function [sma, S, actions] = PrepareStateMachine(S, currentTrialType, currentTri
             cueAction{end+1} = 'HiFi1'; cueAction{end+1} = ['P', 1];
     end
     stimAction = {'BNC1', 1}; % sync
+    responseAction = {};
     switch currentTrialType
         case 1 % CS+
             switch CSplus
@@ -333,6 +334,7 @@ function [sma, S, actions] = PrepareStateMachine(S, currentTrialType, currentTri
                     stimAction{end+1} = 'PWM2'; stimAction{end+1} = 255;
                     startAction{end+1} = 'SoftCode'; startAction{end+1} = 9;
                     chooseState2 = 'GetSniff';
+                    responseAction{end+1} = 'SoftCode'; responseAction{end+1} = 11;
                 case 'Light'
                     stimAction{end+1} = 'PWM1'; stimAction{end+1} = S.GUI.Intensity_CSplus;
                     chooseState2 = 'DeliverStim';
@@ -351,6 +353,7 @@ function [sma, S, actions] = PrepareStateMachine(S, currentTrialType, currentTri
                     stimAction{end+1} = 'PWM2'; stimAction{end+1} = 255;
                     startAction{end+1} = 'SoftCode'; startAction{end+1} = 10;
                     chooseState2 = 'GetSniff';
+                    responseAction{end+1} = 'SoftCode'; responseAction{end+1} = 11;
                 case 'Light'
                     stimAction{end+1} = 'PWM4'; stimAction{end+1} = S.GUI.Intensity_CSminus;
                     chooseState2 = 'DeliverStim';
@@ -361,7 +364,6 @@ function [sma, S, actions] = PrepareStateMachine(S, currentTrialType, currentTri
             noGoAction = 'InterTrialInterval'; goAction = 'Punishment';
     end
     responseDetect = {};
-    responseAction = {};
     switch response
         case 'Lick'
             responseDetect = {'Port3In', goAction, 'Tup', noGoAction};
@@ -371,7 +373,6 @@ function [sma, S, actions] = PrepareStateMachine(S, currentTrialType, currentTri
             chooseState1 = 'InitRE';
             responseAction{end+1} = 'RotaryEncoder1'; responseAction{end+1} = ['Z;' 3];
     end
-    responseAction{end+1} = 'SoftCode'; responseAction{end+1} = 11;
     valveTime = GetValveTimes(S.GUI.RewardAmount, 3);
     if S.GUI.NoiseTime ~= 0
         punishAction = {'HiFi1', ['P', 0], 'BNC1', 1};
@@ -466,7 +467,7 @@ function shouldStop = handle_pause_condition(H, R)
 end
 
 function cleanup()
-    global BpodSystem luminose sniffDetector %#ok<NUSED>
+    global BpodSystem S luminose sniffDetector %#ok<NUSED>
     clear dmd_hf_goNogo;
     try
         BpodSystem.Data = AddFlexIOAnalogData(BpodSystem.Data, 'Volts', 1);
@@ -474,7 +475,9 @@ function cleanup()
         warning('AddFlexIOAnalogData failed (likely truncated on stop): %s', ME.message);
     end
     BpodSystem.Data.luminose = luminose;
+    BpodSystem.ProtocolSettings = S;
     SaveBpodSessionData;
+    SaveBpodProtocolSettings;
     diary off;
 end
 

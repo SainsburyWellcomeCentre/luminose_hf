@@ -470,7 +470,7 @@ function shouldStop = handle_pause_condition(H, R)
 end
 
 function cleanup()
-    global BpodSystem luminose sniffDetector %#ok<NUSED>
+    global BpodSystem S luminose sniffDetector %#ok<NUSED>
     clear dmd_hf_2AFC;
     try
         BpodSystem.Data = AddFlexIOAnalogData(BpodSystem.Data, 'Volts', 1);
@@ -478,7 +478,9 @@ function cleanup()
         warning('AddFlexIOAnalogData failed (likely truncated on stop): %s', ME.message);
     end
     BpodSystem.Data.luminose = luminose;
+    BpodSystem.ProtocolSettings = S;
     SaveBpodSessionData;
+    SaveBpodProtocolSettings;
     diary off;
 end
 

@@ -324,9 +324,15 @@ end
 
 %% Cleanup
 function cleanup()
-    global BpodSystem luminose sniffDetector %#ok<NUSED>
-    BpodSystem.Data = AddFlexIOAnalogData(BpodSystem.Data, 'Volts', 1);
+    global BpodSystem S luminose sniffDetector %#ok<NUSED>
+    try
+        BpodSystem.Data = AddFlexIOAnalogData(BpodSystem.Data, 'Volts', 1);
+    catch ME
+        warning('AddFlexIOAnalogData failed (likely truncated on stop): %s', ME.message);
+    end
     BpodSystem.Data.luminose = luminose;
+    BpodSystem.ProtocolSettings = S;
     SaveBpodSessionData;
+    SaveBpodProtocolSettings;
     diary off;
 end

@@ -537,7 +537,7 @@ end
 
 %% Cleanup
 function cleanup()
-    global BpodSystem luminose sniffDetector %#ok<NUSED>
+    global BpodSystem S luminose sniffDetector %#ok<NUSED>
     % Clearing the function releases the persistent dmd handle, allowing
     % the DMD destructor to free the ALP allocation before the next run.
     clear dmd_hf_playground;
@@ -547,7 +547,9 @@ function cleanup()
         warning('AddFlexIOAnalogData failed (likely truncated on stop): %s', ME.message);
     end
     BpodSystem.Data.luminose = luminose;
+    BpodSystem.ProtocolSettings = S;
     SaveBpodSessionData;
+    SaveBpodProtocolSettings;
     diary off;
 end
 
