@@ -3,7 +3,7 @@ function luminose_hf_goNogo
     clc;
     warning('off', 'MATLAB:HandleGraphics:ObsoleteProperty:JavaFrame');
 
-    global BpodSystem S luminose olfModel
+    global BpodSystem S luminose olfModel sniffDetector
     luminose = LuminoseConstants();
     beep('off'); % native matlab error sounds OFF
     BpodSystem.SoftCodeHandlerFunction = 'SoftCodeHandler_luminose_hf_goNogo';
@@ -13,8 +13,19 @@ function luminose_hf_goNogo
 
     %% Configure trials
     S = BpodSystem.ProtocolSettings;
-    if ~isstruct(S) || isempty(fieldnames(S))
+    isNewSession = ~isstruct(S) || isempty(fieldnames(S));
+    if isNewSession
         GUIparams_luminose_hf_goNogo();
+        restorePatternParams({'cue', 'CSplus', 'CSminus', 'opto'}, luminose.dmd.patternsFolder);
+    else
+        SavedGUI = S.GUI;
+        GUIparams_luminose_hf_goNogo();
+        fNames = fieldnames(SavedGUI);
+        for i = 1:numel(fNames)
+            if isfield(S.GUI, fNames{i})
+                S.GUI.(fNames{i}) = SavedGUI.(fNames{i});
+            end
+        end
     end
     LuminoseParameterGUI_hf_goNogo('init', S);
     disp('Waiting for START button...');
@@ -29,10 +40,11 @@ function luminose_hf_goNogo
     S = LuminoseParameterGUI_hf_goNogo('sync', S);
     disp('START pressed — beginning experiment.');
 
-    BpodSystem.Data.Custom.TrialSide = [];
-    BpodSystem.Data.Custom.TrialResponse = [];
-    BpodSystem.Data.Custom.TrialOutcome = [];
-    BpodSystem.Data.Custom.TrialType = [];
+    BpodSystem.Data.TrialSide = [];
+    BpodSystem.Data.TrialResponse = [];
+    BpodSystem.Data.TrialOutcome = [];
+    BpodSystem.Data.SniffInhalationOnset_s  = [];
+    BpodSystem.Data.SniffInhalationOffset_s = [];
 
     nextTrialType = getNextTrialType_hf_goNogo(BpodSystem.Data, S);
     currentTrialType = nextTrialType;
@@ -88,10 +100,9 @@ function luminose_hf_goNogo
     channelTypes(chanNIDAQ) = 2; % Digital Input
     BpodSystem.FlexIOConfig.channelTypes = channelTypes;
 
-    BpodSystem.FlexIOConfig.threshold1(chanSniff) = 0.5;
-    BpodSystem.FlexIOConfig.polarity1(chanSniff) = 1;
-    BpodSystem.FlexIOConfig.thresholdMode(chanSniff) = 0;
-    BpodSystem.FlexIOConfig.analogSamplingRate = 500;
+    sniffDetector = SniffDetector(chanSniff, 500);
+    sniffDetector.risingEdge = logical(S.GUI.SniffRising);
+    sniffDetector.configure(S.GUI.SniffOnsetThreshold, S.GUI.SniffOffsetThreshold);
 
     BpodSystem.startAnalogViewer;
     flexioPos = get(BpodSystem.GUIHandles.OscopeFig_Builtin, 'Position');
@@ -156,10 +167,10 @@ function luminose_hf_goNogo
 
             currentTrialType = nextTrialType;
             BpodSystem.Data.TrialTypes(currentTrial) = currentTrialType;
-            BpodSystem.Data.Custom.TrialSide(currentTrial) = currentTrialType;
-            BpodSystem.Data.Custom.TrialType(currentTrial) = currentTrialType;
+            BpodSystem.Data.TrialSide(currentTrial) = currentTrialType;
+            BpodSystem.Data.TrialType(currentTrial) = currentTrialType;
 
-            handle_pause_condition(H, R);
+            if handle_pause_condition(H, R); break; end
 
             if currentTrial < S.GUI.maxTrials
                 nextTrialType = getNextTrialType_hf_goNogo(BpodSystem.Data, S);
@@ -169,7 +180,7 @@ function luminose_hf_goNogo
             end
 
             RawEvents = trialManager.getTrialData;
-            handle_pause_condition(H, R);
+            if handle_pause_condition(H, R); break; end
 
             t2 = tic;
             if strcmp(S.GUIMeta.ResponseType.String(S.GUI.ResponseType), 'Rotary Encoder')
@@ -184,16 +195,22 @@ function luminose_hf_goNogo
             if ~isempty(fieldnames(RawEvents))
                 BpodSystem.Data = AddTrialEvents(BpodSystem.Data, RawEvents);
                 BpodSystem.Data.TrialSettings(currentTrial) = S;
-                BpodSystem.Data.TrialActions{currentTrial} = currentActions;
+                BpodSystem.Data.RawEvents.Trial{currentTrial}.Actions = currentActions;
+
+                processedEvents = BpodSystem.Data.RawEvents.Trial{currentTrial};
+                BpodSystem.Data.SniffInhalationOnset_s(currentTrial)  = sniffDetector.getOnset(processedEvents);
+                BpodSystem.Data.SniffInhalationOffset_s(currentTrial) = sniffDetector.getOffset(processedEvents);
+                disp(['Sniff onset: ' num2str(BpodSystem.Data.SniffInhalationOnset_s(currentTrial), '%.3f') ...
+                      ' s  offset: ' num2str(BpodSystem.Data.SniffInhalationOffset_s(currentTrial), '%.3f') ' s']);
 
                 outcome = getTrialOutcome_hf_goNogo(BpodSystem.Data, currentTrial);
-                BpodSystem.Data.Custom.TrialOutcome(currentTrial) = outcome;
+                BpodSystem.Data.TrialOutcome(currentTrial) = outcome;
                 if outcome == 1
-                    BpodSystem.Data.Custom.TrialResponse(currentTrial) = currentTrialType;
+                    BpodSystem.Data.TrialResponse(currentTrial) = currentTrialType;
                 elseif outcome == 0
-                    BpodSystem.Data.Custom.TrialResponse(currentTrial) = 3 - currentTrialType;
+                    BpodSystem.Data.TrialResponse(currentTrial) = 3 - currentTrialType;
                 else
-                    BpodSystem.Data.Custom.TrialResponse(currentTrial) = NaN;
+                    BpodSystem.Data.TrialResponse(currentTrial) = NaN;
                 end
 
                 BpodSystem.Data = BpodNotebook('sync', BpodSystem.Data);
@@ -267,6 +284,24 @@ end
 
 %% State machine
 function [sma, S, actions] = PrepareStateMachine(S, currentTrialType, currentTrial, ITI)
+    global BpodSystem
+    for tCell = {'cue', 'CSplus', 'CSminus', 'opto'}
+        t = tCell{1};
+        probField = sprintf('patternProbs_%s', t);
+        if isfield(S.GUI, probField)
+            probs = S.GUI.(probField);
+            probs = max(probs, 0);
+            if sum(probs) > 0
+                rowIdx = find(rand() <= cumsum(probs/sum(probs)), 1);
+            else
+                rowIdx = 1;
+            end
+            if ~isfield(BpodSystem.PluginObjects, 'SelectedPatternRow')
+                BpodSystem.PluginObjects.SelectedPatternRow = struct();
+            end
+            BpodSystem.PluginObjects.SelectedPatternRow.(t) = rowIdx;
+        end
+    end
     cue = S.GUIMeta.CueType.String{S.GUI.CueType};
     CSplus = S.GUIMeta.CSplusType.String{S.GUI.CSplusType};
     CSminus = S.GUIMeta.CSminusType.String{S.GUI.CSminusType};
@@ -279,7 +314,7 @@ function [sma, S, actions] = PrepareStateMachine(S, currentTrialType, currentTri
             cueAction{end+1} = 'BNC2'; cueAction{end+1} = 1;
             startAction{end+1} = 'SoftCode'; startAction{end+1} = 1;
         case 'Pattern'
-            cueAction{end+1} = 'BNC2'; cueAction{end+1} = 1;
+            cueAction{end+1} = 'PWM2'; cueAction{end+1} = 255;
             startAction{end+1} = 'SoftCode'; startAction{end+1} = 8;
         case 'Light'
             cueAction{end+1} = 'PWM3'; cueAction{end+1} = S.GUI.Intensity_cue;
@@ -295,7 +330,7 @@ function [sma, S, actions] = PrepareStateMachine(S, currentTrialType, currentTri
                     startAction{end+1} = 'SoftCode'; startAction{end+1} = 2;
                     chooseState2 = 'DeliverStim';
                 case 'Pattern'
-                    stimAction{end+1} = 'BNC2'; stimAction{end+1} = 1;
+                    stimAction{end+1} = 'PWM2'; stimAction{end+1} = 255;
                     startAction{end+1} = 'SoftCode'; startAction{end+1} = 9;
                     chooseState2 = 'GetSniff';
                 case 'Light'
@@ -313,11 +348,11 @@ function [sma, S, actions] = PrepareStateMachine(S, currentTrialType, currentTri
                     startAction{end+1} = 'SoftCode'; startAction{end+1} = 3;
                     chooseState2 = 'DeliverStim';
                 case 'Pattern'
-                    stimAction{end+1} = 'BNC2'; stimAction{end+1} = 1;
+                    stimAction{end+1} = 'PWM2'; stimAction{end+1} = 255;
                     startAction{end+1} = 'SoftCode'; startAction{end+1} = 10;
                     chooseState2 = 'GetSniff';
                 case 'Light'
-                    stimAction{end+1} = 'PWM2'; stimAction{end+1} = S.GUI.Intensity_CSminus;
+                    stimAction{end+1} = 'PWM4'; stimAction{end+1} = S.GUI.Intensity_CSminus;
                     chooseState2 = 'DeliverStim';
                 case 'Sound'
                     stimAction{end+1} = 'HiFi1'; stimAction{end+1} = ['P', 3];
@@ -336,6 +371,7 @@ function [sma, S, actions] = PrepareStateMachine(S, currentTrialType, currentTri
             chooseState1 = 'InitRE';
             responseAction{end+1} = 'RotaryEncoder1'; responseAction{end+1} = ['Z;' 3];
     end
+    responseAction{end+1} = 'SoftCode'; responseAction{end+1} = 11;
     valveTime = GetValveTimes(S.GUI.RewardAmount, 3);
     if S.GUI.NoiseTime ~= 0
         punishAction = {'HiFi1', ['P', 0], 'BNC1', 1};
@@ -419,22 +455,103 @@ function [sma, S, actions] = PrepareStateMachine(S, currentTrialType, currentTri
     actions.RewardValveTime = valveTime;
 end
 
-function handle_pause_condition(H, R)
+function shouldStop = handle_pause_condition(H, R)
     global BpodSystem
     HandlePauseCondition;
-    if BpodSystem.Status.BeingUsed == 0
+    shouldStop = (BpodSystem.Status.BeingUsed == 0);
+    if shouldStop
         H.stop;
         R.stopUSBStream;
-        return
     end
 end
 
 function cleanup()
-    global BpodSystem luminose
-    BpodSystem.Data = AddFlexIOAnalogData(BpodSystem.Data, 'Volts', 1);
+    global BpodSystem luminose sniffDetector %#ok<NUSED>
+    clear dmd_hf_goNogo;
+    try
+        BpodSystem.Data = AddFlexIOAnalogData(BpodSystem.Data, 'Volts', 1);
+    catch ME
+        warning('AddFlexIOAnalogData failed (likely truncated on stop): %s', ME.message);
+    end
     BpodSystem.Data.luminose = luminose;
     SaveBpodSessionData;
     diary off;
+end
+
+function restorePatternParams(typeNames, patternsFolder)
+    global S BpodSystem
+    patternsFolder = char(patternsFolder);
+    for i = 1:numel(typeNames)
+        t = typeNames{i};
+        allMetas = dir(fullfile(patternsFolder, sprintf('designed_%s_*_meta.mat', t)));
+        if isempty(allMetas), continue; end
+
+        % Separate row-indexed files from legacy files (no row index)
+        isRowFile = arrayfun(@(m) ~isempty(regexp(m.name, ...
+            sprintf('designed_%s_r\\d+_', t), 'once')), allMetas);
+        rowMetas   = allMetas(isRowFile);
+        legacyMetas = allMetas(~isRowFile);
+
+        % Collect unique row indices from row-indexed files
+        rowIndices = [];
+        for j = 1:numel(rowMetas)
+            tok = regexp(rowMetas(j).name, sprintf('designed_%s_r(\\d+)_', t), 'tokens', 'once');
+            if ~isempty(tok), rowIndices(end+1) = str2double(tok{1}); end %#ok<AGROW>
+        end
+        rowIndices = unique(rowIndices);
+        % Legacy files count as row 1 if no _r1_ file exists
+        if ~ismember(1, rowIndices) && ~isempty(legacyMetas)
+            rowIndices = [1, rowIndices];
+        end
+        if isempty(rowIndices), continue; end
+
+        maxRow = max(rowIndices);
+        nFVec   = S.GUI.(sprintf('patternNFrames_%s',  t));
+        expVec  = S.GUI.(sprintf('patternExposure_%s', t));
+        probVec = S.GUI.(sprintf('patternProbs_%s',    t));
+        while numel(nFVec)   < maxRow, nFVec(end+1)   = 1;   end
+        while numel(expVec)  < maxRow, expVec(end+1)  = 1e6; end
+        while numel(probVec) < maxRow, probVec(end+1) = 0;   end
+
+        if ~isfield(BpodSystem.PluginObjects, 'PatternDesigns')
+            BpodSystem.PluginObjects.PatternDesigns = struct();
+        end
+        if ~isfield(BpodSystem.PluginObjects.PatternDesigns, t)
+            BpodSystem.PluginObjects.PatternDesigns.(t) = {};
+        end
+
+        for rowIdx = rowIndices
+            rMetas = rowMetas(arrayfun(@(m) ~isempty(regexp(m.name, ...
+                sprintf('designed_%s_r%d_', t, rowIdx), 'once')), rowMetas));
+            if isempty(rMetas) && rowIdx == 1
+                rMetas = legacyMetas;
+            end
+            if isempty(rMetas), continue; end
+            [~, newest] = max([rMetas.datenum]);
+            try
+                m = load(fullfile(patternsFolder, rMetas(newest).name));
+                if ~isfield(m, 'tickMs'), continue; end
+                if isfield(m, 'nF')
+                    nF = m.nF;
+                else
+                    totalDur = max([m.spots.onset_ms] + [m.spots.dur_ms]);
+                    nF = ceil(totalDur / m.tickMs);
+                end
+                nFVec(rowIdx)  = nF;
+                expVec(rowIdx) = m.tickMs * 1000;
+                BpodSystem.PluginObjects.PatternDesigns.(t){rowIdx} = ...
+                    struct('spots', m.spots, 'tickMs', m.tickMs, 'r_px', m.r_px, 'nF', nF);
+                fprintf('Restored %s row %d: %d frames, tick=%.1fms\n', t, rowIdx, nF, m.tickMs);
+            catch
+            end
+        end
+
+        % Equal probability across all restored rows
+        probVec(:) = 1 / numel(probVec);
+        S.GUI.(sprintf('patternNFrames_%s',  t)) = nFVec;
+        S.GUI.(sprintf('patternExposure_%s', t)) = expVec;
+        S.GUI.(sprintf('patternProbs_%s',    t)) = probVec;
+    end
 end
 
 function SaveOnlinePlots()

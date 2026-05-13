@@ -1,8 +1,9 @@
 function luminose_hf_sleep
     %% clear & setup
     clc;
+    warning('off', 'MATLAB:HandleGraphics:ObsoleteProperty:JavaFrame');
 
-    global BpodSystem S luminose
+    global BpodSystem S luminose sniffDetector
     beep('off'); % native matlab error sounds OFF
     BpodSystem.SoftCodeHandlerFunction = 'SoftCodeHandler_luminose_hf_sleep';
 
@@ -41,8 +42,18 @@ function luminose_hf_sleep
 
     %% Configure trials
     S = BpodSystem.ProtocolSettings;
-    if isempty(fieldnames(S))
+    isNewSession = ~isstruct(S) || isempty(fieldnames(S));
+    if isNewSession
         GUIparams_luminose_hf_sleep();
+    else
+        SavedGUI = S.GUI;
+        GUIparams_luminose_hf_sleep();
+        fNames = fieldnames(SavedGUI);
+        for i = 1:numel(fNames)
+            if isfield(S.GUI, fNames{i})
+                S.GUI.(fNames{i}) = SavedGUI.(fNames{i});
+            end
+        end
     end
     LuminoseParameterGUI_hf_sleep('init', S);
     disp('Waiting for START button...');
@@ -107,10 +118,9 @@ function luminose_hf_sleep
     channelTypes(chanNIDAQ) = 2; % Digital Input
     BpodSystem.FlexIOConfig.channelTypes = channelTypes;
 
-    BpodSystem.FlexIOConfig.threshold1(chanSniff) = 0.5;
-    BpodSystem.FlexIOConfig.polarity1(chanSniff) = 1;
-    BpodSystem.FlexIOConfig.thresholdMode(chanSniff) = 0;
-    BpodSystem.FlexIOConfig.analogSamplingRate = 500;
+    sniffDetector = SniffDetector(chanSniff, 500);
+    sniffDetector.risingEdge = logical(S.GUI.SniffRising);
+    sniffDetector.configure(S.GUI.SniffOnsetThreshold, S.GUI.SniffOffsetThreshold);
 
     BpodSystem.startAnalogViewer;
     flexioPos = get(BpodSystem.GUIHandles.OscopeFig_Builtin, 'Position');
@@ -171,7 +181,7 @@ function luminose_hf_sleep
                 BpodSystem.Data = AddTrialEvents(BpodSystem.Data, RawEvents);
                 BpodSystem.Data.TrialSettings(currentTrial) = S;
                 BpodSystem.Data.TrialTypes(currentTrial) = currentTrialType;
-                BpodSystem.Data.TrialActions{currentTrial} = currentActions;
+                BpodSystem.Data.RawEvents.Trial{currentTrial}.Actions = currentActions;
                 BpodSystem.Data = BpodNotebook('sync', BpodSystem.Data);
 
                 % Save rotary encoder data
@@ -314,7 +324,7 @@ end
 
 %% Cleanup
 function cleanup()
-    global BpodSystem luminose
+    global BpodSystem luminose sniffDetector %#ok<NUSED>
     BpodSystem.Data = AddFlexIOAnalogData(BpodSystem.Data, 'Volts', 1);
     BpodSystem.Data.luminose = luminose;
     SaveBpodSessionData;

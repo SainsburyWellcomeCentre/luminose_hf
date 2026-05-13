@@ -112,7 +112,7 @@ function varargout = LuminoseParameterGUI_hf_playground(varargin)
             
             Params = Params.GUI;
             PanelNames = PanelNames(end:-1:1);
-            GUIHeight = 900;
+            GUIHeight = 1100;
             MaxVPos = 0;
             MaxHPos = 0;
             BpodSystem.ProtocolFigures.ParameterGUI = figure('Position', [50 50 450 GUIHeight],'name','Luminose','numbertitle','off', 'MenuBar', 'none', 'Resize', 'on');
@@ -341,6 +341,61 @@ function varargout = LuminoseParameterGUI_hf_playground(varargin)
                                 BpodSystem.GUIHandles.ParameterGUI.Panels.(ThisTabPanelNames{p}).Position(4) = ThisPanelHeight;
                                 InPanelPos = InPanelPos + selectorHeight - 35;
                                 BpodSystem.GUIData.ParameterGUI.LastParamValues{ParamNum} = tableData;
+                            case 'pattern_selector'
+                                BpodSystem.GUIData.ParameterGUI.Styles(ParamNum) = 10;
+                                typeName  = Meta.(ThisParamName).TypeName;
+                                probParam = Meta.(ThisParamName).ProbParam;
+                                nFParam   = Meta.(ThisParamName).NFramesParam;
+                                expParam  = Meta.(ThisParamName).ExposureParam;
+                                vProbs    = Params.(probParam);
+                                vNFrames  = Params.(nFParam);
+                                vExposure = Params.(expParam);
+                                nOpts = numel(vProbs);
+                                tableData = cell(nOpts, 3);
+                                for iOpt = 1:nOpts
+                                    tableData{iOpt,1} = vProbs(iOpt);
+                                    tableData{iOpt,2} = getDesignSpotCount(BpodSystem, typeName, iOpt);
+                                    tableData{iOpt,3} = vExposure(iOpt);
+                                end
+                                selectorHeight = 195;
+                                selectorPanel = uipanel(htab, 'Units', 'pixels', ...
+                                    'Position', [HPos+10 VPos+InPanelPos 435 selectorHeight], ...
+                                    'BackgroundColor', COLORS.panelBg, 'BorderType', 'none');
+                                hRowEdit = uicontrol(selectorPanel, 'Style', 'edit', 'String', '1', ...
+                                    'Position', [253 16 35 26], 'FontSize', 11, 'BackgroundColor', 'white');
+                                ptable = uitable(selectorPanel, 'Data', tableData, ...
+                                    'ColumnName', {'Prob', 'Spots', 'Exposure (us)'}, ...
+                                    'ColumnWidth', {55, 65, 105}, 'ColumnEditable', [true false true], ...
+                                    'ColumnFormat', {'numeric','numeric','numeric'}, ...
+                                    'Position', [5 60 385 120], 'FontSize', 10, ...
+                                    'CellEditCallback', @(src,ev) PatternTableCellEdited(src, ev, 'playground'), ...
+                                    'CellSelectionCallback', @(src,ev) PatternTableSelectionChanged(src, ev, hRowEdit));
+                                uicontrol(selectorPanel, 'Style', 'text', 'String', 'Row:', ...
+                                    'Position', [215 18 35 22], 'FontSize', 10, ...
+                                    'BackgroundColor', COLORS.panelBg, 'HorizontalAlignment', 'right');
+                                uicontrol(selectorPanel, 'Style', 'pushbutton', 'String', 'Design Selected Row...', ...
+                                    'Position', [5 15 205 35], 'FontSize', 10, 'FontWeight', 'bold', ...
+                                    'BackgroundColor', [0.15 0.55 0.25], 'ForegroundColor', [1 1 0.4], ...
+                                    'Callback', @(~,~) DesignSelectedPatternRow(ptable, typeName, hRowEdit));
+                                uicontrol(selectorPanel, 'Style', 'pushbutton', 'String', '+', ...
+                                    'Position', [395 115 32 32], 'FontSize', 14, 'FontWeight', 'bold', ...
+                                    'Callback', @(~,~) PatternAddRow(ptable, 'playground'));
+                                uicontrol(selectorPanel, 'Style', 'pushbutton', 'String', '-', ...
+                                    'Position', [395 75 32 32], 'FontSize', 14, 'FontWeight', 'bold', ...
+                                    'Callback', @(~,~) PatternRemoveRow(ptable, 'playground'));
+                                selectorData = struct('ParamName', ThisParamName, 'ProbParam', probParam, ...
+                                    'NFramesParam', nFParam, 'ExposureParam', expParam, ...
+                                    'TypeName', typeName, 'ActiveRow', 1);
+                                BpodSystem.GUIHandles.ParameterGUI.Params(ParamNum) = ptable;
+                                set(ptable, 'UserData', selectorData);
+                                if ~isfield(BpodSystem.GUIHandles.ParameterGUI, 'PatternSelectorTables')
+                                    BpodSystem.GUIHandles.ParameterGUI.PatternSelectorTables = struct();
+                                end
+                                BpodSystem.GUIHandles.ParameterGUI.PatternSelectorTables.(typeName) = ptable;
+                                ThisPanelHeight = ThisPanelHeight + selectorHeight - 25;
+                                BpodSystem.GUIHandles.ParameterGUI.Panels.(ThisTabPanelNames{p}).Position(4) = ThisPanelHeight;
+                                InPanelPos = InPanelPos + selectorHeight - 35;
+                                BpodSystem.GUIData.ParameterGUI.LastParamValues{ParamNum} = tableData;
                             otherwise
                                 error('Invalid parameter style specified.');
                         end
@@ -468,6 +523,20 @@ function varargout = LuminoseParameterGUI_hf_playground(varargin)
                         elseif ~isequal(ThisParamCurrentValue, ThisParamLastValue), set(ThisParamHandle, 'Value', ThisParamCurrentValue); end
                     case 6
                         GUIParam = ThisParamCurrentValue;
+                    case 10
+                        tableData = get(ThisParamHandle, 'Data');
+                        sd = get(ThisParamHandle, 'UserData');
+                        nRows = size(tableData, 1);
+                        probsVec = zeros(nRows,1); exposureVec = ones(nRows,1)*1e6;
+                        for iR = 1:nRows
+                            pVal = tableData{iR,1}; if isempty(pVal)||isnan(pVal), pVal=0; end
+                            probsVec(iR) = pVal;
+                            exposureVec(iR) = tableData{iR,3};
+                        end
+                        GUIParam = 0;
+                        Params.GUI.(sd.ProbParam)     = probsVec;
+                        Params.GUI.(sd.ExposureParam) = exposureVec;
+                        % nFrames is managed by PatternDesignerGUI, not read from table
                     case 9
                         tableData = get(ThisParamHandle, 'Data');
                         selectorData = get(ThisParamHandle, 'UserData');
@@ -621,6 +690,74 @@ function normalizeOdourProbs(htable)
     set(htable, 'Data', data);
 end
 
+function n = getDesignSpotCount(BpodSystem, typeName, rowIdx)
+    n = 0;
+    try
+        d = BpodSystem.PluginObjects.PatternDesigns.(typeName){rowIdx};
+        if ~isempty(d), n = numel(d.spots); end
+    catch
+    end
+end
+
+function PatternTableSelectionChanged(src, ev, hRowEdit)
+    if isempty(ev.Indices), return; end
+    rowIdx = ev.Indices(1,1);
+    sd = get(src, 'UserData'); sd.ActiveRow = rowIdx; set(src, 'UserData', sd);
+    if ishandle(hRowEdit), set(hRowEdit, 'String', num2str(rowIdx)); end
+end
+
+function DesignSelectedPatternRow(ptable, typeName, hRowEdit)
+    rowIdx = round(str2double(get(hRowEdit, 'String')));
+    if isnan(rowIdx) || rowIdx < 1, rowIdx = 1; end
+    nRows = size(get(ptable, 'Data'), 1);
+    rowIdx = min(rowIdx, nRows);
+    PatternDesignerGUI(typeName, rowIdx);
+end
+
+function PatternAddRow(ptable, suffix)
+    data = get(ptable, 'Data');
+    nRows = size(data,1) + 1;
+    data(end+1,:) = {0, 1, 1e6};
+    for i = 1:nRows, data{i,1} = round(1/nRows, 4); end
+    set(ptable, 'Data', data);
+    sd = get(ptable, 'UserData'); sd.ActiveRow = nRows; set(ptable, 'UserData', sd);
+    HandleRealTimeSync(suffix);
+end
+
+function PatternRemoveRow(ptable, suffix)
+    data = get(ptable, 'Data');
+    if size(data,1) > 1
+        data(end,:) = [];
+        set(ptable, 'Data', data);
+        normalizePatternProbs(ptable);
+        sd = get(ptable, 'UserData');
+        sd.ActiveRow = min(sd.ActiveRow, size(data,1));
+        set(ptable, 'UserData', sd);
+        HandleRealTimeSync(suffix);
+    end
+end
+
+function PatternTableCellEdited(src, ev, suffix)
+    if ~isempty(ev.Indices) && ev.Indices(1,2) == 1
+        normalizePatternProbs(src);
+    end
+    HandleRealTimeSync(suffix);
+end
+
+function normalizePatternProbs(ptable)
+    data = get(ptable, 'Data');
+    nRows = size(data,1); if nRows == 0, return; end
+    probs = zeros(nRows,1);
+    for i = 1:nRows
+        p = data{i,1}; if isempty(p)||(isnumeric(p)&&isnan(p)), p=0; end
+        probs(i) = p;
+    end
+    total = sum(probs);
+    if total == 0, probs = ones(nRows,1)/nRows; else, probs = probs/total; end
+    for i = 1:nRows, data{i,1} = round(probs(i),4); end
+    set(ptable, 'Data', data);
+end
+
 function UpdateRelevantPanels(Params, Meta)
     global BpodSystem
 
@@ -633,7 +770,7 @@ function UpdateRelevantPanels(Params, Meta)
         'Light_cue', false, 'Sound_cue', false, 'Odour_cue', false, 'Pattern_cue', false, ...
         'Light_Left', false, 'Sound_Left', false, 'Odour_Left', false, 'Pattern_Left', false, ...
         'Light_Right', false, 'Sound_Right', false, 'Odour_Right', false, 'Pattern_Right', false, ...
-        'MaskLED', false, 'SinglePulse', false, 'PairedPulse', false, ...
+        'MaskLED', false, 'SinglePulse', false, 'PairedPulse', false, 'Pattern_opto', false, ...
         'DrugSpecs', logical(Params.Drug), 'EEGSpecs', logical(Params.EEG), 'EphysSpecs', logical(Params.Ephys));
 
     % Determine active panels based on selection
@@ -652,6 +789,7 @@ function UpdateRelevantPanels(Params, Meta)
 
     if logical(Params.TestPulses)
         panelStates.MaskLED = true;
+        panelStates.Pattern_opto = true;
         if isfield(Meta, 'TestPulsesType')
             pulseType = Meta.TestPulsesType.String{Params.TestPulsesType};
             panelStates.(pulseType) = true;

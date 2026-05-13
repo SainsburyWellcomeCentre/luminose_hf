@@ -2,130 +2,189 @@ function dmd_hf_goNogo(code)
 % dmd_hf_goNogo  DMD soft-code handler for the goNogo protocol.
 %
 %   Soft-code mapping:
-%     8  - cue pattern   (imgIdx_cue,    exposure_cue,    nFrames_cue)
-%     9  - CS+ pattern   (imgIdx_CSplus, exposure_CSplus, nFrames_CSplus)
-%    10  - CS- pattern   (imgIdx_CSminus,exposure_CSminus,nFrames_CSminus)
+%     8  - cue pattern
+%     9  - CS+ pattern
+%    10  - CS- pattern
+%    11  - blank (sent at GetResponse entry to turn off display)
+%    12  - opto pattern
 %
-%   nFrames == 1: single BMP, slave mode (BNC trigger).
-%   nFrames  > 1: designed pattern, in-memory generation.
-%                 Random spots get new positions each trial; all-fixed cached.
+%   All patterns arm in SLAVE mode at TrialStart and are triggered by the
+%   PWM2 rising edge at DeliverStim.  Code 12 parks mirrors off.
+%
+%   Log: <tempdir>/dmd_hf_goNogo_log.txt
 
-    persistent dmd cueSeq cueKey plusSeq plusKey minusSeq minusKey
+    persistent dmd blankSeq cueSeq cueKey plusSeq plusKey minusSeq minusKey optoSeq optoKey
+
     global S luminose BpodSystem
+
+    logFile = fullfile(char(tempdir), 'dmd_hf_goNogo_log.txt');
+
+    try
+
     C = DMDController.Constants;
 
     if isempty(dmd)
+        if libisloaded('alp50'), unloadlibrary('alp50'); end
         dmd = DMDController.DMD();
         dmd.connect();
-        fprintf('DMD connected (goNogo).\n');
+        dmd_log(logFile, 'DMD connected');
+    end
+
+    if code == 11
+        dmd.halt();
+        if isempty(blankSeq)
+            W = double(dmd.device.width);
+            H = double(dmd.device.height);
+            blankSeq = dmd.device.allocSequence(1, 1);
+            blankSeq.put(0, 1, zeros(H, W, 'uint8'));
+            blankSeq.setBinaryMode(true);
+            blankSeq.timing(100000, 100000, 0, 0, 0);
+            blankSeq.setRepeat(1);
+        end
+        dmd.device.projControl(C.ALP_PROJ_MODE, C.ALP_MASTER);
+        dmd.device.projStart(blankSeq);
+        dmd_log(logFile, 'DMD blanked');
+        return;
     end
 
     switch code
-        case 8,   typeName = 'cue';
-        case 9,   typeName = 'CSplus';
-        case 10,  typeName = 'CSminus';
+        case 8,   typeName = 'cue';     cachedSeq = cueSeq;   cachedKey = cueKey;
+        case 9,   typeName = 'CSplus';  cachedSeq = plusSeq;  cachedKey = plusKey;
+        case 10,  typeName = 'CSminus'; cachedSeq = minusSeq; cachedKey = minusKey;
+        case 12,  typeName = 'opto';    cachedSeq = optoSeq;  cachedKey = optoKey;
         otherwise
-            fprintf('dmd_hf_goNogo: unknown code %d\n', code);
+            dmd_log(logFile, 'unknown code %d', code);
             return;
     end
 
-    nF       = S.GUI.(sprintf('nFrames_%s',  typeName));
-    illuTime = S.GUI.(sprintf('exposure_%s', typeName));
-    imgIdx   = S.GUI.(sprintf('imgIdx_%s',   typeName));
+    rowIdx = 1;
+    if isfield(BpodSystem.PluginObjects, 'SelectedPatternRow') && ...
+       isfield(BpodSystem.PluginObjects.SelectedPatternRow, typeName)
+        rowIdx = BpodSystem.PluginObjects.SelectedPatternRow.(typeName);
+    end
+    nFVec    = S.GUI.(sprintf('patternNFrames_%s',  typeName));
+    expVec   = S.GUI.(sprintf('patternExposure_%s', typeName));
+    idx      = min(rowIdx, numel(nFVec));
+    nF       = nFVec(idx);
+    illuTime = expVec(idx);
+
+    dmd_log(logFile, 'code=%d type=%s row=%d nF=%d illuTime=%.0fus', ...
+        code, typeName, rowIdx, nF, illuTime);
 
     dmd.halt();
 
-    if nF == 1
-        key = [imgIdx, illuTime];
-        [cachedSeq, cachedKey] = getCache(code, cueKey, cueSeq, plusKey, plusSeq, minusKey, minusSeq);
-        if ~isequaln(cachedKey, key) || isempty(cachedSeq)
-            if ~isempty(cachedSeq), delete(cachedSeq); end
-            cachedSeq = buildDMDSlaveSequence(dmd, luminose.dmd.patternsFolder, imgIdx, illuTime);
-            [cueSeq, cueKey, plusSeq, plusKey, minusSeq, minusKey] = ...
-                setCache(code, cachedSeq, key, cueSeq, cueKey, plusSeq, plusKey, minusSeq, minusKey);
-        end
-        dmd.device.projControl(C.ALP_PROJ_MODE, C.ALP_SLAVE);
-        dmd.device.projControl(C.ALP_TRIGGER_EDGE, C.ALP_EDGE_RISING);
-        dmd.device.projStart(cachedSeq);
+    design = getDesign(BpodSystem, typeName, rowIdx, luminose.dmd.patternsFolder);
+    if isempty(design)
+        dmd_log(logFile, 'no design found for %s row %d — skipping', typeName, rowIdx);
+        return;
+    end
+    spots     = design.spots;
+    tickMs    = design.tickMs;
+    r_px      = design.r_px;
+    hasRandom = any(~[spots.isFixed]);
+
+    if ~hasRandom
+        key = [rowIdx, nF, illuTime];
     else
-        design = getDesign(BpodSystem, typeName, luminose.dmd.patternsFolder);
-        if isempty(design)
-            fprintf('dmd_hf_goNogo: no pattern design found for %s\n', typeName);
-            return;
-        end
-        spots  = design.spots;
-        tickMs = design.tickMs;
-        r_px   = design.r_px;
-        hasRandom = any(~[spots.isFixed]);
-        if ~hasRandom
-            key = [imgIdx, nF, illuTime];
-            [cachedSeq, cachedKey] = getCache(code, cueKey, cueSeq, plusKey, plusSeq, minusKey, minusSeq);
-        else
-            key = []; cachedSeq = []; cachedKey = [];
-        end
-        if ~isequaln(cachedKey, key) || isempty(cachedSeq)
-            margin = r_px + 1;
-            for i = 1:numel(spots)
-                if ~spots(i).isFixed
-                    spots(i).x = randi([margin, 2560 - margin]);
-                    spots(i).y = randi([margin, 1600 - margin]);
+        key = []; cachedSeq = []; cachedKey = [];
+    end
+
+    if ~isequaln(cachedKey, key) || isempty(cachedSeq)
+        dmd_log(logFile, 'building frame stack for %s row %d (%d spots)', typeName, rowIdx, numel(spots));
+        devH = double(dmd.device.height);
+        devW = double(dmd.device.width);
+        margin = r_px + 1;
+        fixed = [spots.isFixed];
+        px = double([spots(fixed).x]);
+        py = double([spots(fixed).y]);
+        for i = 1:numel(spots)
+            if ~spots(i).isFixed
+                for attempt = 1:500
+                    xt = randi([margin, devW - margin]);
+                    yt = randi([margin, devH - margin]);
+                    if isempty(px) || all(max(abs(px-xt), abs(py-yt)) > 2*r_px)
+                        spots(i).x = xt; spots(i).y = yt;
+                        px(end+1) = xt; py(end+1) = yt; %#ok<AGROW>
+                        break;
+                    end
                 end
             end
-            frameStack = buildPatternFrameStack(spots, r_px, tickMs);
-            if ~isempty(cachedSeq), delete(cachedSeq); end
-            cachedSeq = allocFrameStack(dmd, frameStack, illuTime);
-            if ~hasRandom
-                [cueSeq, cueKey, plusSeq, plusKey, minusSeq, minusKey] = ...
-                    setCache(code, cachedSeq, key, cueSeq, cueKey, plusSeq, plusKey, minusSeq, minusKey);
+        end
+        frameStack = buildPatternFrameStack(spots, r_px, tickMs, devH, devW);
+        dmd_log(logFile, 'frame stack built: %dx%dx%d', size(frameStack,1), size(frameStack,2), size(frameStack,3));
+        if ~isempty(cachedSeq), delete(cachedSeq); end
+        cachedSeq = allocFrameStack(dmd, frameStack, illuTime);
+        if ~hasRandom
+            switch code
+                case 8,  cueSeq   = cachedSeq; cueKey   = key;
+                case 9,  plusSeq  = cachedSeq; plusKey  = key;
+                case 10, minusSeq = cachedSeq; minusKey = key;
+                case 12, optoSeq  = cachedSeq; optoKey  = key;
             end
         end
-        dmd.device.projControl(C.ALP_PROJ_MODE, C.ALP_MASTER);
-        dmd.startFinite(cachedSeq, 1);
+    else
+        dmd_log(logFile, 'using cached sequence for %s row %d', typeName, rowIdx);
+    end
+
+    cachedSeq.setRepeat(1);
+    dmd.device.projControl(C.ALP_PROJ_MODE, C.ALP_SLAVE);
+    dmd.device.control(C.ALP_TRIGGER_EDGE, C.ALP_EDGE_RISING);
+    dmd.device.projStart(cachedSeq);
+    dmd_log(logFile, 'armed in SLAVE mode for %s row %d — waiting for PWM2 trigger', typeName, rowIdx);
+
+    catch ME
+        dmd_log(logFile, 'ERROR: %s  at %s line %d', ME.message, ME.stack(1).name, ME.stack(1).line);
     end
 end
+
+% -----------------------------------------------------------------------
 
 function seq = allocFrameStack(dmd, frameStack, illuTime_us)
     nF  = size(frameStack, 3);
     seq = dmd.device.allocSequence(1, nF);
     for k = 1:nF, seq.put(k-1, 1, frameStack(:,:,k)); end
     seq.setBinaryMode(true);
-    t = round(illuTime_us); seq.timing(t, t, 0, 0, 0); seq.setRepeat(1);
+    t = round(illuTime_us);
+    seq.timing(t, t, 0, 0, 0);
+    seq.setRepeat(1);
 end
 
-function design = getDesign(BpodSystem, typeName, patternsFolder)
+function design = getDesign(BpodSystem, typeName, rowIdx, patternsFolder)
     design = [];
-    if isfield(BpodSystem, 'PluginObjects') && ...
-       isfield(BpodSystem.PluginObjects, 'PatternDesign') && ...
-       isfield(BpodSystem.PluginObjects.PatternDesign, typeName)
-        design = BpodSystem.PluginObjects.PatternDesign.(typeName); return
+    if isfield(BpodSystem.PluginObjects, 'PatternDesigns') && ...
+       isfield(BpodSystem.PluginObjects.PatternDesigns, typeName) && ...
+       rowIdx <= numel(BpodSystem.PluginObjects.PatternDesigns.(typeName)) && ...
+       ~isempty(BpodSystem.PluginObjects.PatternDesigns.(typeName){rowIdx})
+        design = BpodSystem.PluginObjects.PatternDesigns.(typeName){rowIdx};
+        return
     end
     patternsFolder = char(patternsFolder);
-    metas = dir(fullfile(patternsFolder, sprintf('designed_%s_*_meta.mat', typeName)));
+    rowMetas   = dir(fullfile(patternsFolder, sprintf('designed_%s_r%d_*_meta.mat', typeName, rowIdx)));
+    legacyMetas = [];
+    if rowIdx == 1
+        all_m = dir(fullfile(patternsFolder, sprintf('designed_%s_*_meta.mat', typeName)));
+        isRow = arrayfun(@(m) ~isempty(regexp(m.name, sprintf('designed_%s_r\\d+_', typeName), 'once')), all_m);
+        legacyMetas = all_m(~isRow);
+    end
+    metas = [rowMetas; legacyMetas];
     if isempty(metas), return; end
     [~, newest] = max([metas.datenum]);
     try
-        m = load(fullfile(patternsFolder, metas(newest).name), 'spots', 'tickMs', 'r_px');
+        m = load(fullfile(patternsFolder, metas(newest).name), 'spots', 'tickMs', 'r_px', 'nF');
         for i = 1:numel(m.spots)
             if ~isfield(m.spots(i), 'isFixed'), m.spots(i).isFixed = true; end
         end
-        design = struct('spots', m.spots, 'tickMs', m.tickMs, 'r_px', m.r_px);
-    catch, end
-end
-
-function [seq, key] = getCache(code, cueKey, cueSeq, plusKey, plusSeq, minusKey, minusSeq)
-    switch code
-        case 8,  seq = cueSeq;   key = cueKey;
-        case 9,  seq = plusSeq;  key = plusKey;
-        case 10, seq = minusSeq; key = minusKey;
-        otherwise, seq = []; key = [];
+        nF = 1; if isfield(m, 'nF'), nF = m.nF; end
+        design = struct('spots', m.spots, 'tickMs', m.tickMs, 'r_px', m.r_px, 'nF', nF);
+    catch
     end
 end
 
-function [cueSeq,cueKey,plusSeq,plusKey,minusSeq,minusKey] = ...
-        setCache(code,seq,key,cueSeq,cueKey,plusSeq,plusKey,minusSeq,minusKey)
-    switch code
-        case 8,  cueSeq  = seq; cueKey  = key;
-        case 9,  plusSeq = seq; plusKey = key;
-        case 10, minusSeq= seq; minusKey= key;
-    end
+function dmd_log(logFile, fmt, varargin)
+    fid = fopen(logFile, 'a');
+    if fid < 0, return; end
+    fprintf(fid, '[%s] ', datestr(now, 'HH:MM:SS'));
+    fprintf(fid, fmt, varargin{:});
+    fprintf(fid, '\n');
+    fclose(fid);
 end

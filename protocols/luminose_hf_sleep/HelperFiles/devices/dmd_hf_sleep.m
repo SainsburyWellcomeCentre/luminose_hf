@@ -43,7 +43,7 @@ function dmd_hf_sleep(code)
                 setCache(code, cachedSeq, key, plusSeq, plusKey, minusSeq, minusKey);
         end
         dmd.device.projControl(C.ALP_PROJ_MODE, C.ALP_SLAVE);
-        dmd.device.projControl(C.ALP_TRIGGER_EDGE, C.ALP_EDGE_RISING);
+        dmd.device.control(C.ALP_TRIGGER_EDGE, C.ALP_EDGE_RISING);
         dmd.device.projStart(cachedSeq);
     else
         design = getDesign(BpodSystem, typeName, luminose.dmd.patternsFolder);

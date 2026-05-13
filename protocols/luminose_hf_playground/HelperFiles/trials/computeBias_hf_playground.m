@@ -5,12 +5,12 @@ function bias = computeBias_hf_playground(data, N)
 
 if nargin < 2, N = 20; end
 
-if ~isfield(data, 'Custom') || ~isfield(data.Custom, 'TrialResponse')
+if ~isfield(data, 'TrialResponse')
     bias = 0;
     return;
 end
 
-responses = data.Custom.TrialResponse;
+responses = data.TrialResponse;
 nTrials = length(responses);
 startIdx = max(1, nTrials - N + 1);
 window = responses(startIdx:end);

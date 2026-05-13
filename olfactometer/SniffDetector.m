@@ -44,7 +44,8 @@ classdef SniffDetector < handle
 
     properties
         channel    (1,1) double {mustBeInteger, mustBePositive} = 1
-        sampleRate (1,1) double {mustBePositive} = 500  % Hz
+        sampleRate (1,1) double {mustBePositive} = 500   % Hz
+        risingEdge (1,1) logical = false  % false=falling (sniff↓), true=rising (hand↑)
         % Parameters for the adaptive detectFromAnalog algorithm
         prominence          (1,1) double = 0.15  % minimum trough depth as fraction of detrended signal range
         minWidth_s          (1,1) double = 0.05  % minimum inhalation duration (s)
@@ -91,10 +92,10 @@ classdef SniffDetector < handle
             ch = obj.channel;
             BpodSystem.FlexIOConfig.channelTypes(ch)   = 2;  % Analog Input
             BpodSystem.FlexIOConfig.threshold1(ch)     = onsetThreshold;
-            BpodSystem.FlexIOConfig.polarity1(ch)      = 1;  % fire when signal < threshold1
+            BpodSystem.FlexIOConfig.polarity1(ch)      = ~obj.risingEdge;  % 1=fall below, 0=rise above
             BpodSystem.FlexIOConfig.threshold2(ch)     = offsetThreshold;
-            BpodSystem.FlexIOConfig.polarity2(ch)      = 0;  % fire when signal > threshold2
-            BpodSystem.FlexIOConfig.thresholdMode(ch)  = 1;  % paired: Trig1 enables Trig2
+            BpodSystem.FlexIOConfig.polarity2(ch)      = obj.risingEdge;   % opposite polarity for offset
+            BpodSystem.FlexIOConfig.thresholdMode(ch)  = 1;  % paired: Trig2 arms only after Trig1 fires
             BpodSystem.FlexIOConfig.analogSamplingRate = obj.sampleRate;
         end
 
@@ -107,9 +108,11 @@ classdef SniffDetector < handle
         end
 
         function offset_s = getOffset(obj, RawEvents)
-            % Timestamp of the first Flex<ch>Trig2 event (seconds from trial start).
-            % Returns NaN if no return-to-baseline crossing occurred.
-            offset_s = obj.firstEventTime(RawEvents, obj.offsetEvent);
+            % Timestamp of the first Flex<ch>Trig2 event that occurs after Trig1
+            % (seconds from trial start). Returns NaN if no crossing occurred.
+            % Trig2 events before onset are stale carryover from the previous trial.
+            onset_s = obj.getOnset(RawEvents);
+            offset_s = obj.firstEventAfter(RawEvents, obj.offsetEvent, onset_s);
         end
 
         % --- Adaptive post-hoc detection from acquired analog data -------
@@ -211,9 +214,28 @@ classdef SniffDetector < handle
             if isempty(RawEvents) || ~isstruct(RawEvents) || ~isfield(RawEvents, 'Events')
                 return
             end
-            idx = find(strcmp(RawEvents.Events, evtName), 1);
-            if ~isempty(idx)
-                t = RawEvents.EventTimestamps(idx);
+            evts = RawEvents.Events;
+            if isstruct(evts) && isfield(evts, evtName)
+                t = evts.(evtName)(1);
+            end
+        end
+
+        function t = firstEventAfter(~, RawEvents, evtName, afterTime)
+            % First occurrence of evtName strictly after afterTime (NaN = no constraint).
+            t = NaN;
+            if isempty(RawEvents) || ~isstruct(RawEvents) || ~isfield(RawEvents, 'Events')
+                return
+            end
+            evts = RawEvents.Events;
+            if ~(isstruct(evts) && isfield(evts, evtName))
+                return
+            end
+            times = evts.(evtName);
+            if ~isnan(afterTime)
+                times = times(times > afterTime);
+            end
+            if ~isempty(times)
+                t = times(1);
             end
         end
 

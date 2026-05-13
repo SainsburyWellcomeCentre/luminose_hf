@@ -46,7 +46,6 @@ function olfactometer_hf_2AFC(code)
     if duty_cycles == 0
         duty_cycles = olfModel.get_odour_dutycycles(odour_valves);
     end
-    disp(odour_valves); disp(duty_cycles);
     % Run olfactometer sequence
     olfModel.play_valve_sequence(odour_valves, duty_cycles);
 

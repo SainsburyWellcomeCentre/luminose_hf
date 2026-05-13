@@ -4,15 +4,15 @@ function data = updateTrialData_hf_playground(data, trialIdx)
 % Side: 1=Left, 2=Right
 % Response: 1=Left, 2=Right, NaN=No Response
 
-if ~isfield(data, 'Custom')
-    data.Custom.TrialSide = [];
-    data.Custom.TrialResponse = [];
-    data.Custom.TrialOutcome = [];
+if ~isfield(data, 'TrialSide')
+    data.TrialSide = [];
+    data.TrialResponse = [];
+    data.TrialOutcome = [];
 end
 
 % 1. Determine Trial Side (Correct Side)
 % This is already in data.TrialTypes, but we'll store it for convenience
-data.Custom.TrialSide(trialIdx) = data.TrialTypes(trialIdx);
+data.TrialSide(trialIdx) = data.TrialTypes(trialIdx);
 
 % 2. Determine Animal Response
 events = data.RawEvents.Trial{trialIdx}.Events;
@@ -39,7 +39,7 @@ elseif hasLeft && hasRight
         response = 2;
     end
 end
-data.Custom.TrialResponse(trialIdx) = response;
+data.TrialResponse(trialIdx) = response;
 
 % 3. Determine Outcome (Correct, Incorrect, NoResponse)
 hasReward = isfield(data.RawEvents.Trial{trialIdx}.States,'Reward') && ...
@@ -48,22 +48,22 @@ hasPunishment = isfield(data.RawEvents.Trial{trialIdx}.States,'Punishment') && .
             ~isnan(data.RawEvents.Trial{trialIdx}.States.Punishment(1));
 
 if hasReward
-    data.Custom.TrialOutcome(trialIdx) = 1; % Correct
+    data.TrialOutcome(trialIdx) = 1; % Correct
 elseif hasPunishment
     % Check if they actually licked the wrong side or didn't lick
     if isnan(response)
-        data.Custom.TrialOutcome(trialIdx) = 3; % No Response
+        data.TrialOutcome(trialIdx) = 3; % No Response
     else
-        data.Custom.TrialOutcome(trialIdx) = 0; % Incorrect
+        data.TrialOutcome(trialIdx) = 0; % Incorrect
     end
 else
     % This handles cases where punishment is disabled or habituation
     if isnan(response)
-        data.Custom.TrialOutcome(trialIdx) = 3;
+        data.TrialOutcome(trialIdx) = 3;
     elseif response == data.TrialTypes(trialIdx)
-        data.Custom.TrialOutcome(trialIdx) = 1;
+        data.TrialOutcome(trialIdx) = 1;
     else
-        data.Custom.TrialOutcome(trialIdx) = 0;
+        data.TrialOutcome(trialIdx) = 0;
     end
 end
 

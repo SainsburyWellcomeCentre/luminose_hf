@@ -2,11 +2,12 @@ function GUIparams_luminose_hf_sleep()
     global S
     
     %% ===== Trials =====
-    S.GUITabs.Trials = {'ProtocolSettings', 'TreatmentType', 'TestPulses', 'TrialParams'};
+    S.GUITabs.Trials = {'ProtocolSettings', 'TreatmentType', 'TestPulses', 'TrialParams', 'Sniff'};
     S.GUIPanels.TrialParams = {'maxTrials', 'Typeprob', 'ITImin', 'ITImax'};
     S.GUIPanels.TestPulses = {'TestPulses', 'TestPulsesType'};
     S.GUIPanels.TreatmentType = {'Ephys', 'EEG', 'Drug'};
     S.GUIPanels.ProtocolSettings = {'Sleep', 'muBarcodeDur', 'sigmaBarcodeDur'};
+    S.GUIPanels.Sniff = {'SniffOnsetThreshold', 'SniffOffsetThreshold', 'SniffRising', 'CalibrateSniff'};
 
     % == Trial Params ==
     S.GUI.maxTrials = 10000;  
@@ -137,5 +138,19 @@ function GUIparams_luminose_hf_sleep()
     S.GUIMeta.DrugType.Label = 'Drug Compound';
     S.GUI.DrugDose = 1;
     S.GUIMeta.DrugDose.Label = 'Dose (mg/kg)';
+
+    % == Sniff ==
+    S.GUI.SniffOnsetThreshold = 0.5;
+    S.GUIMeta.SniffOnsetThreshold.Label = 'Sniff Onset Thresh (V)';
+    S.GUI.SniffOffsetThreshold = 1.5;
+    S.GUIMeta.SniffOffsetThreshold.Label = 'Sniff Offset Thresh (V)';
+S.GUI.SniffRising = false;
+    S.GUIMeta.SniffRising.Style = 'checkbox';
+    S.GUIMeta.SniffRising.Label = 'Rising Edge';
+    S.GUI.CalibrateSniff = 0;
+    S.GUIMeta.CalibrateSniff.Style = 'pushbutton';
+    S.GUIMeta.CalibrateSniff.String = 'Calibrate Sniff (12s)';
+    S.GUIMeta.CalibrateSniff.Callback = 'RunSniffCalibration';
+    S.GUIMeta.CalibrateSniff.CallbackArg = '';
 
 end

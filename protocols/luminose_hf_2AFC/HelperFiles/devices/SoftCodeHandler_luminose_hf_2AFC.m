@@ -3,6 +3,6 @@ function SoftCodeHandler_luminose_hf_2AFC(code)
     if code <= 7
         parfeval(@olfactometer_hf_2AFC, 0, code);
     else
-        parfeval(@dmd_hf_2AFC, 0, code);
+        dmd_hf_2AFC(code);  % synchronous — libisloaded fails on thread workers
     end
 end

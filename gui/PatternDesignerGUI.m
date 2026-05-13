@@ -1,24 +1,49 @@
-function PatternDesignerGUI(patternType)
+function PatternDesignerGUI(patternType, rowIdx)
 % PatternDesignerGUI  Interactive DMD spot-pattern designer.
 %
-%   PatternDesignerGUI(patternType)  — patternType: 'cue', 'Left', or 'Right'
+%   PatternDesignerGUI(patternType, rowIdx)
+%   rowIdx defaults to 1 if omitted.
 %
-%   Click canvas to place square spots.  Each spot has onset, duration (ms)
-%   and a Fixed/Random toggle.  Fixed spots stay at the drawn position every
-%   trial; Random spots get a new uniform-random position each trial.
-%   Press "Save Pattern" to store the design and update S.GUI.
+%   Two placement modes (toggle at top of control panel):
+%     Free Placement — left-click canvas to place; right-click to remove nearest
+%     Grid Select    — canvas shows non-overlapping grid; click any cell to toggle it
+%
+%   Overlap rule: Chebyshev distance > 2*r_px enforced in both modes and at
+%   runtime.  In Grid mode overlap is impossible by construction.
+%
+%   Overlay panel: load any other saved pattern type as a visual reference.
+%   Delete Spot #N: remove a single spot by its number.
+%   Clear All: remove all spots.
+%   Save Pattern: write to BpodSystem and disk.
+
+    if nargin < 2 || isempty(rowIdx), rowIdx = 1; end
 
     global S luminose BpodSystem
 
-    DMD_W = 2560;
-    DMD_H = 1600;
-    SCALE = 4;
-    CAN_W = DMD_W / SCALE;   % 640
-    CAN_H = DMD_H / SCALE;   % 400
+    % ---------------------------------------------------------------
+    % Constants
+    % ---------------------------------------------------------------
+    DMD_W = 1024;
+    DMD_H = 768;
+    SCALE = 2;
+    CAN_W = DMD_W / SCALE;   % 512
+    CAN_H = DMD_H / SCALE;   % 384
 
-    r_px   = round((luminose.dmd.spotSide / luminose.dmd.projectedDMDlength) * DMD_W / 2);
+    if isstruct(S) && isfield(S, 'GUI') && isfield(S.GUI, 'dmdSpotSide')
+        spotSide = S.GUI.dmdSpotSide;
+    else
+        spotSide = luminose.dmd.spotSide;
+    end
+    r_px   = round((spotSide / luminose.dmd.projectedDMDlength) * DMD_W / 2);
     r_px   = max(r_px, 1);
-    r_disp = max(r_px / SCALE, 1);
+    r_disp = max(floor(r_px / SCALE), 1);
+
+    % Grid parameters — 1px gap between cells guarantees strict non-overlap
+    gridCellSize = 2 * r_px + 2;
+    gridCols     = floor(DMD_W / gridCellSize);
+    gridRows     = floor(DMD_H / gridCellSize);
+    gridOffX     = floor((DMD_W - gridCols * gridCellSize) / 2);
+    gridOffY     = floor((DMD_H - gridRows * gridCellSize) / 2);
 
     SPOT_COLORS = [ ...
         0.2  0.6  1.0; ...
@@ -35,63 +60,129 @@ function PatternDesignerGUI(patternType)
     bgFile    = fullfile(dmdFolder, 'canvas_background.png');
     bgImage   = loadOrGenerateBG(bgFile, CAN_W, CAN_H);
 
-    % --- State ---
-    spots = struct('x', {}, 'y', {}, 'onset_ms', {}, 'dur_ms', {}, 'isFixed', {});
+    % ---------------------------------------------------------------
+    % State
+    % ---------------------------------------------------------------
+    spots        = struct('x',{},'y',{},'onset_ms',{},'dur_ms',{},'isFixed',{});
+    overlaySpots = struct('x',{},'y',{},'onset_ms',{},'dur_ms',{},'isFixed',{});
+    gridSelected = false(gridRows, gridCols);
+    mode         = 'free';   % 'free' | 'grid'
+    loadedTickMs = [];
 
-    existingFrames = S.GUI.(sprintf('nFrames_%s', patternType));
-    if existingFrames > 1
-        existingIdx = S.GUI.(sprintf('imgIdx_%s', patternType));
-        spots = tryLoadMeta(luminose.dmd.patternsFolder, patternType, existingIdx);
+    % Load existing design: BpodSystem memory first, then disk
+    if isfield(BpodSystem, 'PluginObjects') && ...
+       isfield(BpodSystem.PluginObjects, 'PatternDesigns') && ...
+       isfield(BpodSystem.PluginObjects.PatternDesigns, patternType) && ...
+       numel(BpodSystem.PluginObjects.PatternDesigns.(patternType)) >= rowIdx && ...
+       ~isempty(BpodSystem.PluginObjects.PatternDesigns.(patternType){rowIdx})
+        d            = BpodSystem.PluginObjects.PatternDesigns.(patternType){rowIdx};
+        spots        = d.spots;
+        loadedTickMs = d.tickMs;
+    else
+        [spots, loadedTickMs] = tryLoadMetaForRow(luminose.dmd.patternsFolder, patternType, rowIdx);
     end
+    gridSelected = spotsToGrid(spots);
 
-    % --- Figure ---
-    fig = figure('Name', sprintf('Pattern Designer — %s', patternType), ...
+    % ---------------------------------------------------------------
+    % Figure  (720 px tall to fit all controls)
+    % ---------------------------------------------------------------
+    fig = figure('Name', sprintf('Pattern Designer — %s  (row %d)', patternType, rowIdx), ...
         'NumberTitle', 'off', 'MenuBar', 'none', 'Resize', 'off', ...
-        'Position', [80 80 1130 680], ...
+        'Position', [80 80 1130 720], ...
         'Color', [0.13 0.13 0.15], ...
         'CloseRequestFcn', @onClose);
 
-    % --- Canvas ---
+    % --- Canvas (left column) ---
     axCanvas = axes('Parent', fig, ...
-        'Units', 'pixels', 'Position', [15 15 CAN_W CAN_H], ...
+        'Units', 'pixels', 'Position', [15 140 CAN_W CAN_H], ...
         'XColor', 'none', 'YColor', 'none', ...
         'XLim', [0 CAN_W], 'YLim', [0 CAN_H], 'YDir', 'reverse', ...
         'NextPlot', 'replacechildren', 'PickableParts', 'all', 'HitTest', 'on', ...
         'ButtonDownFcn', @onCanvasClick);
 
-    % --- Controls ---
-    PX = CAN_W + 25;
+    % Tick (ms) and spot-size info above the canvas
+    uicontrol(fig, 'Style', 'text', 'String', 'Tick (ms)', ...
+        'Position', [15 548 70 22], 'FontSize', 10, ...
+        'BackgroundColor', [0.13 0.13 0.15], 'ForegroundColor', [0.75 0.75 0.75], ...
+        'HorizontalAlignment', 'left');
+    hTickMs = uicontrol(fig, 'Style', 'edit', 'String', '10', ...
+        'Position', [90 548 45 24], 'FontSize', 11, ...
+        'BackgroundColor', [0.22 0.22 0.25], 'ForegroundColor', [1 1 1]);
+    uicontrol(fig, 'Style', 'text', 'String', 'ms per frame', ...
+        'Position', [142 548 120 22], 'FontSize', 9, ...
+        'BackgroundColor', [0.13 0.13 0.15], 'ForegroundColor', [0.5 0.5 0.5], ...
+        'HorizontalAlignment', 'left');
+    uicontrol(fig, 'Style', 'text', ...
+        'String', sprintf('Spot half-width: %d px  (spotSide=%.2fmm)  — solid=Fixed, dashed=Random', ...
+            r_px, spotSide), ...
+        'Position', [15 524 CAN_W 22], 'FontSize', 9, ...
+        'BackgroundColor', [0.13 0.13 0.15], 'ForegroundColor', [0.5 0.5 0.5], ...
+        'HorizontalAlignment', 'left');
+
+    % ---------------------------------------------------------------
+    % Control panel (right column)
+    % ---------------------------------------------------------------
+    PX = CAN_W + 25;   % 537
     PW = 465;
 
+    % --- Mode toggle ---
+    uicontrol(fig, 'Style', 'text', 'String', 'MODE', ...
+        'Position', [PX 684 PW 22], 'FontSize', 10, 'FontWeight', 'bold', ...
+        'BackgroundColor', [0.13 0.13 0.15], 'ForegroundColor', [0.8 0.8 0.8], ...
+        'HorizontalAlignment', 'left');
+    hModeFree = uicontrol(fig, 'Style', 'pushbutton', 'String', 'Free Placement', ...
+        'Position', [PX 652 224 28], 'FontSize', 10, ...
+        'Callback', @(~,~) setMode('free'));
+    hModeGrid = uicontrol(fig, 'Style', 'pushbutton', 'String', 'Grid Select', ...
+        'Position', [PX+232 652 225 28], 'FontSize', 10, ...
+        'Callback', @(~,~) setMode('grid'));
+
+    % --- Placement controls ---
     uicontrol(fig, 'Style', 'text', 'String', 'PLACEMENT', ...
-        'Position', [PX 640 PW 22], 'FontSize', 10, 'FontWeight', 'bold', ...
+        'Position', [PX 618 PW 22], 'FontSize', 10, 'FontWeight', 'bold', ...
         'BackgroundColor', [0.13 0.13 0.15], 'ForegroundColor', [0.8 0.8 0.8], ...
         'HorizontalAlignment', 'left');
 
     uicontrol(fig, 'Style', 'text', 'String', 'nSpots', ...
-        'Position', [PX 610 70 22], 'FontSize', 10, ...
+        'Position', [PX 588 70 22], 'FontSize', 10, ...
         'BackgroundColor', [0.13 0.13 0.15], 'ForegroundColor', [0.75 0.75 0.75], ...
         'HorizontalAlignment', 'left');
     hNSpots = uicontrol(fig, 'Style', 'edit', 'String', '3', ...
-        'Position', [PX+75 610 45 24], 'FontSize', 11, ...
+        'Position', [PX+75 588 45 24], 'FontSize', 11, ...
         'BackgroundColor', [0.22 0.22 0.25], 'ForegroundColor', [1 1 1]);
-
-    uicontrol(fig, 'Style', 'pushbutton', 'String', 'Randomize Positions', ...
-        'Position', [PX+130 608 160 28], 'FontSize', 10, ...
+    uicontrol(fig, 'Style', 'pushbutton', 'String', 'Randomize', ...
+        'Position', [PX+130 586 155 28], 'FontSize', 10, ...
         'BackgroundColor', [0.2 0.45 0.7], 'ForegroundColor', [1 1 1], ...
         'Callback', @onRandomize);
     uicontrol(fig, 'Style', 'pushbutton', 'String', 'Clear All', ...
-        'Position', [PX+300 608 145 28], 'FontSize', 10, ...
+        'Position', [PX+295 586 152 28], 'FontSize', 10, ...
         'BackgroundColor', [0.5 0.2 0.2], 'ForegroundColor', [1 1 1], ...
         'Callback', @onClearAll);
 
+    % --- Overlay ---
+    allTypes      = {'cue', 'CSplus', 'CSminus', 'opto'};
+    overlayOptions = [{'(none)'}, allTypes(~strcmp(allTypes, patternType))];
+    uicontrol(fig, 'Style', 'text', 'String', 'Overlay:', ...
+        'Position', [PX 556 58 22], 'FontSize', 10, ...
+        'BackgroundColor', [0.13 0.13 0.15], 'ForegroundColor', [0.75 0.75 0.75], ...
+        'HorizontalAlignment', 'left');
+    hOverlayPopup = uicontrol(fig, 'Style', 'popupmenu', 'String', overlayOptions, ...
+        'Position', [PX+65 554 160 26], 'FontSize', 10, ...
+        'BackgroundColor', [0.22 0.22 0.25], 'ForegroundColor', [1 1 1], ...
+        'Callback', @onOverlayChange);
+    uicontrol(fig, 'Style', 'text', 'String', '← reference layer (amber); overlap allowed', ...
+        'Position', [PX+232 556 220 22], 'FontSize', 8, ...
+        'BackgroundColor', [0.13 0.13 0.15], 'ForegroundColor', [0.45 0.45 0.45], ...
+        'HorizontalAlignment', 'left');
+
+    % --- Spots table ---
     uicontrol(fig, 'Style', 'text', 'String', 'SPOTS', ...
-        'Position', [PX 575 PW 22], 'FontSize', 10, 'FontWeight', 'bold', ...
+        'Position', [PX 524 PW 22], 'FontSize', 10, 'FontWeight', 'bold', ...
         'BackgroundColor', [0.13 0.13 0.15], 'ForegroundColor', [0.8 0.8 0.8], ...
         'HorizontalAlignment', 'left');
 
     hTable = uitable(fig, ...
-        'Position', [PX 340 PW 230], ...
+        'Position', [PX 290 PW 228], ...
         'ColumnName', {'#', 'X (px)', 'Y (px)', 'Onset (ms)', 'Dur (ms)', 'Type'}, ...
         'ColumnWidth', {28, 68, 68, 82, 68, 90}, ...
         'ColumnEditable', [false true true true true true], ...
@@ -102,36 +193,32 @@ function PatternDesignerGUI(patternType)
         'ForegroundColor', [0.9 0.9 0.9], ...
         'CellEditCallback', @onTableEdit);
 
+    % --- Delete one spot ---
+    uicontrol(fig, 'Style', 'text', 'String', 'Delete spot #', ...
+        'Position', [PX 258 92 22], 'FontSize', 10, ...
+        'BackgroundColor', [0.13 0.13 0.15], 'ForegroundColor', [0.75 0.75 0.75], ...
+        'HorizontalAlignment', 'left');
+    hDeleteIdx = uicontrol(fig, 'Style', 'edit', 'String', '1', ...
+        'Position', [PX+97 258 40 24], 'FontSize', 11, ...
+        'BackgroundColor', [0.22 0.22 0.25], 'ForegroundColor', [1 1 1]);
+    uicontrol(fig, 'Style', 'pushbutton', 'String', 'Delete', ...
+        'Position', [PX+145 256 80 28], 'FontSize', 10, ...
+        'BackgroundColor', [0.45 0.22 0.22], 'ForegroundColor', [1 1 1], ...
+        'Callback', @onDeleteOne);
+
+    % --- Timeline ---
     uicontrol(fig, 'Style', 'text', 'String', 'TIMELINE', ...
-        'Position', [PX 310 PW 22], 'FontSize', 10, 'FontWeight', 'bold', ...
+        'Position', [PX 226 PW 22], 'FontSize', 10, 'FontWeight', 'bold', ...
         'BackgroundColor', [0.13 0.13 0.15], 'ForegroundColor', [0.8 0.8 0.8], ...
         'HorizontalAlignment', 'left');
 
     axTimeline = axes('Parent', fig, ...
-        'Units', 'pixels', 'Position', [PX 185 PW 118], ...
+        'Units', 'pixels', 'Position', [PX 110 PW 110], ...
         'Color', [0.16 0.16 0.18], 'XColor', [0.6 0.6 0.6], 'YColor', 'none', ...
         'NextPlot', 'replacechildren', 'FontSize', 9);
     xlabel(axTimeline, 'Time (ms)', 'Color', [0.6 0.6 0.6], 'FontSize', 9);
 
-    uicontrol(fig, 'Style', 'text', 'String', 'Tick (ms)', ...
-        'Position', [PX 153 70 22], 'FontSize', 10, ...
-        'BackgroundColor', [0.13 0.13 0.15], 'ForegroundColor', [0.75 0.75 0.75], ...
-        'HorizontalAlignment', 'left');
-    hTickMs = uicontrol(fig, 'Style', 'edit', 'String', '10', ...
-        'Position', [PX+75 153 45 24], 'FontSize', 11, ...
-        'BackgroundColor', [0.22 0.22 0.25], 'ForegroundColor', [1 1 1]);
-    uicontrol(fig, 'Style', 'text', 'String', 'Frame duration for sequence', ...
-        'Position', [PX+130 153 PW-130 22], 'FontSize', 9, ...
-        'BackgroundColor', [0.13 0.13 0.15], 'ForegroundColor', [0.55 0.55 0.55], ...
-        'HorizontalAlignment', 'left');
-
-    uicontrol(fig, 'Style', 'text', ...
-        'String', sprintf('Spot half-width: %d px  (config: spotSide=%.2fm)  — solid=Fixed, dashed=Random', ...
-            r_px, luminose.dmd.spotSide), ...
-        'Position', [PX 127 PW 22], 'FontSize', 9, ...
-        'BackgroundColor', [0.13 0.13 0.15], 'ForegroundColor', [0.5 0.5 0.5], ...
-        'HorizontalAlignment', 'left');
-
+    % --- Save / Cancel ---
     uicontrol(fig, 'Style', 'pushbutton', 'String', 'Save Pattern', ...
         'Position', [PX 15 215 50], 'FontSize', 14, 'FontWeight', 'bold', ...
         'BackgroundColor', [0.15 0.55 0.25], 'ForegroundColor', [1 1 0.4], ...
@@ -141,34 +228,52 @@ function PatternDesignerGUI(patternType)
         'BackgroundColor', [0.35 0.35 0.38], 'ForegroundColor', [0.9 0.9 0.9], ...
         'Callback', @(~,~) delete(fig));
 
+    % --- Initial state ---
+    if ~isempty(loadedTickMs)
+        set(hTickMs, 'String', num2str(loadedTickMs));
+    else
+        updateDefaultTick();
+    end
+    updateModeButtons();
     refreshCanvas();
     refreshTimeline();
     syncTableFromSpots();
 
-    % ---------------------------------------------------------------
+    % ===================================================================
     % Callbacks
-    % ---------------------------------------------------------------
+    % ===================================================================
 
     function onCanvasClick(~, ~)
-        pt = axCanvas.CurrentPoint(1, 1:2);
-        if strcmp(get(fig, 'SelectionType'), 'normal')
-            nMax = round(str2double(get(hNSpots, 'String')));
-            if isnan(nMax) || nMax < 1, nMax = 3; end
-            if numel(spots) >= nMax, return; end
-            xDMD = max(1, min(DMD_W, round(pt(1) * SCALE)));
-            yDMD = max(1, min(DMD_H, round(pt(2) * SCALE)));
-            newSpot.x        = xDMD;
-            newSpot.y        = yDMD;
-            newSpot.onset_ms = 0;
-            newSpot.dur_ms   = 100;
-            newSpot.isFixed  = true;
-            spots(end+1) = newSpot;
+        pt   = axCanvas.CurrentPoint(1, 1:2);
+        xDsp = pt(1);  yDsp = pt(2);
+        xDMD = round(xDsp * SCALE);
+        yDMD = round(yDsp * SCALE);
+
+        if strcmp(mode, 'grid')
+            col = floor((xDMD - gridOffX) / gridCellSize) + 1;
+            row = floor((yDMD - gridOffY) / gridCellSize) + 1;
+            if col < 1 || col > gridCols || row < 1 || row > gridRows, return; end
+            gridSelected(row, col) = ~gridSelected(row, col);
+            syncSpotsFromGrid();
         else
-            removeNearestSpot(pt(1), pt(2));
+            if strcmp(get(fig, 'SelectionType'), 'normal')
+                nMax = round(str2double(get(hNSpots, 'String')));
+                if isnan(nMax) || nMax < 1, nMax = 3; end
+                if numel(spots) >= nMax, return; end
+                xDMD = max(1, min(DMD_W, xDMD));
+                yDMD = max(1, min(DMD_H, yDMD));
+                if anyOverlapWith(xDMD, yDMD, spots), return; end
+                newSpot.x = xDMD;  newSpot.y = yDMD;
+                newSpot.onset_ms = 0;  newSpot.dur_ms = 100;  newSpot.isFixed = true;
+                spots(end+1) = newSpot;
+            else
+                removeNearestSpot(xDsp, yDsp);
+            end
         end
         syncTableFromSpots();
         refreshCanvas();
         refreshTimeline();
+        updateDefaultTick();
     end
 
     function onTableEdit(~, ev)
@@ -178,11 +283,23 @@ function PatternDesignerGUI(patternType)
         switch c
             case 2
                 if isnumeric(val) && ~isnan(val)
-                    spots(r).x = round(max(1, min(DMD_W, val)));
+                    newX = round(max(1, min(DMD_W, val)));
+                    oldX = spots(r).x;
+                    spots(r).x = newX;
+                    if anyOverlapWithExcluding(newX, spots(r).y, spots, r)
+                        spots(r).x = oldX;
+                        warndlg(sprintf('Spot %d would overlap another — reverted.', r), 'Overlap');
+                    end
                 end
             case 3
                 if isnumeric(val) && ~isnan(val)
-                    spots(r).y = round(max(1, min(DMD_H, val)));
+                    newY = round(max(1, min(DMD_H, val)));
+                    oldY = spots(r).y;
+                    spots(r).y = newY;
+                    if anyOverlapWithExcluding(spots(r).x, newY, spots, r)
+                        spots(r).y = oldY;
+                        warndlg(sprintf('Spot %d would overlap another — reverted.', r), 'Overlap');
+                    end
                 end
             case 4
                 if isnumeric(val) && ~isnan(val)
@@ -193,36 +310,116 @@ function PatternDesignerGUI(patternType)
                     spots(r).dur_ms = max(1, val);
                 end
             case 6
-                spots(r).isFixed = strcmp(val, 'Fixed');
+                if strcmp(mode, 'free')
+                    spots(r).isFixed = strcmp(val, 'Fixed');
+                end
+        end
+        if strcmp(mode, 'grid')
+            gridSelected = spotsToGrid(spots);
         end
         syncTableFromSpots();
         refreshCanvas();
         refreshTimeline();
+        updateDefaultTick();
     end
 
     function onRandomize(~, ~)
         n = round(str2double(get(hNSpots, 'String')));
         if isnan(n) || n < 1, n = 3; end
-        margin   = r_px + 1;
-        newSpots = struct('x',{},'y',{},'onset_ms',{},'dur_ms',{},'isFixed',{});
-        for i = 1:n
-            newSpots(i).x        = randi([margin, DMD_W - margin]);
-            newSpots(i).y        = randi([margin, DMD_H - margin]);
-            newSpots(i).onset_ms = 0;
-            newSpots(i).dur_ms   = 100;
-            newSpots(i).isFixed  = true;
+
+        if strcmp(mode, 'grid')
+            % Pick n random cells, replacing current selection
+            [freeR, freeC] = find(true(gridRows, gridCols));   % all cells available
+            nAll = numel(freeR);
+            n    = min(n, nAll);
+            perm = randperm(nAll, n);
+            gridSelected = false(gridRows, gridCols);
+            for i = 1:n
+                gridSelected(freeR(perm(i)), freeC(perm(i))) = true;
+            end
+            syncSpotsFromGrid();
+        else
+            margin = r_px + 1;
+            placed = struct('x',{},'y',{},'onset_ms',{},'dur_ms',{},'isFixed',{});
+            for i = 1:n
+                for attempt = 1:1000
+                    xt = randi([margin, DMD_W - margin]);
+                    yt = randi([margin, DMD_H - margin]);
+                    if ~anyOverlapWith(xt, yt, placed)
+                        s.x = xt;  s.y = yt;
+                        s.onset_ms = 0;  s.dur_ms = 100;  s.isFixed = true;
+                        placed(end+1) = s; %#ok<AGROW>
+                        break;
+                    end
+                end
+            end
+            spots = placed;
         end
-        spots = newSpots;
         syncTableFromSpots();
+        refreshCanvas();
+        refreshTimeline();
+        updateDefaultTick();
+    end
+
+    function onClearAll(~, ~)
+        spots        = struct('x',{},'y',{},'onset_ms',{},'dur_ms',{},'isFixed',{});
+        gridSelected = false(gridRows, gridCols);
+        set(hTable, 'Data', {});
         refreshCanvas();
         refreshTimeline();
     end
 
-    function onClearAll(~, ~)
-        spots = struct('x',{},'y',{},'onset_ms',{},'dur_ms',{},'isFixed',{});
-        set(hTable, 'Data', {});
+    function onDeleteOne(~, ~)
+        idx = round(str2double(get(hDeleteIdx, 'String')));
+        if isnan(idx) || idx < 1 || idx > numel(spots)
+            warndlg(sprintf('Enter a number between 1 and %d.', max(1,numel(spots))), 'Invalid');
+            return;
+        end
+        spots(idx) = [];
+        if strcmp(mode, 'grid')
+            gridSelected = spotsToGrid(spots);
+        end
+        syncTableFromSpots();
         refreshCanvas();
         refreshTimeline();
+        updateDefaultTick();
+    end
+
+    function onOverlayChange(~, ~)
+        overlaySpots = loadOverlay();
+        refreshCanvas();
+    end
+
+    function setMode(newMode)
+        if strcmp(newMode, mode), return; end
+        if strcmp(newMode, 'grid')
+            gridSelected = spotsToGrid(spots);
+            syncSpotsFromGrid();   % snap spot coords to grid centres
+            % Disable X/Y editing in grid mode (positions are grid-determined)
+            set(hTable, 'ColumnEditable', [false false false true true true]);
+        else
+            set(hTable, 'ColumnEditable', [false true true true true true]);
+        end
+        mode = newMode;
+        updateModeButtons();
+        syncTableFromSpots();
+        refreshCanvas();
+        refreshTimeline();
+        updateDefaultTick();
+    end
+
+    function updateModeButtons()
+        activeCol   = [0.22 0.50 0.82];
+        inactiveCol = [0.25 0.25 0.28];
+        activeFG    = [1 1 1];
+        inactiveFG  = [0.65 0.65 0.65];
+        if strcmp(mode, 'free')
+            set(hModeFree, 'BackgroundColor', activeCol,   'ForegroundColor', activeFG);
+            set(hModeGrid, 'BackgroundColor', inactiveCol, 'ForegroundColor', inactiveFG);
+        else
+            set(hModeFree, 'BackgroundColor', inactiveCol, 'ForegroundColor', inactiveFG);
+            set(hModeGrid, 'BackgroundColor', activeCol,   'ForegroundColor', activeFG);
+        end
     end
 
     function onSave(~, ~)
@@ -242,33 +439,50 @@ function PatternDesignerGUI(patternType)
         totalDur = max([spots.onset_ms] + [spots.dur_ms]);
         nF       = ceil(totalDur / tickMs);
 
-        % Store design in BpodSystem for the DMD handler
         if ~isfield(BpodSystem, 'PluginObjects') || ~isstruct(BpodSystem.PluginObjects)
             BpodSystem.PluginObjects = struct();
         end
-        if ~isfield(BpodSystem.PluginObjects, 'PatternDesign')
-            BpodSystem.PluginObjects.PatternDesign = struct();
+        if ~isfield(BpodSystem.PluginObjects, 'PatternDesigns')
+            BpodSystem.PluginObjects.PatternDesigns = struct();
         end
-        BpodSystem.PluginObjects.PatternDesign.(patternType) = struct( ...
-            'spots', spots, 'tickMs', tickMs, 'r_px', r_px);
+        if ~isfield(BpodSystem.PluginObjects.PatternDesigns, patternType)
+            BpodSystem.PluginObjects.PatternDesigns.(patternType) = {};
+        end
+        BpodSystem.PluginObjects.PatternDesigns.(patternType){rowIdx} = ...
+            struct('spots', spots, 'tickMs', tickMs, 'r_px', r_px, 'nF', nF);
 
-        % Save sidecar .mat so the design survives a MATLAB restart
         patternsFolder = char(luminose.dmd.patternsFolder);
         if ~exist(patternsFolder, 'dir'), mkdir(patternsFolder); end
         timestamp = datestr(now, 'yyyymmdd_HHMMSS'); %#ok<TNOW1,DATST>
-        prefix    = sprintf('designed_%s_%s', patternType, timestamp);
+        prefix    = sprintf('designed_%s_r%d_%s', patternType, rowIdx, timestamp);
         metaFile  = fullfile(patternsFolder, sprintf('%s_meta.mat', prefix));
-        save(metaFile, 'spots', 'tickMs', 'r_px', 'timestamp', 'prefix');
+        save(metaFile, 'spots', 'tickMs', 'r_px', 'nF', 'timestamp', 'prefix');
 
-        % Update S.GUI  (imgIdx = 0 signals "use in-memory generation")
-        S.GUI.(sprintf('imgIdx_%s',   patternType)) = 0;
-        S.GUI.(sprintf('nFrames_%s',  patternType)) = nF;
-        S.GUI.(sprintf('exposure_%s', patternType)) = tickMs * 1000;
+        if isfield(BpodSystem.GUIHandles.ParameterGUI, 'PatternSelectorTables') && ...
+           isfield(BpodSystem.GUIHandles.ParameterGUI.PatternSelectorTables, patternType)
+            ptable = BpodSystem.GUIHandles.ParameterGUI.PatternSelectorTables.(patternType);
+            if ishandle(ptable)
+                tdata = get(ptable, 'Data');
+                while size(tdata,1) < rowIdx, tdata(end+1,:) = {0, 0, 1e6}; end
+                tdata{rowIdx, 2} = numel(spots);
+                tdata{rowIdx, 3} = tickMs * 1000;
+                set(ptable, 'Data', tdata);
+            end
+        end
+
+        nFVec  = S.GUI.(sprintf('patternNFrames_%s',  patternType));
+        expVec = S.GUI.(sprintf('patternExposure_%s', patternType));
+        if numel(nFVec)  < rowIdx, nFVec(rowIdx)  = 0; end
+        if numel(expVec) < rowIdx, expVec(rowIdx) = 0; end
+        nFVec(rowIdx)  = nF;
+        expVec(rowIdx) = tickMs * 1000;
+        S.GUI.(sprintf('patternNFrames_%s',  patternType)) = nFVec;
+        S.GUI.(sprintf('patternExposure_%s', patternType)) = expVec;
 
         hasRandom = any(~[spots.isFixed]);
         typeStr   = 'all fixed';
         if hasRandom, typeStr = 'includes random spots'; end
-        msgbox(sprintf('%d frames, tick=%gms, %s.\nS.GUI updated.', nF, tickMs, typeStr), ...
+        msgbox(sprintf('Row %d: %d frames, tick=%gms, %s.', rowIdx, nF, tickMs, typeStr), ...
             'Pattern saved', 'help');
         delete(fig);
     end
@@ -277,13 +491,85 @@ function PatternDesignerGUI(patternType)
         delete(fig);
     end
 
-    % ---------------------------------------------------------------
-    % Helpers
-    % ---------------------------------------------------------------
+    % ===================================================================
+    % Internal helpers
+    % ===================================================================
 
-    function removeNearestSpot(xDisp, yDisp)
+    function syncSpotsFromGrid()
+        [rows, cols] = find(gridSelected);
+        n = numel(rows);
+        oldSpots = spots;
+        newSpots = struct('x',{},'y',{},'onset_ms',{},'dur_ms',{},'isFixed',{});
+        for i = 1:n
+            cx = gridOffX + (cols(i)-1)*gridCellSize + r_px;
+            cy = gridOffY + (rows(i)-1)*gridCellSize + r_px;
+            % Preserve timing if this cell was already in spots
+            onset_ms = 0;  dur_ms = 100;
+            for j = 1:numel(oldSpots)
+                if max(abs(oldSpots(j).x - cx), abs(oldSpots(j).y - cy)) <= r_px
+                    onset_ms = oldSpots(j).onset_ms;
+                    dur_ms   = oldSpots(j).dur_ms;
+                    break;
+                end
+            end
+            newSpots(i).x        = cx;
+            newSpots(i).y        = cy;
+            newSpots(i).onset_ms = onset_ms;
+            newSpots(i).dur_ms   = dur_ms;
+            newSpots(i).isFixed  = true;
+        end
+        spots = newSpots;
+    end
+
+    function gs = spotsToGrid(spotArray)
+        gs = false(gridRows, gridCols);
+        for i = 1:numel(spotArray)
+            col = floor((spotArray(i).x - gridOffX) / gridCellSize) + 1;
+            row = floor((spotArray(i).y - gridOffY) / gridCellSize) + 1;
+            if col >= 1 && col <= gridCols && row >= 1 && row <= gridRows
+                gs(row, col) = true;
+            end
+        end
+    end
+
+    function tf = anyOverlapWith(x, y, spotArray)
+        tf = false;
+        for k = 1:numel(spotArray)
+            if max(abs(x - spotArray(k).x), abs(y - spotArray(k).y)) <= 2*r_px
+                tf = true; return;
+            end
+        end
+    end
+
+    function tf = anyOverlapWithExcluding(x, y, spotArray, excludeIdx)
+        tf = false;
+        for k = 1:numel(spotArray)
+            if k == excludeIdx, continue; end
+            if max(abs(x - spotArray(k).x), abs(y - spotArray(k).y)) <= 2*r_px
+                tf = true; return;
+            end
+        end
+    end
+
+    function ov = loadOverlay()
+        ov  = struct('x',{},'y',{},'onset_ms',{},'dur_ms',{},'isFixed',{});
+        idx = get(hOverlayPopup, 'Value');
+        sel = overlayOptions{idx};
+        if strcmp(sel, '(none)'), return; end
+        if isfield(BpodSystem, 'PluginObjects') && ...
+           isfield(BpodSystem.PluginObjects, 'PatternDesigns') && ...
+           isfield(BpodSystem.PluginObjects.PatternDesigns, sel) && ...
+           ~isempty(BpodSystem.PluginObjects.PatternDesigns.(sel)) && ...
+           ~isempty(BpodSystem.PluginObjects.PatternDesigns.(sel){1})
+            ov = BpodSystem.PluginObjects.PatternDesigns.(sel){1}.spots;
+            return;
+        end
+        [ov, ~] = tryLoadMetaForRow(luminose.dmd.patternsFolder, sel, 1);
+    end
+
+    function removeNearestSpot(xDsp, yDsp)
         if isempty(spots), return; end
-        dists = sqrt(([spots.x]/SCALE - xDisp).^2 + ([spots.y]/SCALE - yDisp).^2);
+        dists = sqrt(([spots.x]/SCALE - xDsp).^2 + ([spots.y]/SCALE - yDsp).^2);
         [minD, idx] = min(dists);
         if minD <= r_disp * 1.5
             spots(idx) = [];
@@ -308,6 +594,17 @@ function PatternDesignerGUI(patternType)
         set(hTable, 'Data', data);
     end
 
+    function updateDefaultTick()
+        if isempty(spots), return; end
+        onsets = [spots.onset_ms];
+        durs   = [spots.dur_ms];
+        if numel(unique(onsets)) == 1 && numel(unique(durs)) == 1
+            set(hTickMs, 'String', num2str(durs(1)));
+        else
+            set(hTickMs, 'String', '1');
+        end
+    end
+
     function refreshCanvas()
         cla(axCanvas);
         hImg = imagesc(axCanvas, [0 CAN_W], [0 CAN_H], bgImage);
@@ -316,18 +613,83 @@ function PatternDesignerGUI(patternType)
         set(axCanvas, 'YDir', 'reverse', 'XLim', [0 CAN_W], 'YLim', [0 CAN_H], ...
             'XColor', 'none', 'YColor', 'none');
         hold(axCanvas, 'on');
+
+        if strcmp(mode, 'grid')
+            drawGrid();
+        else
+            drawFreeSpots();
+        end
+
+        set(axCanvas, 'NextPlot', 'replacechildren', 'ButtonDownFcn', @onCanvasClick);
+    end
+
+    function drawGrid()
+        ovGrid = spotsToGrid(overlaySpots);
+
+        % Build a full-canvas RGBA image for the grid (one rect per cell)
+        gridImg   = zeros(CAN_H, CAN_W, 3, 'uint8');
+        gridAlpha = zeros(CAN_H, CAN_W, 'uint8');
+
+        for row = 1:gridRows
+            for col = 1:gridCols
+                % Cell centre in display coordinates
+                cxD = floor((gridOffX + (col-1)*gridCellSize + r_px) / SCALE);
+                cyD = floor((gridOffY + (row-1)*gridCellSize + r_px) / SCALE);
+                x1  = max(1, cxD - r_disp);   x2 = min(CAN_W, cxD + r_disp);
+                y1  = max(1, cyD - r_disp);   y2 = min(CAN_H, cyD + r_disp);
+
+                isOwn = gridSelected(row, col);
+                isOv  = ovGrid(row, col);
+
+                if isOwn && isOv
+                    rgb = uint8([200 160  20]);  a = uint8(220);  % both — gold
+                elseif isOwn
+                    rgb = uint8([ 60 155 255]);  a = uint8(190);  % own — blue
+                elseif isOv
+                    rgb = uint8([230 165  25]);  a = uint8(110);  % overlay — amber
+                else
+                    rgb = uint8([ 65  65  70]);  a = uint8( 90);  % empty — dim
+                end
+
+                gridImg(y1:y2, x1:x2, 1) = rgb(1);
+                gridImg(y1:y2, x1:x2, 2) = rgb(2);
+                gridImg(y1:y2, x1:x2, 3) = rgb(3);
+                gridAlpha(y1:y2, x1:x2)  = a;
+            end
+        end
+
+        hi = image(axCanvas, [0 CAN_W], [0 CAN_H], gridImg, ...
+            'AlphaData', double(gridAlpha)/255);
+        set(hi, 'HitTest', 'off', 'PickableParts', 'none');
+    end
+
+    function drawFreeSpots()
+        % Overlay spots first (behind own)
+        for i = 1:numel(overlaySpots)
+            cx  = overlaySpots(i).x / SCALE;
+            cy  = overlaySpots(i).y / SCALE;
+            col = [0.9 0.65 0.1];
+            hr = rectangle(axCanvas, ...
+                'Position', [cx-r_disp, cy-r_disp, 2*r_disp, 2*r_disp], ...
+                'FaceColor', [col 0.18], 'EdgeColor', [col 0.55], ...
+                'LineWidth', 1.2, 'LineStyle', ':');
+            set(hr, 'HitTest', 'off', 'PickableParts', 'none');
+            ht = text(axCanvas, cx, cy, sprintf('O%d', i), ...
+                'Color', [col 0.75], 'FontSize', 8, 'FontWeight', 'bold', ...
+                'HorizontalAlignment', 'center', 'VerticalAlignment', 'middle');
+            set(ht, 'HitTest', 'off', 'PickableParts', 'none');
+        end
+
+        % Own spots
         for i = 1:numel(spots)
             cx  = spots(i).x / SCALE;
             cy  = spots(i).y / SCALE;
             col = SPOT_COLORS(mod(i-1, size(SPOT_COLORS,1))+1, :);
             if spots(i).isFixed
-                % Solid border
                 hr = rectangle(axCanvas, ...
                     'Position', [cx-r_disp, cy-r_disp, 2*r_disp, 2*r_disp], ...
                     'FaceColor', [col 0.45], 'EdgeColor', col, 'LineWidth', 2);
-                set(hr, 'HitTest', 'off', 'PickableParts', 'none');
             else
-                % Dashed border (drawn as 4 line segments) + lighter fill
                 hr = rectangle(axCanvas, ...
                     'Position', [cx-r_disp, cy-r_disp, 2*r_disp, 2*r_disp], ...
                     'FaceColor', [col 0.20], 'EdgeColor', 'none');
@@ -337,12 +699,12 @@ function PatternDesignerGUI(patternType)
                 hl = plot(axCanvas, xs, ys, '--', 'Color', col, 'LineWidth', 1.8);
                 set(hl, 'HitTest', 'off', 'PickableParts', 'none');
             end
+            set(hr, 'HitTest', 'off', 'PickableParts', 'none');
             ht = text(axCanvas, cx, cy, num2str(i), 'Color', [1 1 1], 'FontSize', 9, ...
-                'HorizontalAlignment', 'center', 'VerticalAlignment', 'middle', ...
-                'FontWeight', 'bold');
+                'FontWeight', 'bold', ...
+                'HorizontalAlignment', 'center', 'VerticalAlignment', 'middle');
             set(ht, 'HitTest', 'off', 'PickableParts', 'none');
         end
-        set(axCanvas, 'NextPlot', 'replacechildren', 'ButtonDownFcn', @onCanvasClick);
     end
 
     function refreshTimeline()
@@ -356,11 +718,12 @@ function PatternDesignerGUI(patternType)
             yi  = n - i + 1;
             ls  = '-';
             if ~spots(i).isFixed, ls = '--'; end
-            rectangle(axTimeline, 'Position', [spots(i).onset_ms, yi-0.4, spots(i).dur_ms, 0.8], ...
+            rectangle(axTimeline, ...
+                'Position', [spots(i).onset_ms, yi-0.4, spots(i).dur_ms, 0.8], ...
                 'FaceColor', col, 'EdgeColor', col*0.7, 'LineWidth', 0.8, 'LineStyle', ls);
             text(axTimeline, spots(i).onset_ms + spots(i).dur_ms/2, yi, num2str(i), ...
-                'Color', [1 1 1], 'FontSize', 8, 'HorizontalAlignment', 'center', ...
-                'VerticalAlignment', 'middle', 'FontWeight', 'bold');
+                'Color', [1 1 1], 'FontSize', 8, 'FontWeight', 'bold', ...
+                'HorizontalAlignment', 'center', 'VerticalAlignment', 'middle');
         end
         set(axTimeline, 'XLim', [0 totalDur*1.05+1], 'YLim', [0 n+1]);
         xlabel(axTimeline, 'Time (ms)', 'Color', [0.6 0.6 0.6], 'FontSize', 9);
@@ -369,9 +732,9 @@ function PatternDesignerGUI(patternType)
 
 end
 
-% -----------------------------------------------------------------------
-% Background image
-% -----------------------------------------------------------------------
+% =======================================================================
+% Background image (file-backed procedural noise)
+% =======================================================================
 function img = loadOrGenerateBG(bgFile, W, H)
     if exist(bgFile, 'file')
         raw = imread(bgFile);
@@ -401,13 +764,37 @@ function img = loadOrGenerateBG(bgFile, W, H)
     imwrite(img, bgFile);
 end
 
-% -----------------------------------------------------------------------
-% Pre-populate from sidecar meta file
-% -----------------------------------------------------------------------
-function spots = tryLoadMeta(patternsFolder, patternType, imgIdx)
-    spots = struct('x',{},'y',{},'onset_ms',{},'dur_ms',{},'isFixed',{});
+% =======================================================================
+% Meta-file loaders
+% =======================================================================
+function [spots, tickMs] = tryLoadMetaForRow(patternsFolder, patternType, rowIdx)
+    spots  = struct('x',{},'y',{},'onset_ms',{},'dur_ms',{},'isFixed',{});
+    tickMs = [];
     patternsFolder = char(patternsFolder);
-    % imgIdx=0 means designed pattern — find most recent meta for this type
+    metas = dir(fullfile(patternsFolder, sprintf('designed_%s_r%d_*_meta.mat', patternType, rowIdx)));
+    if isempty(metas) && rowIdx == 1
+        all_m  = dir(fullfile(patternsFolder, sprintf('designed_%s_*_meta.mat', patternType)));
+        legacy = all_m(arrayfun(@(m) isempty(regexp(m.name, ...
+            sprintf('designed_%s_r\\d+_', patternType), 'once')), all_m));
+        metas  = legacy;
+    end
+    if isempty(metas), return; end
+    [~, newest] = max([metas.datenum]);
+    try
+        m = load(fullfile(patternsFolder, metas(newest).name));
+        for i = 1:numel(m.spots)
+            if ~isfield(m.spots(i), 'isFixed'), m.spots(i).isFixed = true; end
+        end
+        spots = m.spots;
+        if isfield(m, 'tickMs'), tickMs = m.tickMs; end
+    catch
+    end
+end
+
+function [spots, tickMs] = tryLoadMeta(patternsFolder, patternType, imgIdx) %#ok<DEFNU>
+    spots  = struct('x',{},'y',{},'onset_ms',{},'dur_ms',{},'isFixed',{});
+    tickMs = [];
+    patternsFolder = char(patternsFolder);
     if imgIdx == 0
         metas = dir(fullfile(patternsFolder, sprintf('designed_%s_*_meta.mat', patternType)));
         if isempty(metas), return; end
@@ -423,14 +810,12 @@ function spots = tryLoadMeta(patternsFolder, patternType, imgIdx)
         if ~exist(metaFile, 'file'), return; end
     end
     try
-        m = load(metaFile, 'spots');
-        % Ensure isFixed field exists (back-compat with older meta files)
+        m = load(metaFile);
         for i = 1:numel(m.spots)
-            if ~isfield(m.spots(i), 'isFixed')
-                m.spots(i).isFixed = true;
-            end
+            if ~isfield(m.spots(i), 'isFixed'), m.spots(i).isFixed = true; end
         end
         spots = m.spots;
+        if isfield(m, 'tickMs'), tickMs = m.tickMs; end
     catch
     end
 end

@@ -24,10 +24,10 @@ nextTrialType = 0;
 
 % 1. Repeat on Error (if enabled)
 if useRepeatOnError
-    if isfield(data, 'Custom') && isfield(data.Custom, 'TrialOutcome') && ~isempty(data.Custom.TrialOutcome)
-        lastOutcome = data.Custom.TrialOutcome(end);
+    if isfield(data, 'TrialOutcome') && ~isempty(data.TrialOutcome)
+        lastOutcome = data.TrialOutcome(end);
         if lastOutcome == 0 % Incorrect response
-            nextTrialType = data.Custom.TrialType(end);
+            nextTrialType = data.TrialType(end);
             return;
         end
     end

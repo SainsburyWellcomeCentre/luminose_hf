@@ -1,17 +1,18 @@
-function frameStack = buildPatternFrameStack(spots, r_px, tickMs)
+function frameStack = buildPatternFrameStack(spots, r_px, tickMs, H, W)
 % buildPatternFrameStack  Render spot definitions into a logical frame stack.
 %
-%   frameStack = buildPatternFrameStack(spots, r_px, tickMs)
+%   frameStack = buildPatternFrameStack(spots, r_px, tickMs, H, W)
 %
 %   spots    - struct array: x, y (DMD pixels), onset_ms, dur_ms
 %              isFixed is ignored here; caller randomises random spots first.
 %   r_px     - spot half-width in pixels (square side = 2*r_px+1)
 %   tickMs   - frame duration in ms
+%   H, W     - device pixel dimensions (rows, cols); defaults: 768, 1024
 %
-%   Returns logical(1600, 2560, nFrames).
+%   Returns logical(H, W, nFrames).
 
-    H = 1600;
-    W = 2560;
+    if nargin < 4 || isempty(H), H = 768;  end
+    if nargin < 5 || isempty(W), W = 1024; end
 
     totalDur   = max([spots.onset_ms] + [spots.dur_ms]);
     nFrames    = ceil(totalDur / tickMs);

@@ -24,8 +24,8 @@ function [firstIdx, nFrames] = generatePatternBMPs(spots, dmd_config, patternTyp
     if ~exist(patternsFolder, 'dir')
         mkdir(patternsFolder);
     end
-    H = 1600;
-    W = 2560;
+    H = 768;
+    W = 1024;
 
     totalDur = max([spots.onset_ms] + [spots.dur_ms]);
     nFrames  = ceil(totalDur / tickMs);
