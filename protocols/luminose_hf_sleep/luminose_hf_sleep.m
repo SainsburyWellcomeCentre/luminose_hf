@@ -45,6 +45,7 @@ function luminose_hf_sleep
     isNewSession = ~isstruct(S) || isempty(fieldnames(S));
     if isNewSession
         GUIparams_luminose_hf_sleep();
+        restorePatternParams({'opto'}, luminose.dmd.patternsFolder);
     else
         SavedGUI = S.GUI;
         GUIparams_luminose_hf_sleep();
@@ -241,6 +242,34 @@ function [sma, S, actions] = PrepareStateMachine(S, trialTypes, currentTrial, st
 
     onsetDelay = max(0, 1 - toc(sessionStartTic));
 
+    % SelectedPatternRow for each pattern type
+    for tCell = {'CSplus', 'CSminus', 'opto'}
+        t = tCell{1};
+        probField = sprintf('patternProbs_%s', t);
+        if isfield(S.GUI, probField)
+            probs = max(S.GUI.(probField), 0);
+            if sum(probs) > 0
+                rIdx = find(rand() <= cumsum(probs/sum(probs)), 1);
+            else, rIdx = 1; end
+            if ~isfield(BpodSystem.PluginObjects, 'SelectedPatternRow')
+                BpodSystem.PluginObjects.SelectedPatternRow = struct(); end
+            BpodSystem.PluginObjects.SelectedPatternRow.(t) = rIdx;
+        end
+    end
+
+    % Opto ITI pulse train frequency
+    if strcmp(S.GUIMeta.TestPulsesType.String{S.GUI.TestPulsesType}, 'PairedPulse')
+        baseFreq = S.GUI.PPfrequency;
+        if S.GUI.PPvariable && S.GUI.MaxPPfrequency > baseFreq
+            optoFreq = baseFreq + rand() * (S.GUI.MaxPPfrequency - baseFreq);
+        else, optoFreq = baseFreq; end
+    else
+        baseFreq = S.GUI.SPfrequency;
+        if S.GUI.SPvariable && S.GUI.MaxSPfrequency > baseFreq
+            optoFreq = baseFreq + rand() * (S.GUI.MaxSPfrequency - baseFreq);
+        else, optoFreq = baseFreq; end
+    end
+
     startAction = {'GlobalTimerTrig', 1, 'RotaryEncoder1', ['#' 0], 'AnalogThreshEnable', 1};
     sniffAction = {'RotaryEncoder1', '*Z'};
     stimAction = {'BNC1', 1};
@@ -251,7 +280,8 @@ function [sma, S, actions] = PrepareStateMachine(S, trialTypes, currentTrial, st
             case 2
                 startAction{end+1} = 'SoftCode'; startAction{end+1} = 10;
         end
-        stimAction{end+1} = 'BNC2'; stimAction{end+1} = 1;
+        stimAction{end+1} = 'PWM2'; stimAction{end+1} = 255;
+        stimAction{end+1} = 'PWM3'; stimAction{end+1} = S.GUI.Intensity_mask;
         chooseState1 = 'GetSniff';
     else
         chooseState1 = 'InterTrialInterval';
@@ -262,6 +292,10 @@ function [sma, S, actions] = PrepareStateMachine(S, trialTypes, currentTrial, st
         sma = SetGlobalTimer(sma, 'TimerID', 1, 'Duration', 18000, ...
             'OnsetDelay', onsetDelay, 'Channel', 'PWM5', 'OnMessage', 255, ...
             'OffMessage', 0, 'Loop', 0, 'SendGlobalTimerEvents', 0, 'LoopInterval', 0);
+        sma = SetGlobalTimer(sma, 'TimerID', 2, ...
+            'Duration', 0.0001, 'OnsetDelay', 0, ...
+            'Channel', 'SoftCode', 'OnMessage', 12, 'OffMessage', 0, ...
+            'Loop', 1, 'LoopInterval', max(0.001, 1/optoFreq - 0.0001), 'SendEvents', 0);
         % unique barcode sent to identify protocol in first trial
         sma = AddState(sma, 'Name', 'Barcode1', ...
             'Timer', normrnd(S.GUI.muBarcodeDur, S.GUI.sigmaBarcodeDur), ...
@@ -288,6 +322,10 @@ function [sma, S, actions] = PrepareStateMachine(S, trialTypes, currentTrial, st
         sma = SetGlobalTimer(sma, 'TimerID', 1, 'Duration', 18000, ...
             'OnsetDelay', onsetDelay, 'Channel', 'PWM5', 'OnMessage', 255, ...
             'OffMessage', 0, 'Loop', 0, 'SendGlobalTimerEvents', 0, 'LoopInterval', 0);
+        sma = SetGlobalTimer(sma, 'TimerID', 2, ...
+            'Duration', 0.0001, 'OnsetDelay', 0, ...
+            'Channel', 'SoftCode', 'OnMessage', 12, 'OffMessage', 0, ...
+            'Loop', 1, 'LoopInterval', max(0.001, 1/optoFreq - 0.0001), 'SendEvents', 0);
     end
     sma = AddState(sma, 'Name', 'TrialStart', ...
         'Timer', ITI(currentTrial)/2, ...
@@ -304,12 +342,13 @@ function [sma, S, actions] = PrepareStateMachine(S, trialTypes, currentTrial, st
     sma = AddState(sma, 'Name', 'InterTrialInterval', ...
         'Timer', ITI(currentTrial)/2, ...
         'StateChangeConditions', {'Tup', 'exit'}, ...
-        'OutputActions', {'BNC1', 1});
+        'OutputActions', {'BNC1', 1, 'GlobalTimerTrig', 2});
 
     actions = struct();
     actions.TrialStart  = startAction;
     actions.GetSniff    = sniffAction;
     actions.DeliverStim = stimAction;
+    actions.ITI = {'BNC1', 1};
 end
 
 %% Handle pause condition
@@ -335,4 +374,63 @@ function cleanup()
     SaveBpodSessionData;
     SaveBpodProtocolSettings;
     diary off;
+end
+
+function restorePatternParams(typeNames, patternsFolder)
+    global S BpodSystem
+    patternsFolder = char(patternsFolder);
+    for i = 1:numel(typeNames)
+        t = typeNames{i};
+        allMetas = dir(fullfile(patternsFolder, sprintf('designed_%s_*_meta.mat', t)));
+        if isempty(allMetas), continue; end
+        isRowFile = arrayfun(@(m) ~isempty(regexp(m.name, ...
+            sprintf('designed_%s_r\\d+_', t), 'once')), allMetas);
+        rowMetas    = allMetas(isRowFile);
+        legacyMetas = allMetas(~isRowFile);
+        rowIndices = [];
+        for j = 1:numel(rowMetas)
+            tok = regexp(rowMetas(j).name, sprintf('designed_%s_r(\\d+)_', t), 'tokens', 'once');
+            if ~isempty(tok), rowIndices(end+1) = str2double(tok{1}); end %#ok<AGROW>
+        end
+        rowIndices = unique(rowIndices);
+        if ~ismember(1, rowIndices) && ~isempty(legacyMetas)
+            rowIndices = [1, rowIndices];
+        end
+        if isempty(rowIndices), continue; end
+        maxRow  = max(rowIndices);
+        nFVec   = S.GUI.(sprintf('patternNFrames_%s',  t));
+        expVec  = S.GUI.(sprintf('patternExposure_%s', t));
+        probVec = S.GUI.(sprintf('patternProbs_%s',    t));
+        while numel(nFVec)   < maxRow, nFVec(end+1)   = 1;   end
+        while numel(expVec)  < maxRow, expVec(end+1)  = 1e6; end
+        while numel(probVec) < maxRow, probVec(end+1) = 0;   end
+        if ~isfield(BpodSystem.PluginObjects, 'PatternDesigns')
+            BpodSystem.PluginObjects.PatternDesigns = struct(); end
+        if ~isfield(BpodSystem.PluginObjects.PatternDesigns, t)
+            BpodSystem.PluginObjects.PatternDesigns.(t) = {}; end
+        for rowIdx = rowIndices
+            rMetas = rowMetas(arrayfun(@(m) ~isempty(regexp(m.name, ...
+                sprintf('designed_%s_r%d_', t, rowIdx), 'once')), rowMetas));
+            if isempty(rMetas) && rowIdx == 1, rMetas = legacyMetas; end
+            if isempty(rMetas), continue; end
+            [~, newest] = max([rMetas.datenum]);
+            try
+                m = load(fullfile(patternsFolder, rMetas(newest).name));
+                if ~isfield(m, 'tickMs'), continue; end
+                if isfield(m, 'nF'), nF = m.nF;
+                else, totalDur = max([m.spots.onset_ms] + [m.spots.dur_ms]);
+                    nF = ceil(totalDur / m.tickMs); end
+                nFVec(rowIdx)  = nF;
+                expVec(rowIdx) = m.tickMs * 1000;
+                BpodSystem.PluginObjects.PatternDesigns.(t){rowIdx} = ...
+                    struct('spots', m.spots, 'tickMs', m.tickMs, 'r_px', m.r_px, 'nF', nF);
+                fprintf('Restored %s row %d: %d frames, tick=%.1fms\n', t, rowIdx, nF, m.tickMs);
+            catch
+            end
+        end
+        probVec(:) = 1 / numel(probVec);
+        S.GUI.(sprintf('patternNFrames_%s',  t)) = nFVec;
+        S.GUI.(sprintf('patternExposure_%s', t)) = expVec;
+        S.GUI.(sprintf('patternProbs_%s',    t)) = probVec;
+    end
 end

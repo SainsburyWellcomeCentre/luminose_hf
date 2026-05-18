@@ -54,12 +54,9 @@ olfactometer:
 
 # DMD (Digital Micromirror Device) configuration
 dmd:
-  mode: 3
   testImagePath: "C:\\Users\\harrislab\\Documents\\DLPimages\\bullseye1920x1080_inv.bmp"
-  projectedDMDlength: 2.5
+  projectedDMDlength: 3.15
   spotSide: 0.1
-  durationPattern: 0.2
-  patternsInfo: "C:\\Users\\harrislab\\luminose_hf\\dmd\\patterns.mat"
   patternsFolder: "C:\\Users\\harrislab\\luminose_hf\\dmd\\Patterns"
 
 # Bonsai workflow configuration

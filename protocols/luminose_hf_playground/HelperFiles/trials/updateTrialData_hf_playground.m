@@ -4,17 +4,12 @@ function data = updateTrialData_hf_playground(data, trialIdx)
 % Side: 1=Left, 2=Right
 % Response: 1=Left, 2=Right, NaN=No Response
 
-if ~isfield(data, 'TrialSide')
-    data.TrialSide = [];
+if ~isfield(data, 'TrialResponse')
     data.TrialResponse = [];
     data.TrialOutcome = [];
 end
 
-% 1. Determine Trial Side (Correct Side)
-% This is already in data.TrialTypes, but we'll store it for convenience
-data.TrialSide(trialIdx) = data.TrialTypes(trialIdx);
-
-% 2. Determine Animal Response
+% 1. Determine Animal Response
 events = data.RawEvents.Trial{trialIdx}.Events;
 hasLeft  = isfield(events, 'BNC1High');
 hasRight = isfield(events, 'BNC2High');

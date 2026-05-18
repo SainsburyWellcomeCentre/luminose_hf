@@ -40,7 +40,6 @@ function luminose_hf_goNogo
     S = LuminoseParameterGUI_hf_goNogo('sync', S);
     disp('START pressed — beginning experiment.');
 
-    BpodSystem.Data.TrialSide = [];
     BpodSystem.Data.TrialResponse = [];
     BpodSystem.Data.TrialOutcome = [];
     BpodSystem.Data.SniffInhalationOnset_s  = [];
@@ -167,8 +166,6 @@ function luminose_hf_goNogo
 
             currentTrialType = nextTrialType;
             BpodSystem.Data.TrialTypes(currentTrial) = currentTrialType;
-            BpodSystem.Data.TrialSide(currentTrial) = currentTrialType;
-            BpodSystem.Data.TrialType(currentTrial) = currentTrialType;
 
             if handle_pause_condition(H, R); break; end
 
@@ -205,10 +202,11 @@ function luminose_hf_goNogo
 
                 outcome = getTrialOutcome_hf_goNogo(BpodSystem.Data, currentTrial);
                 BpodSystem.Data.TrialOutcome(currentTrial) = outcome;
-                if outcome == 1
-                    BpodSystem.Data.TrialResponse(currentTrial) = currentTrialType;
-                elseif outcome == 0
-                    BpodSystem.Data.TrialResponse(currentTrial) = 3 - currentTrialType;
+                if ~isnan(outcome)
+                    % 1 = licked, 0 = did not lick
+                    licked = (currentTrialType == 1 && outcome == 1) || ...
+                             (currentTrialType == 2 && outcome == 0);
+                    BpodSystem.Data.TrialResponse(currentTrial) = double(licked);
                 else
                     BpodSystem.Data.TrialResponse(currentTrial) = NaN;
                 end
@@ -315,6 +313,7 @@ function [sma, S, actions] = PrepareStateMachine(S, currentTrialType, currentTri
             startAction{end+1} = 'SoftCode'; startAction{end+1} = 1;
         case 'Pattern'
             cueAction{end+1} = 'PWM2'; cueAction{end+1} = 255;
+            cueAction{end+1} = 'PWM3'; cueAction{end+1} = S.GUI.Intensity_cue; % mask 
             startAction{end+1} = 'SoftCode'; startAction{end+1} = 8;
         case 'Light'
             cueAction{end+1} = 'PWM3'; cueAction{end+1} = S.GUI.Intensity_cue;
@@ -332,6 +331,7 @@ function [sma, S, actions] = PrepareStateMachine(S, currentTrialType, currentTri
                     chooseState2 = 'DeliverStim';
                 case 'Pattern'
                     stimAction{end+1} = 'PWM2'; stimAction{end+1} = 255;
+                    stimAction{end+1} = 'PWM3'; stimAction{end+1} = S.GUI.Intensity_cue; % mask 
                     startAction{end+1} = 'SoftCode'; startAction{end+1} = 9;
                     chooseState2 = 'GetSniff';
                     responseAction{end+1} = 'SoftCode'; responseAction{end+1} = 11;
@@ -351,6 +351,7 @@ function [sma, S, actions] = PrepareStateMachine(S, currentTrialType, currentTri
                     chooseState2 = 'DeliverStim';
                 case 'Pattern'
                     stimAction{end+1} = 'PWM2'; stimAction{end+1} = 255;
+                    stimAction{end+1} = 'PWM3'; stimAction{end+1} = S.GUI.Intensity_cue; % mask 
                     startAction{end+1} = 'SoftCode'; startAction{end+1} = 10;
                     chooseState2 = 'GetSniff';
                     responseAction{end+1} = 'SoftCode'; responseAction{end+1} = 11;

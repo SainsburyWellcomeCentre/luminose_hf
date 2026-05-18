@@ -238,22 +238,24 @@ function GUIparams_luminose_hf_playground()
     
     %% OptoStim
     S.GUITabs.OptoStim = {'MaskLED', 'SinglePulse', 'PairedPulse', 'Pattern_opto'};
-    S.GUIPanels.SinglePulse = {'SPduration', 'SPfrequency', 'SPamplitude'};
-    S.GUIPanels.PairedPulse = {'PPduration', 'PPfrequency', 'PPamplitude'};
+    S.GUIPanels.SinglePulse = {'SPfrequency', 'SPvariable', 'MaxSPfrequency'};
+    S.GUIPanels.PairedPulse = {'PPfrequency', 'PPvariable', 'MaxPPfrequency'};
     S.GUIPanels.MaskLED = {'Intensity_mask', 'Duration_mask'};
     S.GUIPanels.Pattern_opto = {'patternSel_opto'};
-    S.GUI.SPduration = 1000;
-    S.GUIMeta.SPduration.Label = 'Duration (ms)';
     S.GUI.SPfrequency = 1;
     S.GUIMeta.SPfrequency.Label = 'Freq (Hz)';
-    S.GUI.SPamplitude = 1;
-    S.GUIMeta.SPamplitude.Label = 'Amp (V)';
-    S.GUI.PPduration = 1000;
-    S.GUIMeta.PPduration.Label = 'Duration (ms)';
+    S.GUI.SPvariable = false;
+    S.GUIMeta.SPvariable.Style = 'checkbox';
+    S.GUIMeta.SPvariable.Label = 'Variable Freq';
+    S.GUI.MaxSPfrequency = 2;
+    S.GUIMeta.MaxSPfrequency.Label = 'Max Freq (Hz)';
     S.GUI.PPfrequency = 1;
     S.GUIMeta.PPfrequency.Label = 'Freq (Hz)';
-    S.GUI.PPamplitude = 1;
-    S.GUIMeta.PPamplitude.Label = 'Amp (V)';
+    S.GUI.PPvariable = false;
+    S.GUIMeta.PPvariable.Style = 'checkbox';
+    S.GUIMeta.PPvariable.Label = 'Variable Freq';
+    S.GUI.MaxPPfrequency = 2;
+    S.GUIMeta.MaxPPfrequency.Label = 'Max Freq (Hz)';
     S.GUI.Intensity_mask = 100;
     S.GUIMeta.Intensity_mask.Label = 'Intensity (0-255)';
     S.GUI.Duration_mask = S.GUI.StimTime;

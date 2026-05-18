@@ -9,7 +9,7 @@ function dmd_hf_sleep(code)
 %   nFrames  > 1: designed pattern, in-memory generation.
 %                 Random spots get new positions each trial; all-fixed cached.
 
-    persistent dmd plusSeq plusKey minusSeq minusKey
+    persistent dmd plusSeq plusKey minusSeq minusKey optoSeq optoKey
     global S luminose BpodSystem
     C = DMDController.Constants;
 
@@ -19,67 +19,106 @@ function dmd_hf_sleep(code)
         fprintf('DMD connected (sleep).\n');
     end
 
+    % Code 12: opto ITI pattern, MASTER mode (fires immediately)
+    if code == 12
+        rowIdx = 1;
+        if isfield(BpodSystem.PluginObjects, 'SelectedPatternRow') && ...
+           isfield(BpodSystem.PluginObjects.SelectedPatternRow, 'opto')
+            rowIdx = BpodSystem.PluginObjects.SelectedPatternRow.opto;
+        end
+        key12 = rowIdx;
+        if ~isequaln(optoKey, key12) || isempty(optoSeq)
+            design = loadDesign(BpodSystem, 'opto', rowIdx, luminose.dmd.patternsFolder);
+            if isempty(design)
+                fprintf('dmd_hf_sleep: no opto pattern found for row %d\n', rowIdx); return;
+            end
+            H = double(dmd.device.height); W = double(dmd.device.width);
+            spots = design.spots; r_px = design.r_px; tickMs = design.tickMs;
+            margin = r_px + 1;
+            fixed = [spots.isFixed]; px = double([spots(fixed).x]); py = double([spots(fixed).y]);
+            for i = 1:numel(spots)
+                if ~spots(i).isFixed
+                    for attempt = 1:500
+                        xt = randi([margin, W-margin]); yt = randi([margin, H-margin]);
+                        if isempty(px) || all(max(abs(px-xt), abs(py-yt)) > 2*r_px)
+                            spots(i).x = xt; spots(i).y = yt;
+                            px(end+1) = xt; py(end+1) = yt; %#ok<AGROW>
+                            break;
+                        end
+                    end
+                end
+            end
+            frameStack = buildPatternFrameStack(spots, r_px, tickMs, H, W);
+            if ~isempty(optoSeq), delete(optoSeq); end
+            optoSeq = allocFrameStack(dmd, frameStack, illuTime);
+            optoKey = key12;
+        end
+        dmd.halt();
+        optoSeq.setRepeat(1);
+        dmd.device.projControl(C.ALP_PROJ_MODE, C.ALP_MASTER);
+        dmd.device.projStart(optoSeq);
+        fprintf('dmd_hf_sleep: opto flash row %d\n', rowIdx);
+        return;
+    end
+
     switch code
         case 9,   typeName = 'CSplus';
         case 10,  typeName = 'CSminus';
         otherwise
-            fprintf('dmd_hf_sleep: unknown code %d\n', code);
-            return;
+            fprintf('dmd_hf_sleep: unknown code %d\n', code); return;
     end
 
-    nF       = S.GUI.(sprintf('nFrames_%s',  typeName));
-    illuTime = S.GUI.(sprintf('exposure_%s', typeName));
-    imgIdx   = S.GUI.(sprintf('imgIdx_%s',   typeName));
+    rowIdx = 1;
+    if isfield(BpodSystem.PluginObjects, 'SelectedPatternRow') && ...
+       isfield(BpodSystem.PluginObjects.SelectedPatternRow, typeName)
+        rowIdx = BpodSystem.PluginObjects.SelectedPatternRow.(typeName);
+    end
 
     dmd.halt();
 
-    if nF == 1
-        key = [imgIdx, illuTime];
-        [cachedSeq, cachedKey] = getCache(code, plusKey, plusSeq, minusKey, minusSeq);
-        if ~isequaln(cachedKey, key) || isempty(cachedSeq)
-            if ~isempty(cachedSeq), delete(cachedSeq); end
-            cachedSeq = buildDMDSlaveSequence(dmd, luminose.dmd.patternsFolder, imgIdx, illuTime);
+    design = loadDesign(BpodSystem, typeName, rowIdx, luminose.dmd.patternsFolder);
+    if isempty(design)
+        fprintf('dmd_hf_sleep: no design for %s row %d\n', typeName, rowIdx); return;
+    end
+    spots = design.spots; r_px = design.r_px; tickMs = design.tickMs;
+    nF       = design.nF;
+    illuTime = round(tickMs * 1000);  % ms → µs
+    hasRandom = any(~[spots.isFixed]);
+
+    [cachedSeq, cachedKey] = getCache(code, plusKey, plusSeq, minusKey, minusSeq);
+    if ~hasRandom
+        key = [rowIdx, nF, illuTime];
+    else
+        key = []; cachedSeq = []; cachedKey = [];
+    end
+
+    if ~isequaln(cachedKey, key) || isempty(cachedSeq)
+        H = double(dmd.device.height); W = double(dmd.device.width);
+        margin = r_px + 1;
+        fixed = [spots.isFixed]; px = double([spots(fixed).x]); py = double([spots(fixed).y]);
+        for i = 1:numel(spots)
+            if ~spots(i).isFixed
+                for attempt = 1:500
+                    xt = randi([margin, W-margin]); yt = randi([margin, H-margin]);
+                    if isempty(px) || all(max(abs(px-xt), abs(py-yt)) > 2*r_px)
+                        spots(i).x = xt; spots(i).y = yt;
+                        px(end+1) = xt; py(end+1) = yt; %#ok<AGROW>
+                        break;
+                    end
+                end
+            end
+        end
+        frameStack = buildPatternFrameStack(spots, r_px, tickMs, H, W);
+        if ~isempty(cachedSeq), delete(cachedSeq); end
+        cachedSeq = allocFrameStack(dmd, frameStack, illuTime);
+        if ~hasRandom
             [plusSeq, plusKey, minusSeq, minusKey] = ...
                 setCache(code, cachedSeq, key, plusSeq, plusKey, minusSeq, minusKey);
         end
-        dmd.device.projControl(C.ALP_PROJ_MODE, C.ALP_SLAVE);
-        dmd.device.control(C.ALP_TRIGGER_EDGE, C.ALP_EDGE_RISING);
-        dmd.device.projStart(cachedSeq);
-    else
-        design = getDesign(BpodSystem, typeName, luminose.dmd.patternsFolder);
-        if isempty(design)
-            fprintf('dmd_hf_sleep: no pattern design found for %s\n', typeName);
-            return;
-        end
-        spots  = design.spots;
-        tickMs = design.tickMs;
-        r_px   = design.r_px;
-        hasRandom = any(~[spots.isFixed]);
-        if ~hasRandom
-            key = [imgIdx, nF, illuTime];
-            [cachedSeq, cachedKey] = getCache(code, plusKey, plusSeq, minusKey, minusSeq);
-        else
-            key = []; cachedSeq = []; cachedKey = [];
-        end
-        if ~isequaln(cachedKey, key) || isempty(cachedSeq)
-            margin = r_px + 1;
-            for i = 1:numel(spots)
-                if ~spots(i).isFixed
-                    spots(i).x = randi([margin, 2560 - margin]);
-                    spots(i).y = randi([margin, 1600 - margin]);
-                end
-            end
-            frameStack = buildPatternFrameStack(spots, r_px, tickMs);
-            if ~isempty(cachedSeq), delete(cachedSeq); end
-            cachedSeq = allocFrameStack(dmd, frameStack, illuTime);
-            if ~hasRandom
-                [plusSeq, plusKey, minusSeq, minusKey] = ...
-                    setCache(code, cachedSeq, key, plusSeq, plusKey, minusSeq, minusKey);
-            end
-        end
-        dmd.device.projControl(C.ALP_PROJ_MODE, C.ALP_MASTER);
-        dmd.startFinite(cachedSeq, 1);
     end
+    dmd.device.projControl(C.ALP_PROJ_MODE, C.ALP_SLAVE);
+    dmd.device.control(C.ALP_TRIGGER_EDGE, C.ALP_EDGE_RISING);
+    dmd.device.projStart(cachedSeq);
 end
 
 function seq = allocFrameStack(dmd, frameStack, illuTime_us)
@@ -90,23 +129,51 @@ function seq = allocFrameStack(dmd, frameStack, illuTime_us)
     t = round(illuTime_us); seq.timing(t, t, 0, 0, 0); seq.setRepeat(1);
 end
 
-function design = getDesign(BpodSystem, typeName, patternsFolder)
+function design = loadDesign(BpodSystem, typeName, rowIdx, patternsFolder)
+    % Try the requested type first, then fall back to any available pattern.
+    fallback = {'CSplus', 'CSminus', 'opto', 'Left', 'Right', 'cue'};
+    candidates = [{typeName}, fallback(~strcmp(fallback, typeName))];
+    for ci = 1:numel(candidates)
+        t = candidates{ci};
+        rIdx = 1; if ci == 1, rIdx = rowIdx; end
+        design = tryLoadDesign(BpodSystem, t, rIdx, patternsFolder);
+        if ~isempty(design)
+            if ci > 1
+                fprintf('dmd_hf_sleep: no %s pattern, using %s\n', typeName, t);
+            end
+            return;
+        end
+    end
     design = [];
-    if isfield(BpodSystem, 'PluginObjects') && ...
-       isfield(BpodSystem.PluginObjects, 'PatternDesign') && ...
-       isfield(BpodSystem.PluginObjects.PatternDesign, typeName)
-        design = BpodSystem.PluginObjects.PatternDesign.(typeName); return
+end
+
+function design = tryLoadDesign(BpodSystem, typeName, rowIdx, patternsFolder)
+    design = [];
+    try
+        pd = BpodSystem.PluginObjects.PatternDesigns;
+        if isfield(pd, typeName) && numel(pd.(typeName)) >= rowIdx && ...
+           ~isempty(pd.(typeName){rowIdx}) && isfield(pd.(typeName){rowIdx}, 'spots')
+            design = pd.(typeName){rowIdx}; return;
+        end
+    catch
     end
     patternsFolder = char(patternsFolder);
-    metas = dir(fullfile(patternsFolder, sprintf('designed_%s_*_meta.mat', typeName)));
+    metas = dir(fullfile(patternsFolder, sprintf('designed_%s_r%d_*_meta.mat', typeName, rowIdx)));
+    if isempty(metas) && rowIdx == 1
+        all_m = dir(fullfile(patternsFolder, sprintf('designed_%s_*_meta.mat', typeName)));
+        isRow = arrayfun(@(m) ~isempty(regexp(m.name, sprintf('designed_%s_r\\d+_', typeName), 'once')), all_m);
+        metas = all_m(~isRow);
+    end
     if isempty(metas), return; end
     [~, newest] = max([metas.datenum]);
     try
-        m = load(fullfile(patternsFolder, metas(newest).name), 'spots', 'tickMs', 'r_px');
+        m = load(fullfile(patternsFolder, metas(newest).name), 'spots', 'tickMs', 'r_px', 'nF');
+        if ~isfield(m, 'spots') || ~isfield(m, 'tickMs'), return; end
         for i = 1:numel(m.spots)
             if ~isfield(m.spots(i), 'isFixed'), m.spots(i).isFixed = true; end
         end
-        design = struct('spots', m.spots, 'tickMs', m.tickMs, 'r_px', m.r_px);
+        nF = 1; if isfield(m, 'nF'), nF = m.nF; end
+        design = struct('spots', m.spots, 'tickMs', m.tickMs, 'r_px', m.r_px, 'nF', nF);
     catch, end
 end
 

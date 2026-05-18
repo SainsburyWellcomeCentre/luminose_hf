@@ -50,47 +50,29 @@ function GUIparams_luminose_hf_sleep()
     S.GUIMeta.Sleep.Label = 'Sleep Phase';
 
     %% OptoStim
-    S.GUITabs.OptoStim = {'Pattern_Type1', 'Pattern_Type2', 'MaskLED', 'SinglePulse', 'PairedPulse'};
+    S.GUITabs.OptoStim = {'Pattern_opto', 'MaskLED', 'SinglePulse', 'PairedPulse'};
 
-    S.GUIPanels.Pattern_Type1  = {'imgIdx_CSplus',  'exposure_CSplus',  'DesignPattern_CSplus'};
-    S.GUIPanels.Pattern_Type2 = {'imgIdx_CSminus', 'exposure_CSminus', 'DesignPattern_CSminus'};
+    % == Opto pattern (ITI delivery) ==
+    S.GUIPanels.Pattern_opto = {'patternSel_opto'};
+    S.GUI.patternSel_opto = 0;
+    S.GUIMeta.patternSel_opto.Style        = 'pattern_selector';
+    S.GUIMeta.patternSel_opto.ProbParam    = 'patternProbs_opto';
+    S.GUIMeta.patternSel_opto.NFramesParam = 'patternNFrames_opto';
+    S.GUIMeta.patternSel_opto.ExposureParam= 'patternExposure_opto';
+    S.GUIMeta.patternSel_opto.TypeName     = 'opto';
+    S.GUIMeta.patternSel_opto.Label        = '';
+    S.GUI.patternProbs_opto    = [1]; S.GUIMeta.patternProbs_opto.Hidden    = true;
+    S.GUI.patternNFrames_opto  = [1]; S.GUIMeta.patternNFrames_opto.Hidden  = true;
+    S.GUI.patternExposure_opto = [1e6]; S.GUIMeta.patternExposure_opto.Hidden = true;
 
-    S.GUI.imgIdx_CSplus = 1;
-    S.GUIMeta.imgIdx_CSplus.Label = 'Image Index (Type 1)';
-    S.GUI.exposure_CSplus = 1e+6;
-    S.GUIMeta.exposure_CSplus.Label = 'Exposure (us, Type 1)';
-    S.GUI.DesignPattern_CSplus = 0;
-    S.GUIMeta.DesignPattern_CSplus.Style       = 'pushbutton';
-    S.GUIMeta.DesignPattern_CSplus.String      = 'Design Pattern...';
-    S.GUIMeta.DesignPattern_CSplus.Callback    = 'PatternDesignerGUI';
-    S.GUIMeta.DesignPattern_CSplus.CallbackArg = 'CSplus';
-    S.GUIMeta.DesignPattern_CSplus.Label       = '';
-    S.GUI.nFrames_CSplus = 1;
-    S.GUIMeta.nFrames_CSplus.Hidden = true;
-
-    S.GUI.imgIdx_CSminus = 2;
-    S.GUIMeta.imgIdx_CSminus.Label = 'Image Index (Type 2)';
-    S.GUI.exposure_CSminus = 1e+6;
-    S.GUIMeta.exposure_CSminus.Label = 'Exposure (us, Type 2)';
-    S.GUI.DesignPattern_CSminus = 0;
-    S.GUIMeta.DesignPattern_CSminus.Style       = 'pushbutton';
-    S.GUIMeta.DesignPattern_CSminus.String      = 'Design Pattern...';
-    S.GUIMeta.DesignPattern_CSminus.Callback    = 'PatternDesignerGUI';
-    S.GUIMeta.DesignPattern_CSminus.CallbackArg = 'CSminus';
-    S.GUIMeta.DesignPattern_CSminus.Label       = '';
-    S.GUI.nFrames_CSminus = 1;
-    S.GUIMeta.nFrames_CSminus.Hidden = true;
-
-    S.GUIPanels.SinglePulse = {'SPduration', 'SPfrequency', 'SPamplitude', 'SPvariable', 'MaxSPfrequency'};
-    S.GUIPanels.PairedPulse = {'PPduration', 'PPfrequency', 'PPamplitude', 'PPvariable', 'MaxPPfrequency'};
+    S.GUIPanels.SinglePulse = {'SPduration', 'SPfrequency', 'SPvariable', 'MaxSPfrequency'};
+    S.GUIPanels.PairedPulse = {'PPduration', 'PPfrequency', 'PPvariable', 'MaxPPfrequency'};
     S.GUIPanels.MaskLED = {'Intensity_mask', 'Duration_mask'};
 
     S.GUI.SPduration = 0.01;
-    S.GUIMeta.SPduration.Label = 'Duration (ms)';
+    S.GUIMeta.SPduration.Label = 'Duration (s)';
     S.GUI.SPfrequency = 0.01;
     S.GUIMeta.SPfrequency.Label = 'Freq (Hz)';
-    S.GUI.SPamplitude = 1;
-    S.GUIMeta.SPamplitude.Label = 'Amp (V)';
     S.GUI.SPvariable = true;
     S.GUIMeta.SPvariable.Style = 'checkbox';
     S.GUIMeta.SPvariable.Label = 'Variable Freq';
@@ -98,17 +80,15 @@ function GUIparams_luminose_hf_sleep()
     S.GUIMeta.MaxSPfrequency.Label = 'Max Freq (Hz)';
 
     S.GUI.PPduration = 0.01;
-    S.GUIMeta.PPduration.Label = 'Duration (ms)';
+    S.GUIMeta.PPduration.Label = 'Duration (s)';
     S.GUI.PPfrequency = 0.01;
     S.GUIMeta.PPfrequency.Label = 'Freq (Hz)';
-    S.GUI.PPamplitude = 1;
-    S.GUIMeta.PPamplitude.Label = 'Amp (V)';
     S.GUI.PPvariable = true;
     S.GUIMeta.PPvariable.Style = 'checkbox';
     S.GUIMeta.PPvariable.Label = 'Variable Freq';
     S.GUI.MaxPPfrequency = 0.02;
     S.GUIMeta.MaxPPfrequency.Label = 'Max Freq (Hz)';
-    
+
     S.GUI.Intensity_mask = 100;
     S.GUIMeta.Intensity_mask.Label = 'Intensity (0-255)';
     S.GUI.Duration_mask = 0.01;

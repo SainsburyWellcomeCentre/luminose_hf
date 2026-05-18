@@ -27,7 +27,7 @@ if useRepeatOnError
     if isfield(data, 'TrialOutcome') && ~isempty(data.TrialOutcome)
         lastOutcome = data.TrialOutcome(end);
         if lastOutcome == 0 % Incorrect response
-            nextTrialType = data.TrialType(end);
+            nextTrialType = data.TrialTypes(end);
             return;
         end
     end

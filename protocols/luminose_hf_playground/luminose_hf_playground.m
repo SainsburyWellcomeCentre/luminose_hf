@@ -473,6 +473,25 @@ function [sma, S, actions] = PrepareStateMachine(S, currentTrialType, currentTri
     else
         sma = NewStateMachine();
     end
+    if strcmp(S.GUIMeta.TestPulsesType.String{S.GUI.TestPulsesType}, 'PairedPulse')
+        baseFreq = S.GUI.PPfrequency;
+        if S.GUI.PPvariable && S.GUI.MaxPPfrequency > baseFreq
+            optoFreq = baseFreq + rand() * (S.GUI.MaxPPfrequency - baseFreq);
+        else
+            optoFreq = baseFreq;
+        end
+    else
+        baseFreq = S.GUI.SPfrequency;
+        if S.GUI.SPvariable && S.GUI.MaxSPfrequency > baseFreq
+            optoFreq = baseFreq + rand() * (S.GUI.MaxSPfrequency - baseFreq);
+        else
+            optoFreq = baseFreq;
+        end
+    end
+    sma = SetGlobalTimer(sma, 'TimerID', 1, ...
+        'Duration', 0.0001, 'OnsetDelay', 0, ...
+        'Channel', 'SoftCode', 'OnMessage', 12, 'OffMessage', 0, ...
+        'Loop', 1, 'LoopInterval', max(0.001, 1/optoFreq - 0.0001), 'SendEvents', 0);
     sma = AddState(sma, 'Name', 'TrialStart', ...
         'Timer', ITI(currentTrial)/2, ...
         'StateChangeConditions', {'Tup', 'ShowCue'}, ...
@@ -509,10 +528,15 @@ function [sma, S, actions] = PrepareStateMachine(S, currentTrialType, currentTri
         'Timer', errorDelay - noiseTime, ...
         'StateChangeConditions', {'Tup', 'InterTrialInterval'}, ...
         'OutputActions', {});
+    if S.GUI.TestPulses
+        iti_out = {'GlobalTimerTrig', 1};
+    else
+        iti_out = {};
+    end
     sma = AddState(sma, 'Name', 'InterTrialInterval', ...
         'Timer', ITI(currentTrial)/2, ...
         'StateChangeConditions', {'Tup', 'exit'}, ...
-        'OutputActions', {});
+        'OutputActions', iti_out);
 
     actions = struct();
     actions.TrialStart   = startAction;

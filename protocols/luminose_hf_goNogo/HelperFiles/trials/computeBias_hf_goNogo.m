@@ -1,7 +1,7 @@
 function bias = computeBias_hf_goNogo(data, N)
-% computeBias calculates response bias based on last N trials
-% bias > 0: right bias (more right responses)
-% bias < 0: left bias (more left responses)
+% computeBias calculates lick bias based on last N trials
+% bias > 0: no-lick bias (animal doesn't lick enough) -> increase CS+ probability
+% bias < 0: lick bias (animal licks too much)         -> decrease CS+ probability
 
 if nargin < 2, N = 20; end
 
@@ -15,7 +15,6 @@ nTrials = length(responses);
 startIdx = max(1, nTrials - N + 1);
 window = responses(startIdx:end);
 
-% Ignore no-responses for bias calculation
 validResponses = window(~isnan(window));
 
 if isempty(validResponses)
@@ -23,10 +22,7 @@ if isempty(validResponses)
     return;
 end
 
-pLeft = sum(validResponses == 1) / length(validResponses);
-pRight = sum(validResponses == 2) / length(validResponses);
-
-% Bias from -1 (total left) to 1 (total right)
-bias = pRight - pLeft;
+pLick = sum(validResponses == 1) / length(validResponses);
+bias = 0.5 - pLick;
 
 end

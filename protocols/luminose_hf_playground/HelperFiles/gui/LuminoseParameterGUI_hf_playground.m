@@ -13,14 +13,15 @@ function varargout = LuminoseParameterGUI_hf_playground(varargin)
     Op = lower(Op);
     
     % Define color scheme
-    COLORS.background = [0.95 0.95 0.97];
-    COLORS.panelBg = [1 1 1];
-    COLORS.tabBg = [0.98 0.98 1];
-    COLORS.accentCS_plus = [0.2 0.5 0.8];
-    COLORS.accentCS_minus = [0.8 0.4 0.2];
-    COLORS.accentCue = [0.4 0.7 0.4];
-    COLORS.accentTrial = [0.6 0.4 0.7];
-    COLORS.textDark = [0.2 0.2 0.2];
+    COLORS.background = [0.07 0.07 0.09];
+    COLORS.panelBg = [0.11 0.11 0.14];
+    COLORS.tabBg = [0.08 0.08 0.10];
+    COLORS.accentCS_plus = [0.3 0.6 0.9];
+    COLORS.accentCS_minus = [0.9 0.5 0.2];
+    COLORS.accentCue = [0.4 0.8 0.4];
+    COLORS.accentTrial = [0.75 0.55 0.95];
+    COLORS.textDark = [0.88 0.88 0.88];
+    COLORS.inputBg = [0.16 0.16 0.20];
 
     % Parameters to lock after START is pressed
     LOCKED_PARAMS = { ...
@@ -112,10 +113,10 @@ function varargout = LuminoseParameterGUI_hf_playground(varargin)
             
             Params = Params.GUI;
             PanelNames = PanelNames(end:-1:1);
-            GUIHeight = 1100;
+            GUIHeight = 1300;
             MaxVPos = 0;
             MaxHPos = 0;
-            BpodSystem.ProtocolFigures.ParameterGUI = figure('Position', [50 50 450 GUIHeight],'name','Luminose','numbertitle','off', 'MenuBar', 'none', 'Resize', 'on');
+            BpodSystem.ProtocolFigures.ParameterGUI = figure('Position', [50 50 450 GUIHeight],'name','Luminose','numbertitle','off', 'MenuBar', 'none', 'Resize', 'on', 'Color', COLORS.background);
             BpodSystem.GUIHandles.ParameterGUI.Tabs.TabGroup = uitabgroup(BpodSystem.ProtocolFigures.ParameterGUI);
             ParamNum = 1;
             for t = 1:nTabs
@@ -131,8 +132,14 @@ function varargout = LuminoseParameterGUI_hf_playground(varargin)
                     tabColor = COLORS.accentCue;
                 elseif contains(lower(TabNames{t}),'trial')
                     tabColor = COLORS.accentTrial;
+                elseif contains(lower(TabNames{t}),'task')
+                    tabColor = [0.35 0.85 0.82];
+                elseif contains(lower(TabNames{t}),'opto')
+                    tabColor = [0.95 0.78 0.28];
+                elseif contains(lower(TabNames{t}),'ephys')
+                    tabColor = [0.92 0.50 0.62];
                 else
-                    tabColor = [0.5 0.5 0.6];
+                    tabColor = [0.88 0.90 1.00];
                 end
     
                 BpodSystem.GUIHandles.ParameterGUI.Tabs.(TabNames{t}) = uitab('title',TabNames{t},'BackgroundColor',COLORS.tabBg);
@@ -154,12 +161,12 @@ function varargout = LuminoseParameterGUI_hf_playground(varargin)
                         'title',sprintf('  %s  ',ThisTabPanelNames{p}),'FontSize',12,'FontWeight','Bold',...
                         'ForegroundColor',tabColor,'BackgroundColor',COLORS.panelBg,'Units','Pixels',...
                         'Position',[HPos VPos 455 ThisPanelHeight],'BorderType','line','HighlightColor',tabColor,...
-                        'BorderWidth',2,'ShadowColor',[0.8 0.8 0.8]);
+                        'BorderWidth',2,'BorderColor',tabColor);
                     BpodSystem.GUIData.ParameterGUI.PanelStyles.(ThisTabPanelNames{p}) = struct( ...
                         'ForegroundColor', tabColor, ...
                         'BackgroundColor', COLORS.panelBg, ...
                         'HighlightColor', tabColor, ...
-                        'ShadowColor', [0.8 0.8 0.8]);
+                        'BorderColor', tabColor);
     
                     InPanelPos = 15;
                     for i = 1:nParams
@@ -204,22 +211,22 @@ function varargout = LuminoseParameterGUI_hf_playground(varargin)
                         switch lower(ThisParamStyle)
                             case 'edit'
                                 BpodSystem.GUIData.ParameterGUI.Styles(ParamNum) = 1;
-                                BpodSystem.GUIHandles.ParameterGUI.Params(ParamNum) = uicontrol(htab,'Style', 'edit', 'String', mat2str(ThisParam), 'Position', [HPos+220 VPos+InPanelPos+2 200 25], 'FontWeight', 'normal', 'FontSize', 12, 'BackgroundColor','white', 'FontName', 'Arial','HorizontalAlignment','Center', 'Callback', callbackFunc);
+                                BpodSystem.GUIHandles.ParameterGUI.Params(ParamNum) = uicontrol(htab,'Style', 'edit', 'String', mat2str(ThisParam), 'Position', [HPos+220 VPos+InPanelPos+2 200 25], 'FontWeight', 'normal', 'FontSize', 12, 'BackgroundColor',COLORS.inputBg,'ForegroundColor',COLORS.textDark, 'FontName', 'Arial','HorizontalAlignment','Center', 'Callback', callbackFunc);
                             case 'edittext'
                                 BpodSystem.GUIData.ParameterGUI.Styles(ParamNum) = 8;
-                                BpodSystem.GUIHandles.ParameterGUI.Params(ParamNum) = uicontrol(htab,'Style', 'edit', 'String', ThisParam, 'Position', [HPos+220 VPos+InPanelPos+2 200 25], 'FontWeight', 'normal', 'FontSize', 12, 'BackgroundColor','white', 'FontName', 'Arial','HorizontalAlignment','Center', 'Callback', callbackFunc);
+                                BpodSystem.GUIHandles.ParameterGUI.Params(ParamNum) = uicontrol(htab,'Style', 'edit', 'String', ThisParam, 'Position', [HPos+220 VPos+InPanelPos+2 200 25], 'FontWeight', 'normal', 'FontSize', 12, 'BackgroundColor',COLORS.inputBg,'ForegroundColor',COLORS.textDark, 'FontName', 'Arial','HorizontalAlignment','Center', 'Callback', callbackFunc);
                             case 'text'
                                 BpodSystem.GUIData.ParameterGUI.Styles(ParamNum) = 2;
-                                BpodSystem.GUIHandles.ParameterGUI.Params(ParamNum) = uicontrol(htab,'Style', 'text', 'String', num2str(ThisParam), 'Position', [HPos+220 VPos+InPanelPos+2 200 25], 'FontWeight', 'normal', 'FontSize', 12, 'BackgroundColor','white', 'FontName', 'Arial','HorizontalAlignment','Center');
+                                BpodSystem.GUIHandles.ParameterGUI.Params(ParamNum) = uicontrol(htab,'Style', 'text', 'String', num2str(ThisParam), 'Position', [HPos+220 VPos+InPanelPos+2 200 25], 'FontWeight', 'normal', 'FontSize', 12, 'BackgroundColor',COLORS.inputBg,'ForegroundColor',COLORS.textDark, 'FontName', 'Arial','HorizontalAlignment','Center');
                             case 'checkbox'
                                 BpodSystem.GUIData.ParameterGUI.Styles(ParamNum) = 3;
-                                BpodSystem.GUIHandles.ParameterGUI.Params(ParamNum) = uicontrol(htab,'Style', 'checkbox', 'Value', ThisParam, 'String', '   (check to activate)', 'Position', [HPos+220 VPos+InPanelPos+4 200 25], 'FontWeight', 'normal', 'FontSize', 12, 'BackgroundColor','white', 'FontName', 'Arial','HorizontalAlignment','Center', 'Callback', callbackFunc);
+                                BpodSystem.GUIHandles.ParameterGUI.Params(ParamNum) = uicontrol(htab,'Style', 'checkbox', 'Value', ThisParam, 'String', '   (check to activate)', 'Position', [HPos+220 VPos+InPanelPos+4 200 25], 'FontWeight', 'normal', 'FontSize', 12, 'BackgroundColor',COLORS.inputBg,'ForegroundColor',COLORS.textDark, 'FontName', 'Arial','HorizontalAlignment','Center', 'Callback', callbackFunc);
                             case 'popupmenu'
                                 BpodSystem.GUIData.ParameterGUI.Styles(ParamNum) = 4;
-                                BpodSystem.GUIHandles.ParameterGUI.Params(ParamNum) = uicontrol(htab,'Style', 'popupmenu', 'String', ThisParamString, 'Value', ThisParam, 'Position', [HPos+220 VPos+InPanelPos+2 200 25], 'FontWeight', 'normal', 'FontSize', 12, 'BackgroundColor','white', 'FontName', 'Arial','HorizontalAlignment','Center', 'Callback', callbackFunc);
+                                BpodSystem.GUIHandles.ParameterGUI.Params(ParamNum) = uicontrol(htab,'Style', 'popupmenu', 'String', ThisParamString, 'Value', ThisParam, 'Position', [HPos+220 VPos+InPanelPos+2 200 25], 'FontWeight', 'normal', 'FontSize', 12, 'BackgroundColor',COLORS.inputBg,'ForegroundColor',COLORS.textDark, 'FontName', 'Arial','HorizontalAlignment','Center', 'Callback', callbackFunc);
                             case 'togglebutton'
                                 BpodSystem.GUIData.ParameterGUI.Styles(ParamNum) = 5;
-                                BpodSystem.GUIHandles.ParameterGUI.Params(ParamNum) = uicontrol(htab,'Style', 'togglebutton', 'String', ThisParamString, 'Value', ThisParam, 'Position', [HPos+220 VPos+InPanelPos+2 200 25], 'FontWeight', 'normal', 'FontSize', 12, 'BackgroundColor','white', 'FontName', 'Arial','HorizontalAlignment','Center', 'Callback', callbackFunc);
+                                BpodSystem.GUIHandles.ParameterGUI.Params(ParamNum) = uicontrol(htab,'Style', 'togglebutton', 'String', ThisParamString, 'Value', ThisParam, 'Position', [HPos+220 VPos+InPanelPos+2 200 25], 'FontWeight', 'normal', 'FontSize', 12, 'BackgroundColor',COLORS.inputBg,'ForegroundColor',COLORS.textDark, 'FontName', 'Arial','HorizontalAlignment','Center', 'Callback', callbackFunc);
                             case 'pushbutton'
                                 BpodSystem.GUIData.ParameterGUI.Styles(ParamNum) = 6;
                                 if isfield(Meta, ThisParamName) && isfield(Meta.(ThisParamName), 'Callback')
@@ -234,7 +241,7 @@ function varargout = LuminoseParameterGUI_hf_playground(varargin)
                                 end
                                 BpodSystem.GUIHandles.ParameterGUI.Params(ParamNum) = uicontrol(htab,'Style', 'pushbutton', 'String', ThisParamString,...
                                     'Value', ThisParam, 'Position', [HPos+220 VPos+InPanelPos+2 200 25], 'FontWeight', 'normal', 'FontSize', 12,...
-                                    'BackgroundColor','white', 'FontName', 'Arial','HorizontalAlignment','Center', 'Callback', thisCallback);
+                                    'BackgroundColor',COLORS.inputBg,'ForegroundColor',COLORS.textDark, 'FontName', 'Arial','HorizontalAlignment','Center', 'Callback', thisCallback);
                             case 'table'
                                 BpodSystem.GUIData.ParameterGUI.Styles(ParamNum) = 7;
                                 columnNames = fieldnames(Params.(ThisParamName));
@@ -289,9 +296,9 @@ function varargout = LuminoseParameterGUI_hf_playground(varargin)
                                     isAir = ismember(iBottle, [1, 2, 9, 10, 14]);
                                     
                                     isSelected = ismember(iBottle, initialVRow);
-                                    btnColor = [0.9 0.9 0.9];
+                                    btnColor = [0.28 0.28 0.33];
                                     if isSelected, btnColor = tabColor; end
-                                    if isAir && ~isSelected, btnColor = [0.95 0.95 1.0]; end
+                                    if isAir && ~isSelected, btnColor = [0.20 0.22 0.30]; end
                                     
                                     img = generateBottleImage(btnPos(3)-10, btnPos(4)-10, btnColor, COLORS.panelBg);
                                     bottleButtons(iBottle) = uicontrol(selectorPanel, 'Style', 'pushbutton', ...
@@ -362,7 +369,7 @@ function varargout = LuminoseParameterGUI_hf_playground(varargin)
                                     'Position', [HPos+10 VPos+InPanelPos 435 selectorHeight], ...
                                     'BackgroundColor', COLORS.panelBg, 'BorderType', 'none');
                                 hRowEdit = uicontrol(selectorPanel, 'Style', 'edit', 'String', '1', ...
-                                    'Position', [253 16 35 26], 'FontSize', 11, 'BackgroundColor', 'white');
+                                    'Position', [253 16 35 26], 'FontSize', 11, 'BackgroundColor', COLORS.inputBg, 'ForegroundColor', COLORS.textDark);
                                 ptable = uitable(selectorPanel, 'Data', tableData, ...
                                     'ColumnName', {'Prob', 'Spots', 'Exposure (us)'}, ...
                                     'ColumnWidth', {55, 65, 105}, 'ColumnEditable', [true false true], ...
@@ -433,19 +440,19 @@ function varargout = LuminoseParameterGUI_hf_playground(varargin)
                     panelName = 'logo'; ThisPanelHeight = 125;
                     BpodSystem.GUIHandles.ParameterGUI.Panels.(panelName) = uipanel(htab,...
                         'title','','FontSize',12,'FontWeight','Bold','ForegroundColor',COLORS.accentTrial,...
-                        'BackgroundColor',COLORS.panelBg,'Units','Pixels','Position',[HPos VPos 455 ThisPanelHeight],...
+                        'BackgroundColor',[0 0 0],'Units','Pixels','Position',[HPos VPos 455 ThisPanelHeight],...
                         'BorderType','line','HighlightColor',COLORS.accentTrial,'BorderWidth',2);
                     BpodSystem.GUIHandles.ParameterGUI.ImageAxes = axes('Parent',BpodSystem.GUIHandles.ParameterGUI.Panels.(panelName),...
-                        'Units','normalized','Position',[0.05 0.05 0.9 0.9]);
+                        'Units','normalized','Position',[0.05 0.05 0.9 0.9],'Color',[0 0 0],'XColor','none','YColor','none');
                     DisplayPNGImage();
                     VPos = VPos + ThisPanelHeight + 15;
                 end
                 if contains(lower(TabNames{t}),'task')
                     panelName = 'TrialStructure'; ThisPanelHeight = 90;
                     BpodSystem.GUIHandles.ParameterGUI.Panels.(panelName) = uipanel(htab,...
-                        'title',sprintf('  %s  ',panelName),'FontSize',12,'FontWeight','Bold','ForegroundColor',COLORS.accentTrial,...
+                        'title',sprintf('  %s  ',panelName),'FontSize',12,'FontWeight','Bold','ForegroundColor',tabColor,...
                         'BackgroundColor',COLORS.panelBg,'Units','Pixels','Position',[HPos VPos 455 ThisPanelHeight],...
-                        'BorderType','line','HighlightColor',COLORS.accentTrial,'BorderWidth',2);
+                        'BorderType','line','HighlightColor',tabColor,'BorderWidth',2,'BorderColor',tabColor);
                     BpodSystem.GUIHandles.ParameterGUI.TrialStructureAxes = axes('Parent',BpodSystem.GUIHandles.ParameterGUI.Panels.(panelName),...
                         'Units','normalized','Position',[0.08 0.15 0.9 0.7],'Box','on','Color',COLORS.panelBg);
                     DrawTrialStructure(Params, Meta);
@@ -460,7 +467,7 @@ function varargout = LuminoseParameterGUI_hf_playground(varargin)
                     boxWidth = 80; spacing = 20; x0 = 25;
                     for iBox = 1:4
                         x = x0 + (iBox-1)*(boxWidth+spacing);
-                        bgColor = [0.9 0.9 0.9];
+                        bgColor = [0.25 0.25 0.30];
                         switch lower(TabNames{t})
                             case 'cue', selIdx = Params.CueType; stimLabels = Meta.CueType.String;
                             case 'left', selIdx = Params.LeftType; stimLabels = Meta.LeftType.String;
@@ -486,7 +493,8 @@ function varargout = LuminoseParameterGUI_hf_playground(varargin)
                     DrawOptoStim(Params);
                     VPos = VPos + panelHeight + 15;
                 end
-                set(BpodSystem.ProtocolFigures.ParameterGUI,'Position',[1760 400 MaxHPos+500 min(MaxVPos+120,GUIHeight)]);
+                if VPos > MaxVPos, MaxVPos = VPos; end
+                set(BpodSystem.ProtocolFigures.ParameterGUI,'Position',[1760 100 MaxHPos+500 min(MaxVPos+120,GUIHeight)]);
             end
             nCreatedParams = ParamNum - 1;
             BpodSystem.GUIData.ParameterGUI.nParams = nCreatedParams;
@@ -627,9 +635,9 @@ function OdourTableSelectionChanged(src, ev, bottleButtons)
     for iB = 1:16
         btn = bottleButtons(iB); btnData = get(btn, 'UserData');
         isSelected = ismember(iB, vRow);
-        btnColor = [0.9 0.9 0.9]; if isSelected, btnColor = btnData.TabColor; end
-        if btnData.IsAir && ~isSelected, btnColor = [0.95 0.95 1.0]; end
-        pos = get(btn, 'Position'); img = generateBottleImage(pos(3)-10, pos(4)-10, btnColor, [1 1 1]);
+        btnColor = [0.28 0.28 0.33]; if isSelected, btnColor = btnData.TabColor; end
+        if btnData.IsAir && ~isSelected, btnColor = [0.20 0.22 0.30]; end
+        pos = get(btn, 'Position'); img = generateBottleImage(pos(3)-10, pos(4)-10, btnColor, [0.18 0.18 0.22]);
         set(btn, 'CData', img);
     end
 end
@@ -821,7 +829,7 @@ function UpdateRelevantPanels(Params, Meta)
                 if iInd == selIdx
                     bgColor = tabColor;
                 else
-                    bgColor = [0.9 0.9 0.9];
+                    bgColor = [0.25 0.25 0.30];
                 end
                 set(hInd, 'BackgroundColor', bgColor);
                 set(findall(hInd, 'Type', 'uicontrol'), 'BackgroundColor', bgColor);
@@ -860,21 +868,19 @@ function SetPanelEnabled(panelName, isEnabled)
     if isEnabled
         fgColor = style.ForegroundColor;
         bgColor = style.BackgroundColor;
-        hiColor = style.HighlightColor;
-        shadowColor = style.ShadowColor;
-        textColor = [0.2 0.2 0.2];
-        inputBg = [1 1 1];
+        borderColor = style.BorderColor;
+        textColor = [0.88 0.88 0.88];
+        inputBg = [0.22 0.22 0.27];
     else
-        fgColor = [0.65 0.65 0.65];
-        bgColor = [0.95 0.95 0.95];
-        hiColor = [0.82 0.82 0.82];
-        shadowColor = [0.9 0.9 0.9];
-        textColor = [0.55 0.55 0.55];
-        inputBg = [0.94 0.94 0.94];
+        fgColor = [0.45 0.45 0.48];
+        bgColor = [0.13 0.13 0.16];
+        borderColor = [0.30 0.30 0.35];
+        textColor = [0.52 0.52 0.54];
+        inputBg = [0.13 0.13 0.16];
     end
 
     set(panelHandle, 'ForegroundColor', fgColor, 'BackgroundColor', bgColor, ...
-        'HighlightColor', hiColor, 'ShadowColor', shadowColor);
+        'HighlightColor', borderColor, 'BorderColor', borderColor);
 
     if isfield(BpodSystem.GUIData.ParameterGUI.PanelParams, panelName)
         paramNames = BpodSystem.GUIData.ParameterGUI.PanelParams.(panelName);
@@ -896,6 +902,7 @@ function SetPanelEnabled(panelName, isEnabled)
     end
 
     childHandles = findall(panelHandle);
+    childHandles(childHandles == panelHandle) = [];
     for iChild = 1:numel(childHandles)
         allowEnable = ~(startPressed && isEnabled);
         SetControlEnabled(childHandles(iChild), isEnabled, inputBg, textColor, allowEnable);
@@ -973,13 +980,32 @@ function DrawOptoStim(Params)
     totalTrial = Params.CueTime + Params.StimTime + Params.ResponseTime + Params.ErrorDelay + Params.InterTrialInterval;
     scaledTotal = totalTrial * widthScale;
     rectangle(ax, 'Position', [0 ypos scaledTotal height], 'FaceColor', [0.85 0.85 0.85], 'EdgeColor', [0 0 0]);
-    if Params.TestPulsesType == 1, freq = Params.SPfrequency; duration = Params.SPduration; amplitude = Params.SPamplitude; symbol = '*';
-    else freq = Params.PPfrequency; duration = Params.PPduration; amplitude = Params.PPamplitude; symbol = '**'; end
-    if freq > 0
-        dt = 1 / freq; tEvents = 0:dt:totalTrial; color = [0 0 max(min(amplitude,1),0)];
-        for tEv = tEvents, tScaled = tEv * widthScale;
-            text(ax, tScaled, ypos + height + 0.05, symbol, 'Color', color, 'FontSize', 10 + 8 * (duration / 1000), 'HorizontalAlignment', 'center', 'VerticalAlignment', 'bottom');
-        end
+    if Params.TestPulsesType == 1
+        freq = Params.SPfrequency; maxFreq = Params.MaxSPfrequency; isVar = Params.SPvariable;
+    else
+        freq = Params.PPfrequency; maxFreq = Params.MaxPPfrequency; isVar = Params.PPvariable;
     end
-    ax.XLim = [0 scaledTotal]; ax.YLim = [0 1]; axis(ax, 'off');
+
+    expVec   = Params.patternExposure_opto;
+    pulseDur = expVec(1) / 1e6;  % µs → s
+    pulseDurScaled = max(pulseDur * widthScale, 0.003 * scaledTotal);  % min visible width
+
+    if freq > 0
+        dt = 1 / freq; tEvents = 0:dt:totalTrial - pulseDur;
+        for tEv = tEvents
+            rectangle(ax, 'Position', [tEv * widthScale, ypos + height + 0.04, pulseDurScaled, 0.18], ...
+                'FaceColor', [0.15 0.35 0.85], 'EdgeColor', 'none');
+        end
+        if isVar && maxFreq > freq
+            freqStr = sprintf('%.3g–%.3g Hz  |  %.3g ms', freq, maxFreq, pulseDur * 1000);
+        else
+            freqStr = sprintf('%.3g Hz  |  %.3g ms', freq, pulseDur * 1000);
+        end
+        text(ax, 0, ypos + height + 0.28, freqStr, ...
+            'Color', [0.3 0.4 0.8], 'FontSize', 8, 'VerticalAlignment', 'bottom');
+    end
+
+    text(ax, scaledTotal, ypos - 0.05, sprintf('%.1f s', totalTrial), ...
+        'Color', [0.5 0.5 0.5], 'FontSize', 8, 'HorizontalAlignment', 'right', 'VerticalAlignment', 'top');
+    ax.XLim = [0 scaledTotal * 1.02]; ax.YLim = [0 1]; axis(ax, 'off');
 end

@@ -9,7 +9,7 @@ function dmd_hf_goNogo(code)
 %    12  - opto pattern
 %
 %   All patterns arm in SLAVE mode at TrialStart and are triggered by the
-%   PWM2 rising edge at DeliverStim.  Code 12 parks mirrors off.
+%   PWM2 rising edge at DeliverStim.  Code 11 parks mirrors off.
 %
 %   Log: <tempdir>/dmd_hf_goNogo_log.txt
 
