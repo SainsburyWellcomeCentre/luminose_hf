@@ -65,12 +65,10 @@ function GUIparams_luminose_hf_sleep()
     S.GUI.patternNFrames_opto  = [1]; S.GUIMeta.patternNFrames_opto.Hidden  = true;
     S.GUI.patternExposure_opto = [1e6]; S.GUIMeta.patternExposure_opto.Hidden = true;
 
-    S.GUIPanels.SinglePulse = {'SPduration', 'SPfrequency', 'SPvariable', 'MaxSPfrequency'};
-    S.GUIPanels.PairedPulse = {'PPduration', 'PPfrequency', 'PPvariable', 'MaxPPfrequency'};
+    S.GUIPanels.SinglePulse = {'SPfrequency', 'SPvariable', 'MaxSPfrequency'};
+    S.GUIPanels.PairedPulse = {'PPfrequency', 'PPvariable', 'MaxPPfrequency'};
     S.GUIPanels.MaskLED = {'Intensity_mask', 'Duration_mask'};
 
-    S.GUI.SPduration = 0.01;
-    S.GUIMeta.SPduration.Label = 'Duration (s)';
     S.GUI.SPfrequency = 0.01;
     S.GUIMeta.SPfrequency.Label = 'Freq (Hz)';
     S.GUI.SPvariable = true;
@@ -79,8 +77,6 @@ function GUIparams_luminose_hf_sleep()
     S.GUI.MaxSPfrequency = 0.02;
     S.GUIMeta.MaxSPfrequency.Label = 'Max Freq (Hz)';
 
-    S.GUI.PPduration = 0.01;
-    S.GUIMeta.PPduration.Label = 'Duration (s)';
     S.GUI.PPfrequency = 0.01;
     S.GUIMeta.PPfrequency.Label = 'Freq (Hz)';
     S.GUI.PPvariable = true;
@@ -124,7 +120,7 @@ function GUIparams_luminose_hf_sleep()
     S.GUIMeta.SniffOnsetThreshold.Label = 'Sniff Onset Thresh (V)';
     S.GUI.SniffOffsetThreshold = 1.5;
     S.GUIMeta.SniffOffsetThreshold.Label = 'Sniff Offset Thresh (V)';
-S.GUI.SniffRising = false;
+    S.GUI.SniffRising = false;
     S.GUIMeta.SniffRising.Style = 'checkbox';
     S.GUIMeta.SniffRising.Label = 'Rising Edge';
     S.GUI.CalibrateSniff = 0;

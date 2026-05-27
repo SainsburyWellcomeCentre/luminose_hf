@@ -23,7 +23,7 @@ function liveResponseTimePlot_hf_goNogo(ax, op, data)
             % Scatter plot for individual trials
             BpodSystem.GUIHandles.RTPlot.Line = plot(ax, ...
                 [NaN NaN], [NaN NaN], 'LineWidth', 2);
-            
+
             % Running median line
             BpodSystem.GUIHandles.RTPlot.MedianLine = plot(ax, ...
                 [NaN NaN], [NaN NaN], 'k', 'LineWidth', 2);

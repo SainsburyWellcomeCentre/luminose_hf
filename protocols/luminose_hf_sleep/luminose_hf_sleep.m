@@ -72,8 +72,8 @@ function luminose_hf_sleep
     trialTypes = 1 + (rand(1, S.GUI.maxTrials) >= S.GUI.Typeprob);
     BpodSystem.Data.TrialTypes = [];
     if S.GUI.TestPulses
+        stimTime = max(S.GUI.patternNFrames_opto .* S.GUI.patternExposure_opto) / 1e6;
         if S.GUI.TestPulsesType == 1
-            stimTime = S.GUI.SPduration;
             if S.GUI.SPvariable
                 ITI = (1 / S.GUI.SPfrequency) * (1.01 .^ (0:S.GUI.maxTrials-1));
                 ITI(ITI > (1 / S.GUI.MaxSPfrequency)) = 1 / S.GUI.MaxSPfrequency;
@@ -83,7 +83,6 @@ function luminose_hf_sleep
                 ITI = (1 / S.GUI.SPfrequency) * ones(1, S.GUI.maxTrials);
             end
         elseif S.GUI.TestPulsesType == 2
-            stimTime = S.GUI.PPduration;
             if S.GUI.PPvariable
                 ITI = (1 / S.GUI.PPfrequency) * (1.01 .^ (0:S.GUI.maxTrials-1));
                 ITI(ITI > (1 / S.GUI.MaxPPfrequency)) = 1 / S.GUI.MaxPPfrequency;
@@ -239,6 +238,7 @@ end
 
 %% State machine
 function [sma, S, actions] = PrepareStateMachine(S, trialTypes, currentTrial, stimTime, ITI, sessionStartTic)
+    global BpodSystem
 
     onsetDelay = max(0, 1 - toc(sessionStartTic));
 
@@ -257,19 +257,6 @@ function [sma, S, actions] = PrepareStateMachine(S, trialTypes, currentTrial, st
         end
     end
 
-    % Opto ITI pulse train frequency
-    if strcmp(S.GUIMeta.TestPulsesType.String{S.GUI.TestPulsesType}, 'PairedPulse')
-        baseFreq = S.GUI.PPfrequency;
-        if S.GUI.PPvariable && S.GUI.MaxPPfrequency > baseFreq
-            optoFreq = baseFreq + rand() * (S.GUI.MaxPPfrequency - baseFreq);
-        else, optoFreq = baseFreq; end
-    else
-        baseFreq = S.GUI.SPfrequency;
-        if S.GUI.SPvariable && S.GUI.MaxSPfrequency > baseFreq
-            optoFreq = baseFreq + rand() * (S.GUI.MaxSPfrequency - baseFreq);
-        else, optoFreq = baseFreq; end
-    end
-
     startAction = {'GlobalTimerTrig', 1, 'RotaryEncoder1', ['#' 0], 'AnalogThreshEnable', 1};
     sniffAction = {'RotaryEncoder1', '*Z'};
     stimAction = {'BNC1', 1};
@@ -280,11 +267,14 @@ function [sma, S, actions] = PrepareStateMachine(S, trialTypes, currentTrial, st
             case 2
                 startAction{end+1} = 'SoftCode'; startAction{end+1} = 10;
         end
+        stimAction{end+1} = 'SoftCode'; stimAction{end+1} = 12;
         stimAction{end+1} = 'PWM2'; stimAction{end+1} = 255;
         stimAction{end+1} = 'PWM3'; stimAction{end+1} = S.GUI.Intensity_mask;
         chooseState1 = 'GetSniff';
+        trialStartTimer = ITI(currentTrial);
     else
         chooseState1 = 'InterTrialInterval';
+        trialStartTimer = ITI(currentTrial) / 2;
     end
 
     if currentTrial == 1
@@ -292,10 +282,6 @@ function [sma, S, actions] = PrepareStateMachine(S, trialTypes, currentTrial, st
         sma = SetGlobalTimer(sma, 'TimerID', 1, 'Duration', 18000, ...
             'OnsetDelay', onsetDelay, 'Channel', 'PWM5', 'OnMessage', 255, ...
             'OffMessage', 0, 'Loop', 0, 'SendGlobalTimerEvents', 0, 'LoopInterval', 0);
-        sma = SetGlobalTimer(sma, 'TimerID', 2, ...
-            'Duration', 0.0001, 'OnsetDelay', 0, ...
-            'Channel', 'SoftCode', 'OnMessage', 12, 'OffMessage', 0, ...
-            'Loop', 1, 'LoopInterval', max(0.001, 1/optoFreq - 0.0001), 'SendEvents', 0);
         % unique barcode sent to identify protocol in first trial
         sma = AddState(sma, 'Name', 'Barcode1', ...
             'Timer', normrnd(S.GUI.muBarcodeDur, S.GUI.sigmaBarcodeDur), ...
@@ -322,13 +308,9 @@ function [sma, S, actions] = PrepareStateMachine(S, trialTypes, currentTrial, st
         sma = SetGlobalTimer(sma, 'TimerID', 1, 'Duration', 18000, ...
             'OnsetDelay', onsetDelay, 'Channel', 'PWM5', 'OnMessage', 255, ...
             'OffMessage', 0, 'Loop', 0, 'SendGlobalTimerEvents', 0, 'LoopInterval', 0);
-        sma = SetGlobalTimer(sma, 'TimerID', 2, ...
-            'Duration', 0.0001, 'OnsetDelay', 0, ...
-            'Channel', 'SoftCode', 'OnMessage', 12, 'OffMessage', 0, ...
-            'Loop', 1, 'LoopInterval', max(0.001, 1/optoFreq - 0.0001), 'SendEvents', 0);
     end
     sma = AddState(sma, 'Name', 'TrialStart', ...
-        'Timer', ITI(currentTrial)/2, ...
+        'Timer', trialStartTimer, ...
         'StateChangeConditions', {'Tup', chooseState1}, ...
         'OutputActions', startAction);
     sma = AddState(sma, 'Name', 'GetSniff', ...
@@ -340,9 +322,9 @@ function [sma, S, actions] = PrepareStateMachine(S, trialTypes, currentTrial, st
         'StateChangeConditions', {'Tup', 'exit'}, ...
         'OutputActions', stimAction);
     sma = AddState(sma, 'Name', 'InterTrialInterval', ...
-        'Timer', ITI(currentTrial)/2, ...
+        'Timer', ITI(currentTrial) / 2, ...
         'StateChangeConditions', {'Tup', 'exit'}, ...
-        'OutputActions', {'BNC1', 1, 'GlobalTimerTrig', 2});
+        'OutputActions', {'BNC1', 1});
 
     actions = struct();
     actions.TrialStart  = startAction;

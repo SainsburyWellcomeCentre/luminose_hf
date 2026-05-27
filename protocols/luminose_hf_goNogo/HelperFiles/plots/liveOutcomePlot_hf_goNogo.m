@@ -36,9 +36,9 @@ switch action
             xN(end+1) = i; yN(end+1) = side;
         end
 
-        set(h.correct, 'XData', xC, 'YData', yC)
-        set(h.error,   'XData', xE, 'YData', yE)
-        set(h.noresp,  'XData', xN, 'YData', yN)
+        safeSet(h.correct, xC, yC);
+        safeSet(h.error,   xE, yE);
+        safeSet(h.noresp,  xN, yN);
 
         % Move blue dot to the next trial
         nextTrial = nDone + 1;
@@ -50,5 +50,10 @@ switch action
         set(h.current, 'XData', nextTrial, 'YData', nextSide)
         drawnow nocallbacks
 end
+end
+
+function safeSet(h, x, y)
+    if isempty(x), x = NaN; y = NaN; end
+    set(h, 'XData', x, 'YData', y);
 end
 

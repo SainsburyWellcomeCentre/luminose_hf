@@ -27,7 +27,7 @@ switch action
         i = nDone;
         side    = getTrialSide_hf_2AFC(data, i);
         outcome = getTrialOutcome_hf_2AFC(data, i);
-        
+
         if outcome == 1
             xC(end+1) = i; yC(end+1) = side;
         elseif outcome == 0
@@ -36,9 +36,13 @@ switch action
             xN(end+1) = i; yN(end+1) = side;
         end
 
-        set(h.correct, 'XData', xC, 'YData', yC)
-        set(h.error,   'XData', xE, 'YData', yE)
-        set(h.noresp,  'XData', xN, 'YData', yN)
+        % Use safeSet: replace empty arrays with NaN so the Line object
+        % stays at length 1 (rather than jumping from length 1 to length 0),
+        % which would leave a cached XData/YData mismatch that fires on the
+        % drawnow below.
+        safeSet(h.correct, xC, yC);
+        safeSet(h.error,   xE, yE);
+        safeSet(h.noresp,  xN, yN);
 
         % Move blue dot to the next trial
         nextTrial = nDone + 1;
@@ -50,4 +54,18 @@ switch action
         set(h.current, 'XData', nextTrial, 'YData', nextSide)
         drawnow nocallbacks
 end
+end
+
+function safeSet(h, x, y)
+% Replace empty arrays with NaN before setting XData/YData.
+% When a Line is initialised with plot(NaN,NaN) (length 1) and we later
+% call set(h,'XData',[],'YData',[]) (length 0), MATLAB applies XData first
+% leaving an intermediate length-1 vs length-0 mismatch.  That mismatch is
+% cached and fires again on the next drawnow.  Using NaN keeps the Line at
+% length 1 throughout, so the length never changes for empty categories.
+    if isempty(x)
+        x = NaN;
+        y = NaN;
+    end
+    set(h, 'XData', x, 'YData', y);
 end

@@ -230,18 +230,14 @@ S.GUI.SniffRising = true;
 
     %% OptoStim
     S.GUITabs.OptoStim = {'MaskLED', 'SinglePulse', 'PairedPulse', 'Pattern_opto'};
-    S.GUIPanels.SinglePulse = {'SPduration', 'SPfrequency', 'SPamplitude'};
-    S.GUIPanels.PairedPulse = {'PPfrequency', 'PPamplitude', 'PPduration'};
+    S.GUIPanels.SinglePulse = {'SPfrequency', 'SPamplitude'};
+    S.GUIPanels.PairedPulse = {'PPfrequency', 'PPamplitude'};
     S.GUIPanels.MaskLED = {'Intensity_mask', 'Duration_mask'};
     S.GUIPanels.Pattern_opto = {'patternSel_opto'};
-    S.GUI.SPduration = 1000;
-    S.GUIMeta.SPduration.Label = 'Duration (ms)';
     S.GUI.SPfrequency = 1;
     S.GUIMeta.SPfrequency.Label = 'Freq (Hz)';
     S.GUI.SPamplitude = 1;
     S.GUIMeta.SPamplitude.Label = 'Amp (V)';
-    S.GUI.PPduration = 1000;
-    S.GUIMeta.PPduration.Label = 'Duration (ms)';
     S.GUI.PPfrequency = 1;
     S.GUIMeta.PPfrequency.Label = 'Freq (Hz)';
     S.GUI.PPamplitude = 1;
