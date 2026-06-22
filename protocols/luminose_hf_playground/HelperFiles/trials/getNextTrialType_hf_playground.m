@@ -37,7 +37,7 @@ end
 % 2. Bias Correction (if enabled)
 correctedLeftProb = leftProb;
 if useBiasCorrection
-    bias = computeBias_hf_playground(data, nTrialsToUse);
+    bias = computeBias_hf_playground(data, nTrialsToUse, leftProb);
     
     % Adjust probability: 
     % If bias > 0 (Right bias), increase Left probability

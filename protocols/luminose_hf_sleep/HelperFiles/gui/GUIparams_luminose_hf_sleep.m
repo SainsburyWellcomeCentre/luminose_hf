@@ -32,7 +32,7 @@ function GUIparams_luminose_hf_sleep()
     S.GUI.Ephys = false;
     S.GUIMeta.Ephys.Style = 'checkbox';
     S.GUIMeta.Ephys.Label = 'Ephys';
-    S.GUI.EEG = false;
+    S.GUI.EEG = true;
     S.GUIMeta.EEG.Style = 'checkbox';
     S.GUIMeta.EEG.Label = 'EEG';
     S.GUI.Drug = false;
@@ -44,7 +44,7 @@ function GUIparams_luminose_hf_sleep()
     S.GUIMeta.muBarcodeDur.Label = 'Barcode mean';
     S.GUI.sigmaBarcodeDur = 0.05;
     S.GUIMeta.sigmaBarcodeDur.Label = 'Barcode std';
-    S.GUI.Sleep = 1;
+    S.GUI.Sleep = 3;
     S.GUIMeta.Sleep.Style = 'popupmenu';
     S.GUIMeta.Sleep.String = {'Pre-sleep', 'Post-sleep', 'During-sleep', 'None'};
     S.GUIMeta.Sleep.Label = 'Sleep Phase';

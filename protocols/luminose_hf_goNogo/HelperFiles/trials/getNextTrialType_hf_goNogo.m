@@ -36,7 +36,7 @@ end
 % 2. Bias Correction (if enabled)
 correctedPlusProb = CSplusProb;
 if useBiasCorrection
-    bias = computeBias_hf_goNogo(data, nTrialsToUse);
+    bias = computeBias_hf_goNogo(data, nTrialsToUse, CSplusProb);
     
     % Adjust probability: 
     % If bias > 0 (Right/CS- bias), increase Left/CS+ probability

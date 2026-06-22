@@ -60,7 +60,7 @@ function GUIparams_luminose_hf_2AFC()
     S.GUIMeta.SniffOnsetThreshold.Label = 'Sniff Onset Thresh (V)';
     S.GUI.SniffOffsetThreshold = 2.0;  % fires when signal returns above this
     S.GUIMeta.SniffOffsetThreshold.Label = 'Sniff Offset Thresh (V)';
-S.GUI.SniffRising = false;
+    S.GUI.SniffRising = false;
     S.GUIMeta.SniffRising.Style = 'checkbox';
     S.GUIMeta.SniffRising.Label = 'Rising Edge';
     S.GUI.CalibrateSniff = 0;
@@ -103,7 +103,7 @@ S.GUI.SniffRising = false;
     S.GUIMeta.ResponseType.Label = 'Response Type';
     S.GUI.ResponseTime = 2;
     S.GUIMeta.ResponseTime.Label = 'Response Window (s)';
-    S.GUI.RewardAmount = 4;
+    S.GUI.RewardAmount = 2;
     S.GUIMeta.RewardAmount.Label = 'Reward Amount (ul)';
     S.GUI.Punishment = true;
     S.GUIMeta.Punishment.Style = 'checkbox';
@@ -172,7 +172,7 @@ S.GUI.SniffRising = false;
     S.GUI.LowFreq_Left = 4;
     S.GUIMeta.LowFreq_Left.Label = 'Low Freq (Hz)';
     % == Odour ==
-    S.GUI.valves_Left = [11];
+    S.GUI.valves_Left = [12];
     S.GUIMeta.valves_Left.Style = 'odour_selector';
     S.GUIMeta.valves_Left.ProbParam = 'probs_Left';
     S.GUIMeta.valves_Left.DutyParam = 'dutyCycles_Left';

@@ -12,6 +12,18 @@ if nargin >= 2 && isstruct(varargin{1})
     useRepeatOnError = isfield(S.GUI, 'RepeatOnError') && S.GUI.RepeatOnError;
     nTrialsToUse = 20;
     correctionGain = 0.5;
+
+    % Habituation: strictly alternate Left (1) and Right (2)
+    if isfield(S.GUI, 'TrainingLevel') && S.GUI.TrainingLevel == 1
+        if isfield(data, 'TrialTypes') && ~isempty(data.TrialTypes)
+            lastType = data.TrialTypes(end);
+            if lastType == 1, nextTrialType = 2;
+            else,             nextTrialType = 1; end
+        else
+            nextTrialType = 1; % first trial: start Left
+        end
+        return;
+    end
 else
     nTrialsToUse = varargin{1};
     useBiasCorrection = varargin{2};
@@ -36,7 +48,7 @@ end
 % 2. Bias Correction (if enabled)
 correctedLeftProb = leftProb;
 if useBiasCorrection
-    bias = computeBias_hf_2AFC(data, nTrialsToUse);
+    bias = computeBias_hf_2AFC(data, nTrialsToUse, leftProb);
     
     % Adjust probability: 
     % If bias > 0 (Right bias), increase Left probability

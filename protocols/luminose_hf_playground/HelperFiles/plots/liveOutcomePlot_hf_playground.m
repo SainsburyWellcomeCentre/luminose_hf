@@ -7,7 +7,7 @@ switch action
         axes(ax); cla; hold on
         h.correct = plot(NaN, NaN, 'go', 'MarkerFaceColor', 'g');
         h.error   = plot(NaN, NaN, 'ro', 'MarkerFaceColor', 'r');
-        h.noresp  = plot(NaN, NaN, 'ko', 'MarkerFaceColor', 'none');
+        h.noresp  = plot(NaN, NaN, 'o', 'Color', [0.7 0.7 0.7], 'MarkerFaceColor', 'none');
         h.current = plot(NaN, NaN, 'bo', 'MarkerFaceColor', 'b', 'MarkerSize', 8);
         set(ax, 'YLim', [-0.5 1.5], ...
             'YTick', [0 1], ...

@@ -51,14 +51,19 @@ function luminose_hf_2AFC
     cue = S.GUIMeta.CueType.String{S.GUI.CueType};
     Left = S.GUIMeta.LeftType.String{S.GUI.LeftType};
     Right = S.GUIMeta.RightType.String{S.GUI.RightType};
-
-    if S.GUI.VariableITI
-        ITI = S.GUI.InterTrialInterval * (1.01 .^ (0:S.GUI.maxTrials-1));
-        ITI(ITI > S.GUI.MaxITI) = S.GUI.MaxITI;
-        ITI = ITI(randperm(length(ITI)))';
-        ITI = round(ITI * 1000) / 1000;
+    
+    isHabituation = isfield(S.GUI, 'TrainingLevel') && (S.GUI.TrainingLevel == 1);
+    if isHabituation
+        ITI = repelem(0, S.GUI.maxTrials);
     else
-        ITI = S.GUI.InterTrialInterval * ones(1, S.GUI.maxTrials);
+        if S.GUI.VariableITI
+            ITI = S.GUI.InterTrialInterval * (1.01 .^ (0:S.GUI.maxTrials-1));
+            ITI(ITI > S.GUI.MaxITI) = S.GUI.MaxITI;
+            ITI = ITI(randperm(length(ITI)))';
+            ITI = round(ITI * 1000) / 1000;
+        else
+            ITI = S.GUI.InterTrialInterval * ones(1, S.GUI.maxTrials);
+        end
     end
 
     %% Begin plotting
@@ -165,7 +170,6 @@ function luminose_hf_2AFC
             S = LuminoseParameterGUI_hf_2AFC('sync', S);
 
             currentTrialType = nextTrialType;
-            BpodSystem.Data.TrialTypes(currentTrial) = currentTrialType;
 
             if handle_pause_condition(H, R); break; end
 
@@ -193,6 +197,7 @@ function luminose_hf_2AFC
                 BpodSystem.Data = AddTrialEvents(BpodSystem.Data, RawEvents);
                 BpodSystem.Data.TrialSettings(currentTrial) = S;
                 BpodSystem.Data.RawEvents.Trial{currentTrial}.Actions = currentActions;
+                BpodSystem.Data.TrialTypes(currentTrial) = currentTrialType;
 
                 processedEvents = BpodSystem.Data.RawEvents.Trial{currentTrial};
                 BpodSystem.Data.SniffInhalationOnset_s(currentTrial)  = sniffDetector.getOnset(processedEvents);
@@ -306,68 +311,94 @@ function [sma, S, actions] = PrepareStateMachine(S, currentTrialType, currentTri
 
     startAction = {'BNC1', 1, 'HiFi1', '*', 'RotaryEncoder1', ['#' 0], 'AnalogThreshEnable', 1};
     cueAction = {'RotaryEncoder1', '*Z'};
-    switch cue
-        case 'Odour'
-            cueAction{end+1} = 'BNC2'; cueAction{end+1} = 1;
-            startAction{end+1} = 'SoftCode'; startAction{end+1} = 1;
-        case 'Pattern'
-            cueAction{end+1} = 'PWM2'; cueAction{end+1} = 255;
-            cueAction{end+1} = 'PWM3'; cueAction{end+1} = S.GUI.Intensity_cue; % mask 
-            startAction{end+1} = 'SoftCode'; startAction{end+1} = 8;
-        case 'Light'
-            cueAction{end+1} = 'PWM3'; cueAction{end+1} = S.GUI.Intensity_cue;
-        case 'Sound'
-            cueAction{end+1} = 'HiFi1'; cueAction{end+1} = ['P', 1];
-    end
     stimAction = {'BNC1', 1}; % sync
-    switch currentTrialType
-        case 1 % Left
-            switch Left
-                case 'Odour'
-                    stimAction{end+1} = 'BNC2'; stimAction{end+1} = 1;
-                    startAction{end+1} = 'SoftCode'; startAction{end+1} = 2;
-                    chooseState2 = 'DeliverStim';
-                case 'Pattern'
-                    stimAction{end+1} = 'PWM2'; stimAction{end+1} = 255;
-                    stimAction{end+1} = 'PWM3'; stimAction{end+1} = S.GUI.Intensity_cue; % mask 
-                    startAction{end+1} = 'SoftCode'; startAction{end+1} = 9;
-                    chooseState2 = 'GetSniff';
-                case 'Light'
-                    stimAction{end+1} = 'PWM1'; stimAction{end+1} = S.GUI.Intensity_Left;
-                    chooseState2 = 'DeliverStim';
-                case 'Sound'
-                    stimAction{end+1} = 'HiFi1'; stimAction{end+1} = ['P', 2];
-                    chooseState2 = 'DeliverStim';
-            end
-            leftAction = 'Reward'; rightAction = 'Punishment';
-        case 2 % Right
-            switch Right
-                case 'Odour'
-                    stimAction{end+1} = 'BNC2'; stimAction{end+1} = 1;
-                    startAction{end+1} = 'SoftCode'; startAction{end+1} = 3;
-                    chooseState2 = 'DeliverStim';
-                case 'Pattern'
-                    stimAction{end+1} = 'PWM2'; stimAction{end+1} = 255;
-                    stimAction{end+1} = 'PWM3'; stimAction{end+1} = S.GUI.Intensity_cue; % mask 
-                    startAction{end+1} = 'SoftCode'; startAction{end+1} = 10;
-                    chooseState2 = 'GetSniff';
-                case 'Light'
-                    stimAction{end+1} = 'PWM4'; stimAction{end+1} = S.GUI.Intensity_Right;
-                    chooseState2 = 'DeliverStim';
-                case 'Sound'
-                    stimAction{end+1} = 'HiFi1'; stimAction{end+1} = ['P', 3];
-                    chooseState2 = 'DeliverStim';
-            end
-            rightAction = 'Reward'; leftAction = 'Punishment';
+    isHabituation = isfield(S.GUI, 'TrainingLevel') && (S.GUI.TrainingLevel == 1);
+    if isHabituation
+        CueTime = 0;
+        chooseState2 = 'GetResponse';
+        tupAction = 'GetResponse';
+        switch currentTrialType
+            case 1 % Left
+                leftAction = 'Reward'; rightAction = 'GetResponse';
+            case 2 % Right
+                rightAction = 'Reward'; leftAction = 'GetResponse';
+        end
+    else
+        CueTime = S.GUI.CueTime;
+        switch cue
+            case 'Odour'
+                cueAction{end+1} = 'BNC2'; cueAction{end+1} = 1;
+                startAction{end+1} = 'SoftCode'; startAction{end+1} = 1;
+            case 'Pattern'
+                cueAction{end+1} = 'PWM2'; cueAction{end+1} = 255;
+                cueAction{end+1} = 'PWM3'; cueAction{end+1} = S.GUI.Intensity_cue; % mask 
+                startAction{end+1} = 'SoftCode'; startAction{end+1} = 8;
+            case 'Light'
+                cueAction{end+1} = 'PWM3'; cueAction{end+1} = S.GUI.Intensity_cue;
+            case 'Sound'
+                cueAction{end+1} = 'HiFi1'; cueAction{end+1} = ['P', 1];
+        end
+        switch currentTrialType
+            case 1 % Left
+                switch Left
+                    case 'Odour'
+                        stimAction{end+1} = 'BNC2'; stimAction{end+1} = 1;
+                        startAction{end+1} = 'SoftCode'; startAction{end+1} = 2;
+                        chooseState2 = 'DeliverStim';
+                    case 'Pattern'
+                        stimAction{end+1} = 'PWM2'; stimAction{end+1} = 255;
+                        stimAction{end+1} = 'PWM3'; stimAction{end+1} = S.GUI.Intensity_cue; % mask 
+                        startAction{end+1} = 'SoftCode'; startAction{end+1} = 9;
+                        chooseState2 = 'GetSniff';
+                    case 'Light'
+                        stimAction{end+1} = 'PWM1'; stimAction{end+1} = S.GUI.Intensity_Left;
+                        chooseState2 = 'DeliverStim';
+                    case 'Sound'
+                        stimAction{end+1} = 'HiFi1'; stimAction{end+1} = ['P', 2];
+                        chooseState2 = 'DeliverStim';
+                end
+                leftAction = 'Reward'; 
+                if S.GUI.Punishment
+                    rightAction = 'Punishment'; tupAction = 'Punishment';
+                else
+                    rightAction = 'GetResponse'; tupAction = 'InterTrialInterval';
+                end
+
+            case 2 % Right
+                switch Right
+                    case 'Odour'
+                        stimAction{end+1} = 'BNC2'; stimAction{end+1} = 1;
+                        startAction{end+1} = 'SoftCode'; startAction{end+1} = 3;
+                        chooseState2 = 'DeliverStim';
+                    case 'Pattern'
+                        stimAction{end+1} = 'PWM2'; stimAction{end+1} = 255;
+                        stimAction{end+1} = 'PWM3'; stimAction{end+1} = S.GUI.Intensity_cue; % mask 
+                        startAction{end+1} = 'SoftCode'; startAction{end+1} = 10;
+                        chooseState2 = 'GetSniff';
+                    case 'Light'
+                        stimAction{end+1} = 'PWM4'; stimAction{end+1} = S.GUI.Intensity_Right;
+                        chooseState2 = 'DeliverStim';
+                    case 'Sound'
+                        stimAction{end+1} = 'HiFi1'; stimAction{end+1} = ['P', 3];
+                        chooseState2 = 'DeliverStim';
+                end
+                rightAction = 'Reward'; 
+                if S.GUI.Punishment
+                    leftAction = 'Punishment'; tupAction = 'Punishment';
+                else
+                    leftAction = 'GetResponse'; tupAction = 'InterTrialInterval';
+                end
+
+        end
     end
     responseDetect = {};
     responseAction = {};
     switch response
         case 'Lick'
-            responseDetect = {'BNC1High', leftAction, 'BNC2High', rightAction, 'Tup', 'InterTrialInterval'};
+            responseDetect = {'BNC1High', leftAction, 'BNC2High', rightAction, 'Tup', tupAction};
             chooseState1 = chooseState2;
         case 'Rotary Encoder'
-            responseDetect = {'RotaryEncoder1_1', leftAction, 'RotaryEncoder1_2', rightAction, 'Tup', 'InterTrialInterval'};
+            responseDetect = {'RotaryEncoder1_1', leftAction, 'RotaryEncoder1_2', rightAction, 'Tup', tupAction};
             chooseState1 = 'InitRE';
             responseAction{end+1} = 'RotaryEncoder1'; responseAction{end+1} = ['Z;' 3];
     end
@@ -413,7 +444,7 @@ function [sma, S, actions] = PrepareStateMachine(S, currentTrialType, currentTri
         'StateChangeConditions', {'Tup', 'ShowCue'}, ...
         'OutputActions', startAction);
     sma = AddState(sma, 'Name', 'ShowCue', ...
-        'Timer', S.GUI.CueTime, ...
+        'Timer', CueTime, ...
         'StateChangeConditions', {'Tup', chooseState1}, ...
         'OutputActions', cueAction);
     sma = AddState(sma, 'Name', 'InitRE', ...

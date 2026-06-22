@@ -165,7 +165,6 @@ function luminose_hf_goNogo
             S = LuminoseParameterGUI_hf_goNogo('sync', S);
 
             currentTrialType = nextTrialType;
-            BpodSystem.Data.TrialTypes(currentTrial) = currentTrialType;
 
             if handle_pause_condition(H, R); break; end
 
@@ -193,6 +192,7 @@ function luminose_hf_goNogo
                 BpodSystem.Data = AddTrialEvents(BpodSystem.Data, RawEvents);
                 BpodSystem.Data.TrialSettings(currentTrial) = S;
                 BpodSystem.Data.RawEvents.Trial{currentTrial}.Actions = currentActions;
+                BpodSystem.Data.TrialTypes(currentTrial) = currentTrialType;
 
                 processedEvents = BpodSystem.Data.RawEvents.Trial{currentTrial};
                 BpodSystem.Data.SniffInhalationOnset_s(currentTrial)  = sniffDetector.getOnset(processedEvents);

@@ -1,9 +1,12 @@
-function bias = computeBias_hf_2AFC(data, N)
-% computeBias calculates response bias based on last N trials
-% bias > 0: right bias (more right responses)
-% bias < 0: left bias (more left responses)
+function bias = computeBias_hf_2AFC(data, N, leftProb)
+% computeBias calculates response bias based on last N trials, relative to
+% the expected response split under leftProb (not a flat 50/50), so an
+% intentionally skewed leftProb is not itself read as bias.
+% bias > 0: right bias (more right responses than leftProb would predict)
+% bias < 0: left bias (more left responses than leftProb would predict)
 
 if nargin < 2, N = 20; end
+if nargin < 3, leftProb = 0.5; end
 
 if ~isfield(data, 'TrialResponse')
     bias = 0;
@@ -26,7 +29,7 @@ end
 pLeft = sum(validResponses == 1) / length(validResponses);
 pRight = sum(validResponses == 2) / length(validResponses);
 
-% Bias from -1 (total left) to 1 (total right)
-bias = pRight - pLeft;
+% Deviation from the expected split given leftProb, from -1 to 1
+bias = (pRight - pLeft) - (1 - 2 * leftProb);
 
 end

@@ -1,4 +1,4 @@
-function liveOutcomePlot_hf_2AFC(ax, action, data, nextTrialType)
+function liveOutcomePlot_hf_MTS(ax, action, data, nextTrialType)
 persistent h xC yC xE yE xN yN
 
 switch action
@@ -11,7 +11,7 @@ switch action
         h.current = plot(NaN, NaN, 'bo', 'MarkerFaceColor', 'b', 'MarkerSize', 8);
         set(ax, 'YLim', [-0.5 1.5], ...
             'YTick', [0 1], ...
-            'YTickLabel', {'Right', 'Left'}, ...
+            'YTickLabel', {'Non-match', 'Match'}, ...
             'XLim', [0 10], ...
             'TickDir', 'out')
         xlabel('Trial #')
@@ -25,8 +25,8 @@ switch action
 
         % Only process the latest trial (not all trials)
         i = nDone;
-        side    = getTrialSide_hf_2AFC(data, i);
-        outcome = getTrialOutcome_hf_2AFC(data, i);
+        side    = getTrialSide_hf_MTS(data, i);
+        outcome = getTrialOutcome_hf_MTS(data, i);
 
         if outcome == 1
             xC(end+1) = i; yC(end+1) = side;

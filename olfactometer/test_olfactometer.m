@@ -2,7 +2,7 @@ luminose = LuminoseConstants();
 unique_valves = [3:8, 11:16];
 % unique_valves = [14];
 valves = reshape(repmat(unique_valves, 3, 100), 1, []);
-triggered = true;
+triggered = false;
 
 olfModel = OlfactometerModel(luminose.olfactometer, triggered);
 for i = 1:length(valves)
