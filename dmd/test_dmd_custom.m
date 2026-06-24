@@ -82,20 +82,27 @@ pause(3);
 
 %% Test 7: Concentric rings + plus
 fprintf('Test 7: Concentric rings (3 seconds)...\n');
-cx = W/2; cy = H/2;
+cx = W/2; cy = H/2; armHalfWidth = 50;
 [xx, yy] = meshgrid(1:W, 1:H);
 r = sqrt((xx-cx).^2 + (yy-cy).^2);
-ringWidth = 40;
-nRings = 4;
-ringIdx = floor(r / ringWidth);
-rings = mod(ringIdx, 2) == 1 & ringIdx < nRings;  % only the first two rings; rest off
-% Add a small plus confined to the rings' extent (a full-row/col cross would span the whole frame)
-maxR = ringWidth * nRings;
-armHalfWidth = round(ringWidth / 4);
-rows = round(cy-maxR):round(cy+maxR);
-cols = round(cx-maxR):round(cx+maxR);
-rings(rows, cx-armHalfWidth:cx+armHalfWidth) = true;
-rings(cy-armHalfWidth:cy+armHalfWidth, cols) = true;
+rings = logical(mod(floor(r / 50), 2));
+rings(:, cx-armHalfWidth:cx+armHalfWidth) = true;
+rings(cy-armHalfWidth:cy+armHalfWidth, :) = true;
+% rings(1:cy, :) = false; rings(:, cx:end) = false;
+dmd.displayFrame(rings);
+pause(3);
+
+%% Test 7: Concentric rings + plus, fit into top-right quadrant
+fprintf('Test 7: Concentric rings, top-right quadrant (3 seconds)...\n');
+qW = W/2; qH = H/2; armHalfWidth = 50;
+qcx = qW/2; qcy = qH/2;
+[xx, yy] = meshgrid(1:qW, 1:qH);
+r = sqrt((xx-qcx).^2 + (yy-qcy).^2);
+quadrant = logical(mod(floor(r / 50), 2));
+quadrant(:, qcx-armHalfWidth:qcx+armHalfWidth) = true;
+quadrant(qcy-armHalfWidth:qcy+armHalfWidth, :) = true;
+rings = false(H, W);
+rings(H-qH+1:H, 1:qW) = quadrant;
 dmd.displayFrame(rings);
 pause(3);
 
