@@ -324,6 +324,7 @@ function [sma, S, actions] = PrepareStateMachine(S, currentTrialType, currentTri
             case 2 % Right
                 rightAction = 'Reward'; leftAction = 'GetResponse';
         end
+        responseAction = {};
     else
         CueTime = S.GUI.CueTime;
         switch cue
@@ -345,16 +346,20 @@ function [sma, S, actions] = PrepareStateMachine(S, currentTrialType, currentTri
                         stimAction{end+1} = 'BNC2'; stimAction{end+1} = 1;
                         startAction{end+1} = 'SoftCode'; startAction{end+1} = 2;
                         chooseState2 = 'DeliverStim';
+                        responseAction = {};
                     case 'Pattern'
                         stimAction{end+1} = 'PWM3'; stimAction{end+1} = S.GUI.Intensity_cue; % mask
                         stimAction{end+1} = 'SoftCode'; stimAction{end+1} = 9;
                         chooseState2 = 'GetSniff';
+                        responseAction = {'PWM3', S.GUI.Intensity_cue};
                     case 'Light'
                         stimAction{end+1} = 'PWM1'; stimAction{end+1} = S.GUI.Intensity_Left;
                         chooseState2 = 'DeliverStim';
+                        responseAction = {};
                     case 'Sound'
                         stimAction{end+1} = 'HiFi1'; stimAction{end+1} = ['P', 2];
                         chooseState2 = 'DeliverStim';
+                        responseAction = {};
                 end
                 leftAction = 'Reward'; 
                 if S.GUI.Punishment
@@ -369,16 +374,20 @@ function [sma, S, actions] = PrepareStateMachine(S, currentTrialType, currentTri
                         stimAction{end+1} = 'BNC2'; stimAction{end+1} = 1;
                         startAction{end+1} = 'SoftCode'; startAction{end+1} = 3;
                         chooseState2 = 'DeliverStim';
+                        responseAction = {};
                     case 'Pattern'
                         stimAction{end+1} = 'PWM3'; stimAction{end+1} = S.GUI.Intensity_cue; % mask
                         stimAction{end+1} = 'SoftCode'; stimAction{end+1} = 10;
                         chooseState2 = 'GetSniff';
+                        responseAction = {'PWM3', S.GUI.Intensity_cue};
                     case 'Light'
                         stimAction{end+1} = 'PWM4'; stimAction{end+1} = S.GUI.Intensity_Right;
                         chooseState2 = 'DeliverStim';
+                        responseAction = {};
                     case 'Sound'
                         stimAction{end+1} = 'HiFi1'; stimAction{end+1} = ['P', 3];
                         chooseState2 = 'DeliverStim';
+                        responseAction = {};
                 end
                 rightAction = 'Reward'; 
                 if S.GUI.Punishment
@@ -390,7 +399,6 @@ function [sma, S, actions] = PrepareStateMachine(S, currentTrialType, currentTri
         end
     end
     responseDetect = {};
-    responseAction = {};
     switch response
         case 'Lick'
             responseDetect = {'BNC1High', leftAction, 'BNC2High', rightAction, 'Tup', tupAction};

@@ -87,10 +87,10 @@ function dmd_hf_goNogo(code)
     if ~hasRandom
         key = [rowIdx, nF, illuTime];
     else
-        key = []; cachedSeq = []; cachedKey = [];
+        key = [];
     end
 
-    if ~isequaln(cachedKey, key) || isempty(cachedSeq)
+    if hasRandom || ~isequaln(cachedKey, key) || isempty(cachedSeq)
         dmd_log(logFile, 'building frame stack for %s row %d (%d spots)', typeName, rowIdx, numel(spots));
         devH = double(dmd.device.height);
         devW = double(dmd.device.width);
@@ -115,13 +115,14 @@ function dmd_hf_goNogo(code)
         dmd_log(logFile, 'frame stack built: %dx%dx%d', size(frameStack,1), size(frameStack,2), size(frameStack,3));
         if ~isempty(cachedSeq), delete(cachedSeq); end
         cachedSeq = allocFrameStack(dmd, frameStack, illuTime);
-        if ~hasRandom
-            switch code
-                case 8,  cueSeq   = cachedSeq; cueKey   = key;
-                case 9,  plusSeq  = cachedSeq; plusKey  = key;
-                case 10, minusSeq = cachedSeq; minusKey = key;
-                case 12, optoSeq  = cachedSeq; optoKey  = key;
-            end
+        % Always store the handle back (even for random-position patterns,
+        % where key stays empty so it's rebuilt every call) so the next
+        % call can find and delete it instead of leaking the DMD sequence.
+        switch code
+            case 8,  cueSeq   = cachedSeq; cueKey   = key;
+            case 9,  plusSeq  = cachedSeq; plusKey  = key;
+            case 10, minusSeq = cachedSeq; minusKey = key;
+            case 12, optoSeq  = cachedSeq; optoKey  = key;
         end
     else
         dmd_log(logFile, 'using cached sequence for %s row %d', typeName, rowIdx);

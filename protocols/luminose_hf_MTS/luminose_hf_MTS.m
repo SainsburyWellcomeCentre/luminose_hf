@@ -308,6 +308,7 @@ function [sma, S, actions] = PrepareStateMachine(S, currentTrialType, currentTri
     stimTemplateAction = {'BNC1', 1}; % sync
     stimMatchAction = {'BNC1', 1}; % sync
     delayAction = {};
+    isPatternResponse = false;
     isHabituation = isfield(S.GUI, 'TrainingLevel') && (S.GUI.TrainingLevel == 1);
     if isHabituation
         CueTime = 0;
@@ -368,6 +369,7 @@ function [sma, S, actions] = PrepareStateMachine(S, currentTrialType, currentTri
             % on Non-match): SoftCode displays immediately (MASTER mode) —
             % fire it in the same state as the pattern itself.
             stimMatchAction{end+1} = 'SoftCode'; stimMatchAction{end+1} = sampleCode;
+            isPatternResponse = true;
         elseif sampleCode > 0
             % Odour: dispatch ahead of time so the async valve sequence
             % (parfeval) has lead time before DeliverStimMatch.
@@ -402,6 +404,9 @@ function [sma, S, actions] = PrepareStateMachine(S, currentTrialType, currentTri
             responseDetect = {'RotaryEncoder1_1', leftAction, 'RotaryEncoder1_2', rightAction, 'Tup', tupAction};
             chooseState1 = 'InitRE';
             responseAction{end+1} = 'RotaryEncoder1'; responseAction{end+1} = ['Z;' 3];
+    end
+    if isPatternResponse
+        responseAction{end+1} = 'PWM3'; responseAction{end+1} = S.GUI.Intensity_cue;
     end
     responseAction{end+1} = 'SoftCode'; responseAction{end+1} = 11;
     valveTimeLeft = GetValveTimes(S.GUI.RewardAmount, 1);
@@ -455,7 +460,7 @@ function [sma, S, actions] = PrepareStateMachine(S, currentTrialType, currentTri
     sma = AddState(sma, 'Name', 'GetSniffTemplate', ...
         'Timer', 0, ...
         'StateChangeConditions', {'Flex1Trig1', 'DeliverStimTemplate'}, ...
-        'OutputActions', {});
+        'OutputActions', {'PWM3', S.GUI.Intensity_cue});
     sma = AddState(sma, 'Name', 'DeliverStimTemplate', ...
         'Timer', S.GUI.StimTime, ...
         'StateChangeConditions', {'Tup', 'Delay'}, ...
@@ -467,7 +472,7 @@ function [sma, S, actions] = PrepareStateMachine(S, currentTrialType, currentTri
     sma = AddState(sma, 'Name', 'GetSniffMatch', ...
         'Timer', 0, ...
         'StateChangeConditions', {'Flex1Trig1', 'DeliverStimMatch'}, ...
-        'OutputActions', {});
+        'OutputActions', {'PWM3', S.GUI.Intensity_cue});
     sma = AddState(sma, 'Name', 'DeliverStimMatch', ...
         'Timer', S.GUI.StimTime, ...
         'StateChangeConditions', {'Tup', 'GetResponse'}, ...

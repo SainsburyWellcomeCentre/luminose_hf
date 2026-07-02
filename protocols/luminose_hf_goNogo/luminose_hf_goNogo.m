@@ -332,6 +332,7 @@ function [sma, S, actions] = PrepareStateMachine(S, currentTrialType, currentTri
                     stimAction{end+1} = 'PWM3'; stimAction{end+1} = S.GUI.Intensity_cue; % mask
                     stimAction{end+1} = 'SoftCode'; stimAction{end+1} = 9;
                     chooseState2 = 'GetSniff';
+                    responseAction{end+1} = 'PWM3'; responseAction{end+1} = S.GUI.Intensity_cue;
                     responseAction{end+1} = 'SoftCode'; responseAction{end+1} = 11;
                 case 'Light'
                     stimAction{end+1} = 'PWM1'; stimAction{end+1} = S.GUI.Intensity_CSplus;
@@ -351,6 +352,7 @@ function [sma, S, actions] = PrepareStateMachine(S, currentTrialType, currentTri
                     stimAction{end+1} = 'PWM3'; stimAction{end+1} = S.GUI.Intensity_cue; % mask
                     stimAction{end+1} = 'SoftCode'; stimAction{end+1} = 10;
                     chooseState2 = 'GetSniff';
+                    responseAction{end+1} = 'PWM3'; responseAction{end+1} = S.GUI.Intensity_cue;
                     responseAction{end+1} = 'SoftCode'; responseAction{end+1} = 11;
                 case 'Light'
                     stimAction{end+1} = 'PWM4'; stimAction{end+1} = S.GUI.Intensity_CSminus;
@@ -418,7 +420,7 @@ function [sma, S, actions] = PrepareStateMachine(S, currentTrialType, currentTri
     sma = AddState(sma, 'Name', 'GetSniff', ...
         'Timer', 0, ...
         'StateChangeConditions', {'Flex1Trig1', 'DeliverStim'}, ...
-        'OutputActions', {});
+        'OutputActions', {'PWM3', S.GUI.Intensity_cue});
     sma = AddState(sma, 'Name', 'DeliverStim', ...
         'Timer', S.GUI.StimTime, ...
         'StateChangeConditions', {'Tup', 'GetResponse'}, ...

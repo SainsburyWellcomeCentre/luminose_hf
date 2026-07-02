@@ -89,10 +89,10 @@ function dmd_hf_sleep(code)
     if ~hasRandom
         key = [rowIdx, nF, illuTime];
     else
-        key = []; cachedSeq = []; cachedKey = [];
+        key = [];
     end
 
-    if ~isequaln(cachedKey, key) || isempty(cachedSeq)
+    if hasRandom || ~isequaln(cachedKey, key) || isempty(cachedSeq)
         H = double(dmd.device.height); W = double(dmd.device.width);
         margin = r_px + 1;
         fixed = [spots.isFixed]; px = double([spots(fixed).x]); py = double([spots(fixed).y]);
@@ -111,10 +111,11 @@ function dmd_hf_sleep(code)
         frameStack = buildPatternFrameStack(spots, r_px, tickMs, H, W);
         if ~isempty(cachedSeq), delete(cachedSeq); end
         cachedSeq = allocFrameStack(dmd, frameStack, illuTime);
-        if ~hasRandom
-            [plusSeq, plusKey, minusSeq, minusKey] = ...
-                setCache(code, cachedSeq, key, plusSeq, plusKey, minusSeq, minusKey);
-        end
+        % Always store the handle back (even for random-position patterns,
+        % where key stays empty so it's rebuilt every call) so the next
+        % call can find and delete it instead of leaking the DMD sequence.
+        [plusSeq, plusKey, minusSeq, minusKey] = ...
+            setCache(code, cachedSeq, key, plusSeq, plusKey, minusSeq, minusKey);
     end
     dmd.halt();
     cachedSeq.setRepeat(1);

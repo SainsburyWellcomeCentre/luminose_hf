@@ -344,6 +344,7 @@ function [sma, S, actions] = PrepareStateMachine(S, currentTrialType, currentTri
                     startAction{end+1} = 'SoftCode'; startAction{end+1} = 1;
             end
         case 'Pattern'
+            cueAction{end+1} = 'PWM3'; cueAction{end+1} = S.GUI.Intensity_cue; % mask
             cueAction{end+1} = 'SoftCode'; cueAction{end+1} = 8;
         case 'Light'
             cueAction{end+1} = 'PWM3'; cueAction{end+1} = S.GUI.Intensity_cue;
@@ -351,6 +352,7 @@ function [sma, S, actions] = PrepareStateMachine(S, currentTrialType, currentTri
             cueAction{end+1} = 'HiFi1'; cueAction{end+1} = ['P', 1];
     end
     stimAction = {'BNC1', 1}; rewardAction = {'BNC1', 1}; % sync
+    isPatternResponse = false;
     switch currentTrialType
         case 1 % Left
             rewardAction{end+1} = 'Valve1'; rewardAction{end+1} = 1;
@@ -365,7 +367,9 @@ function [sma, S, actions] = PrepareStateMachine(S, currentTrialType, currentTri
                         case 2, chooseState2 = 'DeliverStim';
                     end
                 case 'Pattern'
+                    stimAction{end+1} = 'PWM3'; stimAction{end+1} = S.GUI.Intensity_cue; % mask
                     stimAction{end+1} = 'SoftCode'; stimAction{end+1} = 9;
+                    isPatternResponse = true;
                     switch S.GUI.TrainingLevel
                         case 1, chooseState2 = 'GetResponse';
                         case 2, chooseState2 = 'GetSniff';
@@ -400,7 +404,9 @@ function [sma, S, actions] = PrepareStateMachine(S, currentTrialType, currentTri
                         case 2, chooseState2 = 'DeliverStim';
                     end
                 case 'Pattern'
+                    stimAction{end+1} = 'PWM3'; stimAction{end+1} = S.GUI.Intensity_cue; % mask
                     stimAction{end+1} = 'SoftCode'; stimAction{end+1} = 10;
+                    isPatternResponse = true;
                     switch S.GUI.TrainingLevel
                         case 1, chooseState2 = 'GetResponse';
                         case 2, chooseState2 = 'GetSniff';
@@ -432,6 +438,9 @@ function [sma, S, actions] = PrepareStateMachine(S, currentTrialType, currentTri
             responseDetect = {'RotaryEncoder1_1', leftAction, 'RotaryEncoder1_2', rightAction, 'Tup', noAction};
             chooseState1 = 'InitRE';
             responseAction{end+1} = 'RotaryEncoder1'; responseAction{end+1} = ['Z;' 3];
+    end
+    if isPatternResponse
+        responseAction{end+1} = 'PWM3'; responseAction{end+1} = S.GUI.Intensity_cue;
     end
     responseAction{end+1} = 'SoftCode'; responseAction{end+1} = 11;
     valveTime = GetValveTimes(S.GUI.RewardAmount, 3);
@@ -504,7 +513,7 @@ function [sma, S, actions] = PrepareStateMachine(S, currentTrialType, currentTri
     sma = AddState(sma, 'Name', 'GetSniff', ...
         'Timer', 0, ...
         'StateChangeConditions', {'Flex1Trig1', 'DeliverStim'}, ...
-        'OutputActions', {'BNC1', 1});
+        'OutputActions', {'BNC1', 1, 'PWM3', S.GUI.Intensity_cue});
     sma = AddState(sma, 'Name', 'DeliverStim', ...
         'Timer', S.GUI.StimTime, ...
         'StateChangeConditions', {'Tup', 'GetResponse'}, ...

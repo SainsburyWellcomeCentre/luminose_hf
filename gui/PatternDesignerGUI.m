@@ -13,6 +13,13 @@ function PatternDesignerGUI(patternType, rowIdx, preloadFromType)
 %
 %   Fill Left/Right Half: switches to Grid mode and selects every cell in
 %     that half of the DMD field in one click (replaces current selection).
+%   Fill Checkerboard A/B: switches to Grid mode and selects a sparse
+%     lattice of cells (same grid cell size as Fill Left/Right Half) spaced
+%     3 grid cells apart in both row and column, across the full DMD field.
+%     A and B use lattices offset from each other so their spots sit in the
+%     gaps between each other's spots (not adjacent) — pairing them (e.g.
+%     Checkerboard A on the "Left" pattern, Checkerboard B on the "Right"
+%     pattern) gives two interleaved, well-separated spot grids.
 %   Overlay panel: load any other saved pattern type as a visual reference.
 %   Delete Spot #N: remove a single spot by its number.
 %   Clear All: remove all spots.
@@ -152,15 +159,24 @@ function PatternDesignerGUI(patternType, rowIdx, preloadFromType)
         'Position', [PX+232 692 225 28], 'FontSize', 10, ...
         'Callback', @(~,~) setMode('grid'));
 
-    % --- Quick fill (Grid mode: select all cells in the left/right half) ---
-    uicontrol(fig, 'Style', 'pushbutton', 'String', 'Fill Left Half', ...
-        'Position', [PX 650 224 28], 'FontSize', 10, ...
+    % --- Quick fill (Grid mode: select all cells in the left/right half, or
+    %     every other cell in a full-field checkerboard) ---
+    uicontrol(fig, 'Style', 'pushbutton', 'String', 'Left Half', ...
+        'Position', [PX 650 112 28], 'FontSize', 9, ...
         'BackgroundColor', [0.25 0.25 0.3], 'ForegroundColor', [1 1 1], ...
         'Callback', @(~,~) onFillHalf('left'));
-    uicontrol(fig, 'Style', 'pushbutton', 'String', 'Fill Right Half', ...
-        'Position', [PX+232 650 225 28], 'FontSize', 10, ...
+    uicontrol(fig, 'Style', 'pushbutton', 'String', 'Right Half', ...
+        'Position', [PX+117 650 112 28], 'FontSize', 9, ...
         'BackgroundColor', [0.25 0.25 0.3], 'ForegroundColor', [1 1 1], ...
         'Callback', @(~,~) onFillHalf('right'));
+    uicontrol(fig, 'Style', 'pushbutton', 'String', 'Checker A', ...
+        'Position', [PX+234 650 112 28], 'FontSize', 9, ...
+        'BackgroundColor', [0.25 0.25 0.3], 'ForegroundColor', [1 1 1], ...
+        'Callback', @(~,~) onFillCheckerboard(0, 0));
+    uicontrol(fig, 'Style', 'pushbutton', 'String', 'Checker B', ...
+        'Position', [PX+351 650 114 28], 'FontSize', 9, ...
+        'BackgroundColor', [0.25 0.25 0.3], 'ForegroundColor', [1 1 1], ...
+        'Callback', @(~,~) onFillCheckerboard(1, 1));
 
     % --- Placement controls ---
     uicontrol(fig, 'Style', 'text', 'String', 'PLACEMENT', ...
@@ -406,6 +422,24 @@ function PatternDesignerGUI(patternType, rowIdx, preloadFromType)
         else
             gridSelected(:, half+1:gridCols) = true;
         end
+        syncSpotsFromGrid();
+        syncTableFromSpots();
+        refreshCanvas();
+        refreshTimeline();
+        updateDefaultTick();
+    end
+
+    function onFillCheckerboard(rowOffset, colOffset)
+        % Select a sparse lattice of grid cells spaced LATTICE_SPACING cells
+        % apart in both row and column, replacing the current selection.
+        % rowOffset/colOffset shift the lattice; Checker A (0,0) and
+        % Checker B (1,1) are offset so their cells fall in each other's
+        % gaps rather than sitting adjacent.
+        LATTICE_SPACING = 3;
+        setMode('grid');
+        [colGrid, rowGrid] = meshgrid(1:gridCols, 1:gridRows);
+        gridSelected = mod(rowGrid - 1, LATTICE_SPACING) == rowOffset & ...
+                       mod(colGrid - 1, LATTICE_SPACING) == colOffset;
         syncSpotsFromGrid();
         syncTableFromSpots();
         refreshCanvas();
