@@ -18,6 +18,9 @@ classdef LuminoseConstants < handle
         olfactometer struct
         dmd struct
         bonsai struct
+        laser struct
+        camera struct
+        zaber struct
         configFile string
     end
 
@@ -60,6 +63,9 @@ classdef LuminoseConstants < handle
             obj.loadOlfactometerConfig(config);
             obj.loadDMDConfig(config);
             obj.loadBonsaiConfig(config);
+            obj.loadLaserConfig(config);
+            obj.loadCameraConfig(config);
+            obj.loadZaberConfig(config);
 
             % Add key folders to path
             addpath(genpath(char(obj.f.luminose_hf)), genpath(char(obj.f.luminoseData)), genpath(char(obj.f.matlabFolder)));
@@ -169,6 +175,9 @@ classdef LuminoseConstants < handle
                 if ~isempty(colonIdx)
                     key = strtrim(line(1:colonIdx(1)-1));
                     value = strtrim(line(colonIdx(1)+1:end));
+                    % Strip inline comments
+                    hashIdx = strfind(value, '#');
+                    if ~isempty(hashIdx), value = strtrim(value(1:hashIdx(1)-1)); end
                     
                     % Level 0: Top-level section (no indentation)
                     if leadingSpaces == 0 && endsWith(line, ':')
@@ -263,7 +272,7 @@ classdef LuminoseConstants < handle
         function validateConfig(obj, config)
             % validateConfig  Ensure all required fields are present
             
-            required = {'paths', 'bpod', 'olfactometer', 'dmd', 'bonsai'};
+            required = {'paths', 'bpod', 'olfactometer', 'dmd', 'bonsai', 'laser', 'camera', 'zaber'};
             for i = 1:length(required)
                 if ~isfield(config, required{i})
                     error('LuminoseConstants:MissingSection', ...
@@ -354,13 +363,45 @@ classdef LuminoseConstants < handle
         
         function loadBonsaiConfig(obj, config)
             % loadBonsaiConfig  Load Bonsai configuration from YAML
-            
+
             cfg = config.bonsai;
-            
+
             obj.bonsai = struct( ...
                 'launch_bonsai', cfg.launch_bonsai, ...
                 'exePath', string(cfg.exePath), ...
                 'workflowPath', string(cfg.workflowPath) ...
+            );
+        end
+
+        function loadLaserConfig(obj, config)
+            cfg = config.laser;
+            obj.laser = struct( ...
+                'port',        string(cfg.port), ...
+                'baudRate',    cfg.baudRate, ...
+                'maxPower_mW', cfg.maxPower_mW ...
+            );
+        end
+
+        function loadCameraConfig(obj, config)
+            cfg = config.camera;
+            obj.camera = struct( ...
+                'adaptorName',         string(cfg.adaptorName), ...
+                'adaptorDllPath',      string(cfg.adaptorDllPath), ...
+                'deviceID',            cfg.deviceID, ...
+                'exposureTime_ms',     cfg.exposureTime_ms, ...
+                'nAverageFrames',      cfg.nAverageFrames, ...
+                'pixelSize_um',        cfg.pixelSize_um, ...
+                'effectivePixelSize_um', cfg.effectivePixelSize_um ...
+            );
+        end
+
+        function loadZaberConfig(obj, config)
+            cfg = config.zaber;
+            obj.zaber = struct( ...
+                'port',      string(cfg.port), ...
+                'axisIndex', cfg.axisIndex, ...
+                'zRange_um', cfg.zRange_um, ...
+                'zStep_um',  cfg.zStep_um ...
             );
         end
     end

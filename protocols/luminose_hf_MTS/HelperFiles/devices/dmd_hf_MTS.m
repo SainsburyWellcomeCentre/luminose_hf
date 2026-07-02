@@ -8,11 +8,12 @@ function dmd_hf_MTS(code)
 %    11  - blank (sent at GetResponse entry to turn off display)
 %    12  - opto pattern
 %
-%   Patterns arm in SLAVE mode and are triggered by the PWM2 rising edge.
-%   Template arms at TrialStart and triggers at DeliverStimTemplate. On a
-%   Match trial, code 9 (Template) is re-sent during Delay to replay the
-%   exact same pattern as the sample; on Non-match, code 10 (Sample) is
-%   sent instead. Code 11 parks mirrors off.
+%   Each code builds (or reuses a cached) frame stack and displays it
+%   immediately in MASTER mode — no external hardware trigger involved.
+%   Code 9 (Template) fires at DeliverStimTemplate. On a Match trial, code 9
+%   is re-sent at DeliverStimMatch to replay the exact same pattern as the
+%   sample; on Non-match, code 10 (Sample) is sent instead. Code 11 parks
+%   mirrors off.
 %
 %   Log: <tempdir>/dmd_hf_MTS_log.txt
 
@@ -130,10 +131,9 @@ function dmd_hf_MTS(code)
     end
 
     cachedSeq.setRepeat(1);
-    dmd.device.projControl(C.ALP_PROJ_MODE, C.ALP_SLAVE);
-    dmd.device.control(C.ALP_TRIGGER_EDGE, C.ALP_EDGE_RISING);
+    dmd.device.projControl(C.ALP_PROJ_MODE, C.ALP_MASTER);
     dmd.device.projStart(cachedSeq);
-    dmd_log(logFile, 'armed in SLAVE mode for %s row %d — waiting for PWM2 trigger', typeName, rowIdx);
+    dmd_log(logFile, 'displaying %s row %d in MASTER mode (immediate)', typeName, rowIdx);
 
     catch ME
         dmd_log(logFile, 'ERROR: %s  at %s line %d', ME.message, ME.stack(1).name, ME.stack(1).line);

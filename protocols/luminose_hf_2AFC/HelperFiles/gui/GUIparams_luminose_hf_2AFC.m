@@ -191,7 +191,7 @@ function GUIparams_luminose_hf_2AFC()
     S.GUIMeta.patternProbs_Left.Hidden = true;
     S.GUI.patternNFrames_Left = [1];
     S.GUIMeta.patternNFrames_Left.Hidden = true;
-    S.GUI.patternExposure_Left = [1e6];
+    S.GUI.patternExposure_Left = [200000];
     S.GUIMeta.patternExposure_Left.Hidden = true;
 
     %% ===== Right =====
@@ -228,7 +228,7 @@ function GUIparams_luminose_hf_2AFC()
     S.GUIMeta.patternProbs_Right.Hidden = true;
     S.GUI.patternNFrames_Right = [1];
     S.GUIMeta.patternNFrames_Right.Hidden = true;
-    S.GUI.patternExposure_Right = [1e6];
+    S.GUI.patternExposure_Right = [200000];
     S.GUIMeta.patternExposure_Right.Hidden = true;
     
     %% OptoStim

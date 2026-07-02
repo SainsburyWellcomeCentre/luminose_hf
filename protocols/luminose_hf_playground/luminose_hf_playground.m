@@ -344,8 +344,7 @@ function [sma, S, actions] = PrepareStateMachine(S, currentTrialType, currentTri
                     startAction{end+1} = 'SoftCode'; startAction{end+1} = 1;
             end
         case 'Pattern'
-            cueAction{end+1} = 'PWM2'; cueAction{end+1} = 255;
-            startAction{end+1} = 'SoftCode'; startAction{end+1} = 8;
+            cueAction{end+1} = 'SoftCode'; cueAction{end+1} = 8;
         case 'Light'
             cueAction{end+1} = 'PWM3'; cueAction{end+1} = S.GUI.Intensity_cue;
         case 'Sound'
@@ -366,8 +365,7 @@ function [sma, S, actions] = PrepareStateMachine(S, currentTrialType, currentTri
                         case 2, chooseState2 = 'DeliverStim';
                     end
                 case 'Pattern'
-                    stimAction{end+1} = 'PWM2'; stimAction{end+1} = 255;
-                    startAction{end+1} = 'SoftCode'; startAction{end+1} = 9;
+                    stimAction{end+1} = 'SoftCode'; stimAction{end+1} = 9;
                     switch S.GUI.TrainingLevel
                         case 1, chooseState2 = 'GetResponse';
                         case 2, chooseState2 = 'GetSniff';
@@ -402,8 +400,7 @@ function [sma, S, actions] = PrepareStateMachine(S, currentTrialType, currentTri
                         case 2, chooseState2 = 'DeliverStim';
                     end
                 case 'Pattern'
-                    stimAction{end+1} = 'PWM2'; stimAction{end+1} = 255;
-                    startAction{end+1} = 'SoftCode'; startAction{end+1} = 10;
+                    stimAction{end+1} = 'SoftCode'; stimAction{end+1} = 10;
                     switch S.GUI.TrainingLevel
                         case 1, chooseState2 = 'GetResponse';
                         case 2, chooseState2 = 'GetSniff';
@@ -565,11 +562,6 @@ function cleanup()
     % Clearing the function releases the persistent dmd handle, allowing
     % the DMD destructor to free the ALP allocation before the next run.
     clear dmd_hf_playground;
-    try
-        BpodSystem.Data = AddFlexIOAnalogData(BpodSystem.Data, 'Volts', 1);
-    catch ME
-        warning('AddFlexIOAnalogData failed (likely truncated on stop): %s', ME.message);
-    end
     BpodSystem.Data.luminose = luminose;
     BpodSystem.ProtocolSettings = S;
     SaveBpodSessionData;

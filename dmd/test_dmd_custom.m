@@ -55,30 +55,30 @@ checker = logical(mod(floor((xx-1)/blockSize) + floor((yy-1)/blockSize), 2));
 dmd.displayFrame(checker);
 pause(3);
 
-%% Test 4: Horizontal gradient (Thresholded to 1-bit)
-fprintf('Test 4: Horizontal gradient (1-bit, 3 seconds)...\n');
-gradient_img = repmat(linspace(0, 1, W), H, 1) > 0.5;
-dmd.displayFrame(gradient_img);
-pause(3);
+% %% Test 4: Horizontal gradient (Thresholded to 1-bit)
+% fprintf('Test 4: Horizontal gradient (1-bit, 3 seconds)...\n');
+% gradient_img = repmat(linspace(0, 1, W), H, 1) > 0.5;
+% dmd.displayFrame(gradient_img);
+% pause(3);
 
-%% Test 5: Multi-frame sequence (sine wave scrolling) at 30 fps
-fprintf('Test 5: Scrolling sine wave sequence (30 fps, 2 seconds)...\n');
-nFrames = 30;
-imgStack = false(H, W, nFrames);
-for f = 1:nFrames
-    phase = 2*pi*(f-1)/nFrames;
-    row_profile = (sin(2*pi*(1:W)/200 + phase) > 0);
-    imgStack(:,:,f) = repmat(row_profile, H, 1);
-end
-dmd.displaySequence(imgStack, 30, 0);  % 0 = infinite loop
-pause(2);
+% %% Test 5: Multi-frame sequence (sine wave scrolling) at 30 fps
+% fprintf('Test 5: Scrolling sine wave sequence (30 fps, 2 seconds)...\n');
+% nFrames = 30;
+% imgStack = false(H, W, nFrames);
+% for f = 1:nFrames
+%     phase = 2*pi*(f-1)/nFrames;
+%     row_profile = (sin(2*pi*(1:W)/200 + phase) > 0);
+%     imgStack(:,:,f) = repmat(row_profile, H, 1);
+% end
+% dmd.displaySequence(imgStack, 30, 0);  % 0 = infinite loop
+% pause(2);
 
-%% Test 6: 8-bit Grayscale (Horizontal Gradient)
-fprintf('Test 6: 8-bit Grayscale Gradient (3 seconds)...\n');
-gradient8 = uint8(repmat(linspace(0, 255, W), H, 1));
-% Pass '8' as the fourth argument to use 8-bit depth
-dmd.displayFrame(gradient8, [], 8);
-pause(3);
+% %% Test 6: 8-bit Grayscale (Horizontal Gradient)
+% fprintf('Test 6: 8-bit Grayscale Gradient (3 seconds)...\n');
+% gradient8 = uint8(repmat(linspace(0, 255, W), H, 1));
+% % Pass '8' as the fourth argument to use 8-bit depth
+% dmd.displayFrame(gradient8, [], 8);
+% pause(3);
 
 %% Test 7: Concentric rings + plus
 fprintf('Test 7: Concentric rings (3 seconds)...\n');
@@ -92,19 +92,19 @@ rings(cy-armHalfWidth:cy+armHalfWidth, :) = true;
 dmd.displayFrame(rings);
 pause(3);
 
-%% Test 7: Concentric rings + plus, fit into top-right quadrant
-fprintf('Test 7: Concentric rings, top-right quadrant (3 seconds)...\n');
-qW = W/2; qH = H/2; armHalfWidth = 50;
-qcx = qW/2; qcy = qH/2;
-[xx, yy] = meshgrid(1:qW, 1:qH);
-r = sqrt((xx-qcx).^2 + (yy-qcy).^2);
-quadrant = logical(mod(floor(r / 50), 2));
-quadrant(:, qcx-armHalfWidth:qcx+armHalfWidth) = true;
-quadrant(qcy-armHalfWidth:qcy+armHalfWidth, :) = true;
-rings = false(H, W);
-rings(H-qH+1:H, 1:qW) = quadrant;
-dmd.displayFrame(rings);
-pause(3);
+% %% Test 7: Concentric rings + plus, fit into top-right quadrant
+% fprintf('Test 7: Concentric rings, top-right quadrant (3 seconds)...\n');
+% qW = W/2; qH = H/2; armHalfWidth = 50;
+% qcx = qW/2; qcy = qH/2;
+% [xx, yy] = meshgrid(1:qW, 1:qH);
+% r = sqrt((xx-qcx).^2 + (yy-qcy).^2);
+% quadrant = logical(mod(floor(r / 50), 2));
+% quadrant(:, qcx-armHalfWidth:qcx+armHalfWidth) = true;
+% quadrant(qcy-armHalfWidth:qcy+armHalfWidth, :) = true;
+% rings = false(H, W);
+% rings(H-qH+1:H, 1:qW) = quadrant;
+% dmd.displayFrame(rings);
+% pause(3);
 
 %% Test 8: Full-resolution checkerboard (every alternate mirror on)
 fprintf('Test 8: Full-resolution checkerboard (3 seconds)...\n');

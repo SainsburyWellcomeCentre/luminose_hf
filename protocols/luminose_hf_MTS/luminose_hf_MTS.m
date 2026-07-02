@@ -327,9 +327,8 @@ function [sma, S, actions] = PrepareStateMachine(S, currentTrialType, currentTri
                 cueAction{end+1} = 'BNC2'; cueAction{end+1} = 1;
                 startAction{end+1} = 'SoftCode'; startAction{end+1} = 1;
             case 'Pattern'
-                cueAction{end+1} = 'PWM2'; cueAction{end+1} = 255;
                 cueAction{end+1} = 'PWM3'; cueAction{end+1} = S.GUI.Intensity_cue; % mask
-                startAction{end+1} = 'SoftCode'; startAction{end+1} = 8;
+                cueAction{end+1} = 'SoftCode'; cueAction{end+1} = 8;
             case 'Light'
                 cueAction{end+1} = 'PWM3'; cueAction{end+1} = S.GUI.Intensity_cue;
             case 'Sound'
@@ -344,7 +343,13 @@ function [sma, S, actions] = PrepareStateMachine(S, currentTrialType, currentTri
         % rows checked for this trial's template row).
         [templateAction, templateCode, templateNeedsSniff, templateRowIdx] = buildTemplateAction(S);
         stimTemplateAction = [stimTemplateAction, templateAction];
-        if templateCode > 0
+        if templateCode == 9
+            % Pattern: SoftCode displays immediately (MASTER mode) —
+            % fire it in the same state as the pattern itself.
+            stimTemplateAction{end+1} = 'SoftCode'; stimTemplateAction{end+1} = templateCode;
+        elseif templateCode > 0
+            % Odour: dispatch ahead of time so the async valve sequence
+            % (parfeval) has lead time before DeliverStimTemplate.
             startAction{end+1} = 'SoftCode'; startAction{end+1} = templateCode;
         end
         if templateNeedsSniff, chooseState2 = 'GetSniffTemplate'; else, chooseState2 = 'DeliverStimTemplate'; end
@@ -358,7 +363,14 @@ function [sma, S, actions] = PrepareStateMachine(S, currentTrialType, currentTri
                 [sampleAction, sampleCode, sampleNeedsSniff] = buildSampleAction(S, templateRowIdx);
         end
         stimMatchAction = [stimMatchAction, sampleAction];
-        if sampleCode > 0
+        if sampleCode == 9 || sampleCode == 10
+            % Pattern (replayed Template code 9 on Match, or Sample code 10
+            % on Non-match): SoftCode displays immediately (MASTER mode) —
+            % fire it in the same state as the pattern itself.
+            stimMatchAction{end+1} = 'SoftCode'; stimMatchAction{end+1} = sampleCode;
+        elseif sampleCode > 0
+            % Odour: dispatch ahead of time so the async valve sequence
+            % (parfeval) has lead time before DeliverStimMatch.
             delayAction = {'SoftCode', sampleCode};
         end
         if sampleNeedsSniff, chooseStateMatch = 'GetSniffMatch'; else, chooseStateMatch = 'DeliverStimMatch'; end
@@ -517,7 +529,7 @@ function [action, code, needsSniff, rowIdx] = buildTemplateAction(S)
             end
             BpodSystem.PluginObjects.SelectedOdourRow.Template = rowIdx;
         case 'Pattern'
-            action = {'PWM2', 255, 'PWM3', S.GUI.Intensity_cue}; % mask
+            action = {'PWM3', S.GUI.Intensity_cue}; % mask
             code = 9;
             needsSniff = true;
             if isfield(BpodSystem.PluginObjects, 'SelectedPatternRow') && ...
@@ -560,7 +572,7 @@ function [action, code, needsSniff] = buildSampleAction(S, templateRowIdx)
             end
             BpodSystem.PluginObjects.SelectedOdourRow.Sample = rowIdx;
         case 'Pattern'
-            action = {'PWM2', 255, 'PWM3', S.GUI.Intensity_cue}; % mask
+            action = {'PWM3', S.GUI.Intensity_cue}; % mask
             code = 10;
             needsSniff = true;
         case 'Light'
@@ -592,11 +604,6 @@ end
 function cleanup()
     global BpodSystem S luminose sniffDetector %#ok<NUSED>
     clear dmd_hf_MTS;
-    try
-        BpodSystem.Data = AddFlexIOAnalogData(BpodSystem.Data, 'Volts', 1);
-    catch ME
-        warning('AddFlexIOAnalogData failed (likely truncated on stop): %s', ME.message);
-    end
     BpodSystem.Data.luminose = luminose;
     BpodSystem.ProtocolSettings = S;
     SaveBpodSessionData;

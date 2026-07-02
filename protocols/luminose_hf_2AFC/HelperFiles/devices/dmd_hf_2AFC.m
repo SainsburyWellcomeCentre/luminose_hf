@@ -8,16 +8,17 @@ function dmd_hf_2AFC(code)
 %    11  - blank (sent at GetResponse entry to turn off display)
 %    12  - opto pattern
 %
-%   All patterns arm in SLAVE mode at TrialStart and are triggered by the
-%   PWM2 rising edge at DeliverStim.  Code 11 parks mirrors off.
+%   Each code builds (or reuses a cached) frame stack and displays it
+%   immediately in MASTER mode — no external hardware trigger involved.
+%   Code 11 parks mirrors off.
 %
-%   Log: <tempdir>/dmd_hf_2AFC_log.txt
+%   Log: <luminose_hf repo root>/dmd_hf_2AFC_log.txt
 
     persistent dmd blankSeq cueSeq cueKey leftSeq leftKey rightSeq rightKey optoSeq optoKey
 
     global S luminose BpodSystem
 
-    logFile = fullfile(char(tempdir), 'dmd_hf_2AFC_log.txt');
+    logFile = fullfile(char(luminose.f.luminose_hf), 'dmd_hf_2AFC_log.txt');
 
     try
 
@@ -127,10 +128,9 @@ function dmd_hf_2AFC(code)
     end
 
     cachedSeq.setRepeat(1);
-    dmd.device.projControl(C.ALP_PROJ_MODE, C.ALP_SLAVE);
-    dmd.device.control(C.ALP_TRIGGER_EDGE, C.ALP_EDGE_RISING);
+    dmd.device.projControl(C.ALP_PROJ_MODE, C.ALP_MASTER);
     dmd.device.projStart(cachedSeq);
-    dmd_log(logFile, 'armed in SLAVE mode for %s row %d — waiting for PWM2 trigger', typeName, rowIdx);
+    dmd_log(logFile, 'displaying %s row %d in MASTER mode (immediate)', typeName, rowIdx);
 
     catch ME
         dmd_log(logFile, 'ERROR: %s  at %s line %d', ME.message, ME.stack(1).name, ME.stack(1).line);

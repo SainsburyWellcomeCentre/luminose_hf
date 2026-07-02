@@ -5,9 +5,9 @@ function dmd_hf_sleep(code)
 %     9  - CS+ pattern (imgIdx_CSplus, exposure_CSplus, nFrames_CSplus)
 %    10  - CS- pattern (imgIdx_CSminus,exposure_CSminus,nFrames_CSminus)
 %
-%   nFrames == 1: single BMP, slave mode (BNC trigger).
-%   nFrames  > 1: designed pattern, in-memory generation.
-%                 Random spots get new positions each trial; all-fixed cached.
+%   Each code builds (or reuses a cached) frame stack and displays it
+%   immediately in MASTER mode — no external hardware trigger involved.
+%   Random spots get new positions each trial; all-fixed cached.
 
     persistent dmd plusSeq plusKey minusSeq minusKey optoSeq optoKey
     global S luminose BpodSystem
@@ -116,9 +116,11 @@ function dmd_hf_sleep(code)
                 setCache(code, cachedSeq, key, plusSeq, plusKey, minusSeq, minusKey);
         end
     end
-    dmd.device.projControl(C.ALP_PROJ_MODE, C.ALP_SLAVE);
-    dmd.device.control(C.ALP_TRIGGER_EDGE, C.ALP_EDGE_RISING);
+    dmd.halt();
+    cachedSeq.setRepeat(1);
+    dmd.device.projControl(C.ALP_PROJ_MODE, C.ALP_MASTER);
     dmd.device.projStart(cachedSeq);
+    fprintf('dmd_hf_sleep: displaying %s row %d in MASTER mode (immediate)\n', typeName, rowIdx);
 end
 
 function seq = allocFrameStack(dmd, frameStack, illuTime_us)

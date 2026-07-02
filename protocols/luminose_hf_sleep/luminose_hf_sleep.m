@@ -261,14 +261,7 @@ function [sma, S, actions] = PrepareStateMachine(S, trialTypes, currentTrial, st
     sniffAction = {'RotaryEncoder1', '*Z'};
     stimAction = {'BNC1', 1};
     if S.GUI.TestPulses
-        switch trialTypes(currentTrial)
-            case 1
-                startAction{end+1} = 'SoftCode'; startAction{end+1} = 9;
-            case 2
-                startAction{end+1} = 'SoftCode'; startAction{end+1} = 10;
-        end
         stimAction{end+1} = 'SoftCode'; stimAction{end+1} = 12;
-        stimAction{end+1} = 'PWM2'; stimAction{end+1} = 255;
         stimAction{end+1} = 'PWM3'; stimAction{end+1} = S.GUI.Intensity_mask;
         chooseState1 = 'GetSniff';
         trialStartTimer = ITI(currentTrial);
@@ -346,11 +339,6 @@ end
 %% Cleanup
 function cleanup()
     global BpodSystem S luminose sniffDetector %#ok<NUSED>
-    try
-        BpodSystem.Data = AddFlexIOAnalogData(BpodSystem.Data, 'Volts', 1);
-    catch ME
-        warning('AddFlexIOAnalogData failed (likely truncated on stop): %s', ME.message);
-    end
     BpodSystem.Data.luminose = luminose;
     BpodSystem.ProtocolSettings = S;
     SaveBpodSessionData;

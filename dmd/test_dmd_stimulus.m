@@ -190,7 +190,7 @@ while true
     if ps == double(C2.ALP_PROJ_IDLE)
         break;
     end
-    if toc(deadline) > totalDur_s + 5
+    if toc(deadline) > totalDur_s + 15
         fprintf('WARNING: sequence did not complete within expected time. Halting.\n');
         dmd.halt();
         break;

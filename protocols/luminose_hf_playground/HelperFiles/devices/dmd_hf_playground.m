@@ -7,6 +7,9 @@ function dmd_hf_playground(code)
 %    10  - Right pattern (concentric rings)
 %    11  - blank (called at GetResponse entry to turn off display)
 %
+%   Codes 8/9/10 build (or reuse a cached) frame stack and display it
+%   immediately in MASTER mode — no external hardware trigger involved.
+%
 %   All errors and status messages are written to:
 %     <tempdir>/dmd_hf_playground_log.txt
 
@@ -152,10 +155,9 @@ function dmd_hf_playground(code)
     end
 
     cachedSeq.setRepeat(1);
-    dmd.device.projControl(C.ALP_PROJ_MODE, C.ALP_SLAVE);
-    dmd.device.control(C.ALP_TRIGGER_EDGE, C.ALP_EDGE_RISING);
+    dmd.device.projControl(C.ALP_PROJ_MODE, C.ALP_MASTER);
     dmd.device.projStart(cachedSeq);
-    dmd_log(logFile, 'armed in SLAVE mode for %s — waiting for PWM2 trigger', typeName);
+    dmd_log(logFile, 'displaying %s in MASTER mode (immediate)', typeName);
 
     catch ME
         dmd_log(logFile, 'ERROR: %s  at %s line %d', ME.message, ME.stack(1).name, ME.stack(1).line);

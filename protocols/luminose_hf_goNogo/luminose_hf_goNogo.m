@@ -312,9 +312,8 @@ function [sma, S, actions] = PrepareStateMachine(S, currentTrialType, currentTri
             cueAction{end+1} = 'BNC2'; cueAction{end+1} = 1;
             startAction{end+1} = 'SoftCode'; startAction{end+1} = 1;
         case 'Pattern'
-            cueAction{end+1} = 'PWM2'; cueAction{end+1} = 255;
-            cueAction{end+1} = 'PWM3'; cueAction{end+1} = S.GUI.Intensity_cue; % mask 
-            startAction{end+1} = 'SoftCode'; startAction{end+1} = 8;
+            cueAction{end+1} = 'PWM3'; cueAction{end+1} = S.GUI.Intensity_cue; % mask
+            cueAction{end+1} = 'SoftCode'; cueAction{end+1} = 8;
         case 'Light'
             cueAction{end+1} = 'PWM3'; cueAction{end+1} = S.GUI.Intensity_cue;
         case 'Sound'
@@ -330,9 +329,8 @@ function [sma, S, actions] = PrepareStateMachine(S, currentTrialType, currentTri
                     startAction{end+1} = 'SoftCode'; startAction{end+1} = 2;
                     chooseState2 = 'DeliverStim';
                 case 'Pattern'
-                    stimAction{end+1} = 'PWM2'; stimAction{end+1} = 255;
-                    stimAction{end+1} = 'PWM3'; stimAction{end+1} = S.GUI.Intensity_cue; % mask 
-                    startAction{end+1} = 'SoftCode'; startAction{end+1} = 9;
+                    stimAction{end+1} = 'PWM3'; stimAction{end+1} = S.GUI.Intensity_cue; % mask
+                    stimAction{end+1} = 'SoftCode'; stimAction{end+1} = 9;
                     chooseState2 = 'GetSniff';
                     responseAction{end+1} = 'SoftCode'; responseAction{end+1} = 11;
                 case 'Light'
@@ -350,9 +348,8 @@ function [sma, S, actions] = PrepareStateMachine(S, currentTrialType, currentTri
                     startAction{end+1} = 'SoftCode'; startAction{end+1} = 3;
                     chooseState2 = 'DeliverStim';
                 case 'Pattern'
-                    stimAction{end+1} = 'PWM2'; stimAction{end+1} = 255;
-                    stimAction{end+1} = 'PWM3'; stimAction{end+1} = S.GUI.Intensity_cue; % mask 
-                    startAction{end+1} = 'SoftCode'; startAction{end+1} = 10;
+                    stimAction{end+1} = 'PWM3'; stimAction{end+1} = S.GUI.Intensity_cue; % mask
+                    stimAction{end+1} = 'SoftCode'; stimAction{end+1} = 10;
                     chooseState2 = 'GetSniff';
                     responseAction{end+1} = 'SoftCode'; responseAction{end+1} = 11;
                 case 'Light'
@@ -470,11 +467,6 @@ end
 function cleanup()
     global BpodSystem S luminose sniffDetector %#ok<NUSED>
     clear dmd_hf_goNogo;
-    try
-        BpodSystem.Data = AddFlexIOAnalogData(BpodSystem.Data, 'Volts', 1);
-    catch ME
-        warning('AddFlexIOAnalogData failed (likely truncated on stop): %s', ME.message);
-    end
     BpodSystem.Data.luminose = luminose;
     BpodSystem.ProtocolSettings = S;
     SaveBpodSessionData;
