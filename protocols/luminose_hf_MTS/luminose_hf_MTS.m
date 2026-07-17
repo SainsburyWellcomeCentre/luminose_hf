@@ -1,4 +1,3 @@
-function luminose_hf_MTS
     %% clear & setup
     clc;
     warning('off', 'MATLAB:HandleGraphics:ObsoleteProperty:JavaFrame');
@@ -170,6 +169,7 @@ function luminose_hf_MTS
             if handle_pause_condition(H, R); break; end
 
             if currentTrial < S.GUI.maxTrials
+                BpodSystem.Data.TrialTypes(currentTrial) = currentTrialType;
                 nextTrialType = getNextTrialType_hf_MTS(BpodSystem.Data, S);
                 [sma, S, nextActions] = PrepareStateMachine(S, nextTrialType, currentTrial+1, ITI);
                 disp(['Session: ', sessionStart, ' | Trial: ', num2str(currentTrial)]);
@@ -278,7 +278,7 @@ function luminose_hf_MTS
         end
     end
     cleanup;
-end
+
 
 %% State machine
 function [sma, S, actions] = PrepareStateMachine(S, currentTrialType, currentTrial, ITI)
