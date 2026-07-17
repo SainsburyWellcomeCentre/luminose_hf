@@ -181,13 +181,13 @@ function GUIparams_luminose_hf_MTS()
     S.GUI.LowFreq_Template = 4;
     S.GUIMeta.LowFreq_Template.Label = 'Low Freq (Hz)';
     % == Odour ==
-    S.GUI.valves_Template = [12; 16; 7];
+    S.GUI.valves_Template = [3; 4; 7; 9; 10; 12; 13; 16];
     S.GUIMeta.valves_Template.Style = 'odour_selector';
     S.GUIMeta.valves_Template.ProbParam = 'probs_Template';
     S.GUIMeta.valves_Template.DutyParam = 'dutyCycles_Template';
     S.GUIMeta.valves_Template.Label = 'Valves';
-    S.GUI.dutyCycles_Template = [1; 1; 1];
-    S.GUI.probs_Template = [1/3; 1/3; 1/3];
+    S.GUI.dutyCycles_Template = ones(8, 1);
+    S.GUI.probs_Template = ones(8, 1) / 8;
     % == Pattern ==
     S.GUI.patternSel_Template = 0;
     S.GUIMeta.patternSel_Template.Style = 'pattern_selector';
@@ -227,14 +227,17 @@ function GUIparams_luminose_hf_MTS()
     % checked means that sample row is a valid Non-match follow-up for that
     % template. On a Non-match trial, the delivered row is drawn uniformly
     % among the rows checked for whichever template row was selected.
-    S.GUI.valves_Sample = [15; 3; 6];
+    S.GUI.valves_Sample = [3; 4; 7; 9; 10; 12; 13; 16];
     S.GUIMeta.valves_Sample.Style = 'odour_selector_conditional';
     S.GUIMeta.valves_Sample.DutyParam = 'dutyCycles_Sample';
     S.GUIMeta.valves_Sample.MaskParam = 'templateMask_Sample';
     S.GUIMeta.valves_Sample.Label = 'Valves';
-    S.GUI.dutyCycles_Sample = [1; 1; 1];
-    S.GUI.templateMask_Sample = false(3, 8); % rows=sample options, cols=template rows (up to MAX_TEMPLATE_COLS)
-    S.GUI.templateMask_Sample(1, 1) = true; S.GUI.templateMask_Sample(2, 2) = true; S.GUI.templateMask_Sample(3, 3) = true; 
+    S.GUI.dutyCycles_Sample = ones(8, 1);
+    % rows=sample options, cols=template rows; every sample odour is a valid
+    % Non-match follow-up for every template except itself (same-row/same-
+    % odour pairing is excluded so a "Non-match" trial can never accidentally
+    % deliver the same odour as the template).
+    S.GUI.templateMask_Sample = ~eye(8);
     S.GUIMeta.templateMask_Sample.Hidden = true;
     % == Pattern ==
     S.GUI.patternSel_Sample = 0;

@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//mnt/c/Users/harrislab/MATLAB/DMDController/examples/**)",
+      "Read(//mnt/c/Users/harrislab/MATLAB/DMDController/+DMDController/**)"
+    ]
+  }
+}

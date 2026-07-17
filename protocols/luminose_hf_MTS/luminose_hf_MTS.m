@@ -304,14 +304,14 @@ function [sma, S, actions] = PrepareStateMachine(S, currentTrialType, currentTri
     response = S.GUIMeta.ResponseType.String{S.GUI.ResponseType};
 
     startAction = {'BNC1', 1, 'HiFi1', '*', 'RotaryEncoder1', ['#' 0], 'AnalogThreshEnable', 1};
-    cueAction = {'RotaryEncoder1', '*Z'};
+    cueAction = {'RotaryEncoder1', '*Z'}; % one-shot, fired only at Template onset
+    cueHoldAction = {}; % level output re-asserted every state so it doesn't drop out
     stimTemplateAction = {'BNC1', 1}; % sync
     stimMatchAction = {'BNC1', 1}; % sync
     delayAction = {};
     isPatternResponse = false;
     isHabituation = isfield(S.GUI, 'TrainingLevel') && (S.GUI.TrainingLevel == 1);
     if isHabituation
-        CueTime = 0;
         chooseState2 = 'GetResponse';
         chooseStateMatch = 'GetResponse';
         tupAction = 'GetResponse';
@@ -322,16 +322,15 @@ function [sma, S, actions] = PrepareStateMachine(S, currentTrialType, currentTri
                 rightAction = 'Reward'; leftAction = 'GetResponse';
         end
     else
-        CueTime = S.GUI.CueTime;
         switch cue
             case 'Odour'
-                cueAction{end+1} = 'BNC2'; cueAction{end+1} = 1;
+                cueHoldAction = {'BNC2', 1};
                 startAction{end+1} = 'SoftCode'; startAction{end+1} = 1;
             case 'Pattern'
-                cueAction{end+1} = 'PWM3'; cueAction{end+1} = S.GUI.Intensity_cue; % mask
+                cueHoldAction = {'PWM3', S.GUI.Intensity_cue}; % mask
                 cueAction{end+1} = 'SoftCode'; cueAction{end+1} = 8;
             case 'Light'
-                cueAction{end+1} = 'PWM3'; cueAction{end+1} = S.GUI.Intensity_cue;
+                cueHoldAction = {'PWM3', S.GUI.Intensity_cue};
             case 'Sound'
                 cueAction{end+1} = 'HiFi1'; cueAction{end+1} = ['P', 1];
         end
@@ -343,7 +342,12 @@ function [sma, S, actions] = PrepareStateMachine(S, currentTrialType, currentTri
         % drawn via buildSampleAction (for Odour, restricted to the Sample
         % rows checked for this trial's template row).
         [templateAction, templateCode, templateNeedsSniff, templateRowIdx] = buildTemplateAction(S);
-        stimTemplateAction = [stimTemplateAction, templateAction];
+        % Cue turns on here (Template onset) rather than in a separate
+        % leading state. cueHoldAction (the level-type output — BNC2 for
+        % Odour, PWM3 for Light/Pattern) is explicitly re-asserted in Delay
+        % and Sample below too, since Bpod does not reliably hold it across
+        % states on its own.
+        stimTemplateAction = [stimTemplateAction, cueAction, cueHoldAction, templateAction];
         if templateCode == 9
             % Pattern: SoftCode displays immediately (MASTER mode) —
             % fire it in the same state as the pattern itself.
@@ -363,7 +367,8 @@ function [sma, S, actions] = PrepareStateMachine(S, currentTrialType, currentTri
             case 2 % Non-match
                 [sampleAction, sampleCode, sampleNeedsSniff] = buildSampleAction(S, templateRowIdx);
         end
-        stimMatchAction = [stimMatchAction, sampleAction];
+        stimMatchAction = [stimMatchAction, cueHoldAction, sampleAction];
+        delayAction = [delayAction, cueHoldAction];
         if sampleCode == 9 || sampleCode == 10
             % Pattern (replayed Template code 9 on Match, or Sample code 10
             % on Non-match): SoftCode displays immediately (MASTER mode) —
@@ -373,7 +378,7 @@ function [sma, S, actions] = PrepareStateMachine(S, currentTrialType, currentTri
         elseif sampleCode > 0
             % Odour: dispatch ahead of time so the async valve sequence
             % (parfeval) has lead time before DeliverStimMatch.
-            delayAction = {'SoftCode', sampleCode};
+            delayAction = [delayAction, {'SoftCode', sampleCode}];
         end
         if sampleNeedsSniff, chooseStateMatch = 'GetSniffMatch'; else, chooseStateMatch = 'DeliverStimMatch'; end
 
@@ -447,12 +452,8 @@ function [sma, S, actions] = PrepareStateMachine(S, currentTrialType, currentTri
     end
     sma = AddState(sma, 'Name', 'TrialStart', ...
         'Timer', ITI(currentTrial)/2, ...
-        'StateChangeConditions', {'Tup', 'ShowCue'}, ...
-        'OutputActions', startAction);
-    sma = AddState(sma, 'Name', 'ShowCue', ...
-        'Timer', CueTime, ...
         'StateChangeConditions', {'Tup', chooseState1}, ...
-        'OutputActions', cueAction);
+        'OutputActions', startAction);
     sma = AddState(sma, 'Name', 'InitRE', ...
         'Timer', 0.2, ...
         'StateChangeConditions', {'RotaryEncoder1_3', chooseState2, 'RotaryEncoder1_4', chooseState2}, ...
@@ -472,7 +473,7 @@ function [sma, S, actions] = PrepareStateMachine(S, currentTrialType, currentTri
     sma = AddState(sma, 'Name', 'GetSniffMatch', ...
         'Timer', 0, ...
         'StateChangeConditions', {'Flex1Trig1', 'DeliverStimMatch'}, ...
-        'OutputActions', {'PWM3', S.GUI.Intensity_cue});
+        'OutputActions', [{'PWM3', S.GUI.Intensity_cue}, cueHoldAction]);
     sma = AddState(sma, 'Name', 'DeliverStimMatch', ...
         'Timer', S.GUI.StimTime, ...
         'StateChangeConditions', {'Tup', 'GetResponse'}, ...
@@ -500,7 +501,6 @@ function [sma, S, actions] = PrepareStateMachine(S, currentTrialType, currentTri
 
     actions = struct();
     actions.TrialStart         = startAction;
-    actions.ShowCue            = cueAction;
     actions.DeliverStimTemplate = stimTemplateAction;
     actions.DeliverStimMatch   = stimMatchAction;
     actions.GetResponse        = responseAction;

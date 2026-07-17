@@ -2,6 +2,10 @@ function olfactometer_hf_MTS(code)
 
     global S luminose olfModel BpodSystem
 
+    logFile = fullfile(char(tempdir), 'olfactometer_hf_MTS_log.txt');
+
+    try
+
     if isempty(olfModel)
         olfModel = OlfactometerModel(luminose.olfactometer, true);
     end
@@ -46,4 +50,18 @@ function olfactometer_hf_MTS(code)
     types = {'cue', 'Template', 'Sample'};
     S.GUI.delivered_odours.(types{code}) = odour_valves;
     S.GUI.delivered_dutyCycles.(types{code}) = duty_cycles;
+
+    catch ME
+        olf_log(logFile, 'ERROR code=%d: %s  at %s line %d', ...
+            code, ME.message, ME.stack(1).name, ME.stack(1).line);
+    end
+end
+
+function olf_log(logFile, fmt, varargin)
+    fid = fopen(logFile, 'a');
+    if fid < 0, return; end
+    fprintf(fid, '[%s] ', datestr(now, 'HH:MM:SS'));
+    fprintf(fid, fmt, varargin{:});
+    fprintf(fid, '\n');
+    fclose(fid);
 end

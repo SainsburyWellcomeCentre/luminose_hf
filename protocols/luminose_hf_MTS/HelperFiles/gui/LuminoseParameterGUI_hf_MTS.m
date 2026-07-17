@@ -688,14 +688,10 @@ function varargout = LuminoseParameterGUI_hf_MTS(varargin)
             currentTemplateType = Meta.TemplateType.String{Params.GUI.TemplateType};
             currentSampleType = Meta.SampleType.String{Params.GUI.SampleType};
             if strcmp(currentTemplateType, 'Odour') || strcmp(currentSampleType, 'Odour')
-                nRows = 1;
-                odourParams = {'valves_cue', 'valves_Template', 'valves_Sample'};
-                for iO = 1:numel(odourParams)
-                    if isfield(Params.GUI, odourParams{iO})
-                        nRows = max(nRows, size(Params.GUI.(odourParams{iO}), 1));
-                    end
-                end
-                Params.GUI.StimTime = nRows * (0.001 + 1 + 0.001);
+                % Each trial delivers exactly one (probability-weighted) row
+                % from the odour table, never all configured rows, so the
+                % stim duration is always a single delivery slot.
+                Params.GUI.StimTime = 0.001 + 1 + 0.001;
                 if isfield(BpodSystem.GUIData.ParameterGUI, 'ParamIndexByName') && ...
                    isfield(BpodSystem.GUIData.ParameterGUI.ParamIndexByName, 'StimTime')
                     stimIdx = BpodSystem.GUIData.ParameterGUI.ParamIndexByName.StimTime;
