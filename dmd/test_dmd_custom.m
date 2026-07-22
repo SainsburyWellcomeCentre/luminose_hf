@@ -37,6 +37,16 @@ fprintf('  PCB temperature      : %.1f C\n\n', temps.pcb);
 W = double(info.width);   % 2560
 H = double(info.height);  % 1600
 
+%% Single pixel lines
+img = zeros(H, W, 'uint8');
+cRow = round(H/2);  cCol = round(W/2);
+for off = [-3, 0, 2]
+    img(cRow + off, :) = 255;
+    img(:, cCol + off) = 255;
+end
+dmd.displayFrame(img);
+pause(0.5);
+
 %% Test 1: All-white
 fprintf('Test 1: All-white frame (2 seconds)...\n');
 dmd.on();
