@@ -1,59 +1,33 @@
-function olfactometer_hf_MTS(code)
+function olfactometer_hf_MTS(odour_valves, duty_cycles, olfConstants)
+% olfactometer_hf_MTS  Runs on a dedicated persistent parfeval worker (see
+% luminose_hf_MTS.m's pool warm-up). odour_valves/duty_cycles are resolved
+% and passed in by SoftCodeHandler_luminose_hf_MTS.m in the client process;
+% this function only performs the blocking hardware call. olfModel is
+% intentionally worker-local and lazily created once, then reused for the
+% rest of the session by every call that lands on this same worker.
 
-    global S luminose olfModel BpodSystem
+    global olfModel
 
-    logFile = fullfile(char(tempdir), 'olfactometer_hf_MTS_log.txt');
+    logFile = fullfile(fileparts(mfilename('fullpath')), 'olfactometer_hf_MTS_log.txt');
 
     try
 
     if isempty(olfModel)
-        olfModel = OlfactometerModel(luminose.olfactometer, true);
+        olfModel = OlfactometerModel(olfConstants, true);
     end
 
-    % Define label and other parameters by SoftCode value
-    switch code
-        case 1  % Cue
-            if length(S.GUI.probs_cue) > 1
-                idx = randsample(size(S.GUI.valves_cue, 1), 1, true, S.GUI.probs_cue);
-                odour_valves = S.GUI.valves_cue(idx, :);
-                duty_cycles = S.GUI.dutyCycles_cue(idx, :);
-            else
-                odour_valves = S.GUI.valves_cue;
-                duty_cycles = S.GUI.dutyCycles_cue;
-            end
-
-        case 2  % Template — row index drawn ahead of time in PrepareStateMachine
-            % (buildTemplateAction), so the same row gets replayed on Match
-            % trials when this code fires a second time during Delay.
-            idx = BpodSystem.PluginObjects.SelectedOdourRow.Template;
-            odour_valves = S.GUI.valves_Template(idx, :);
-            duty_cycles = S.GUI.dutyCycles_Template(idx, :);
-
-        case 3  % Sample — row index drawn in PrepareStateMachine
-            % (buildSampleAction) from the Sample rows checked for the
-            % trial's template row.
-            idx = BpodSystem.PluginObjects.SelectedOdourRow.Sample;
-            odour_valves = S.GUI.valves_Sample(idx, :);
-            duty_cycles = S.GUI.dutyCycles_Sample(idx, :);
-
-        otherwise
-            disp(['Unknown SoftCode received: ' num2str(code)]);
-            return;
+    if isempty(odour_valves)
+        return; % warm-up call: only used to lazily create olfModel above
     end
 
     if duty_cycles == 0
         duty_cycles = olfModel.get_odour_dutycycles(odour_valves);
     end
-    % Run olfactometer sequence
     olfModel.play_valve_sequence(odour_valves, duty_cycles);
 
-    types = {'cue', 'Template', 'Sample'};
-    S.GUI.delivered_odours.(types{code}) = odour_valves;
-    S.GUI.delivered_dutyCycles.(types{code}) = duty_cycles;
-
     catch ME
-        olf_log(logFile, 'ERROR code=%d: %s  at %s line %d', ...
-            code, ME.message, ME.stack(1).name, ME.stack(1).line);
+        olf_log(logFile, 'ERROR valves=%s: %s  at %s line %d', ...
+            mat2str(odour_valves), ME.message, ME.stack(1).name, ME.stack(1).line);
     end
 end
 

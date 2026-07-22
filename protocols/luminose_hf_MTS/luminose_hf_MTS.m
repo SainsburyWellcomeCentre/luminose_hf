@@ -6,6 +6,22 @@
     luminose = LuminoseConstants();
     beep('off'); % native matlab error sounds OFF
     BpodSystem.SoftCodeHandlerFunction = 'SoftCodeHandler_luminose_hf_MTS';
+
+    % Odour delivery (olfactometer_hf_MTS.m) runs on a parfeval worker so it
+    % doesn't block the state-machine dispatch thread while it arms the DAQ
+    % and waits (up to DigitalTriggerTimeout) for its external trigger. It
+    % must always be the SAME single worker: a size>1 pool risks two worker
+    % processes racing for the one physical NI-DAQ session, and a cold/never
+    % -used worker pays session-creation latency inline, which can eat past
+    % the trial's external-trigger window and silently time out. Force a
+    % dedicated single-worker pool and pre-warm its OlfactometerModel/DAQ
+    % session now, before any trial can dispatch a softcode.
+    pool = gcp('nocreate');
+    if isempty(pool) || pool.NumWorkers ~= 1
+        if ~isempty(pool), delete(pool); end
+        pool = parpool(1);
+    end
+    wait(parfeval(pool, @olfactometer_hf_MTS, 0, [], [], luminose.olfactometer));
     [dataDir, dataBasename, ~] = fileparts(BpodSystem.Path.CurrentDataFile);
     log_file = fullfile(dataDir, [regexprep(dataBasename, '_Session\d+$', '') '_log.txt']);
     diary(log_file);
@@ -473,7 +489,7 @@ function [sma, S, actions] = PrepareStateMachine(S, currentTrialType, currentTri
     sma = AddState(sma, 'Name', 'GetSniffMatch', ...
         'Timer', 0, ...
         'StateChangeConditions', {'Flex1Trig1', 'DeliverStimMatch'}, ...
-        'OutputActions', [{'PWM3', S.GUI.Intensity_cue}, cueHoldAction]);
+        'OutputActions', cueHoldAction);
     sma = AddState(sma, 'Name', 'DeliverStimMatch', ...
         'Timer', S.GUI.StimTime, ...
         'StateChangeConditions', {'Tup', 'GetResponse'}, ...
@@ -608,7 +624,6 @@ end
 
 function cleanup()
     global BpodSystem S luminose sniffDetector %#ok<NUSED>
-    clear dmd_hf_MTS;
     BpodSystem.Data.luminose = luminose;
     BpodSystem.ProtocolSettings = S;
     SaveBpodSessionData;
